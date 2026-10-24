@@ -395,7 +395,7 @@ function fenceUI() {
   const top = $('#fence-panel');
   top.innerHTML = '';
   const s = document.createElement('div');
-  s.innerHTML = `<div class="field"><label>Fence type</label><div class="fam-list" id="fence-sw"></div></div>
+  s.innerHTML = `<div class="field"><label>Fence type</label><div class="swatches" id="fence-sw"></div></div>
     <div class="hint">Drag on the plan to draw a fence — any length, along grid lines.<br>
     Gates are openings you can walk through. Delete tool removes fence segments.</div>`;
   top.appendChild(s);
@@ -406,9 +406,9 @@ function fenceUI() {
     b.className = 'sw fence-sw' + (HP.fenceType === id ? ' active' : '');
     b.title = f.name;
     const cv = document.createElement('canvas');
-    cv.width = 64; cv.height = 40;
+    cv.width = 108; cv.height = 66;
     const g = cv.getContext('2d');
-    g.translate(4, 20); g.scale(2, 1);                  // draw a 1-cell sample run
+    g.translate(6, 40); g.scale(3.4, 3.4);              // draw a 1-cell sample run
     HP.drawFenceSeg(g, { d: 'h', x: 0, y: 0 }, { t: id, c: f.c, post: f.post });
     b.appendChild(cv);
     const nm = document.createElement('i');

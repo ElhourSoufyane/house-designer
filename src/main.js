@@ -1774,7 +1774,7 @@ function drawWindow(g, s, t) {
    thick band + face pattern + protruding posts + soft drop shadow.
    Local coords: segment runs along +x for length C, centred on y=0. */
 function drawFenceSeg(g, s, f) {
-  const C = HP.CELL, L = C, Ht = C * 0.34, hb = Ht / 2;
+  const C = HP.CELL, L = C, Ht = C * 0.42, hb = Ht / 2;
   g.save();
   g.translate(s.x * C, s.y * C);
   if (s.d === 'v') g.rotate(Math.PI / 2);          // v segs run down; draw along x
