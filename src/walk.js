@@ -194,6 +194,30 @@ function seatSpots(it) {
   }
   return spots;
 }
+/* closest point on an item's footprint (world px) — what you actually reach */
+function closestOnItem(px, py, it) {
+  const C = HP.CELL, f = HP.footprint(it);
+  return {
+    x: Math.min(Math.max(px / C, f.x), f.x + f.w) * C,
+    y: Math.min(Math.max(py / C, f.y), f.y + f.h) * C
+  };
+}
+/* line of sight: step cell-to-cell along the segment; any solid wall
+   (incl. closed doors & blocking fences) crossed = can't use it */
+function clearShot(x0, y0, x1, y1) {
+  const C = HP.CELL;
+  const steps = Math.max(1, Math.ceil(Math.hypot(x1 - x0, y1 - y0) / (C * 0.25)));
+  let lx = Math.floor(x0 / C), ly = Math.floor(y0 / C);
+  for (let i = 1; i <= steps; i++) {
+    const t = i / steps;
+    const cx = Math.floor((x0 + (x1 - x0) * t) / C);
+    const cy = Math.floor((y0 + (y1 - y0) * t) / C);
+    if (cx !== lx && solidBetween(lx, ly, cx, ly)) return false;
+    if (cy !== ly && solidBetween(lx, ly, lx, cy)) return false;
+    lx = cx; ly = cy;
+  }
+  return true;
+}
 function nearestUse() {
   if (sitting) return { kind: 'stand', label: 'Stand up' };
   const C = HP.CELL, lvl = HP.cur();
@@ -207,18 +231,22 @@ function nearestUse() {
       const p = HP.parseWallKey(k);
       const mx = (p.d === 'h' ? p.x + 0.5 : p.x) * C, my = (p.d === 'h' ? p.y : p.y + 0.5) * C;
       const d = Math.hypot(mx - px, my - py);
-      if (d < bd) { bd = d; best = { kind: 'door', key: k, label: (s.c ? 'Open' : 'Close') + ' door' }; }
+      if (d < bd && clearShot(px, py, mx, my)) { bd = d; best = { kind: 'door', key: k, label: (s.c ? 'Open' : 'Close') + ' door' }; }
     }
   }
   for (const it of lvl.furniture) {
     const sk = HP.seatKind(it.type);
     if (sk && distToItem(px, py, it) < bd) {
+      const p = closestOnItem(px, py, it);
+      if (!clearShot(px, py, p.x, p.y)) continue;
       bd = distToItem(px, py, it);
       const def = HP.itemDef(it.type);
       best = { kind: 'sit', it, label: (sk === 'lie' ? 'Lie on ' : 'Sit on ') + def.name };
       continue;
     }
     if (HP.isLamp(it.type) && distToItem(px, py, it) < bd) {
+      const p = closestOnItem(px, py, it);
+      if (!clearShot(px, py, p.x, p.y)) continue;
       bd = distToItem(px, py, it);
       const def = HP.itemDef(it.type);
       best = { kind: 'lamp', it, label: (it.on ? 'Turn off ' : 'Turn on ') + def.name };
