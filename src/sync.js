@@ -128,13 +128,25 @@ function applyState(msg, fromConn) {
   /* no rev comparison — clocks differ across devices and a skewed clock
      would silently drop a partner's edits. States can't echo back
      (applying=true blocks rebroadcast), so latest-arrival wins safely. */
+  /* snapshot local UI refs BEFORE swapping state — remote edits must not
+     wipe the local user's in-progress work (placement ghost, open panels) */
+  const selId = HP.selected && HP.selected.id;   // ref into the OLD state — re-find below
+  const keepRoom = HP.selectedRoom;              // {cx,cy} — roomUI re-resolves or drops it
   HP.pushUndoSnap(HP.snap());                    // remote edits join the shared undo timeline
   applying = true;
   rev = msg.rev;
   HP.state = HP.migrate(msg.state);
   HP.state.level = Math.min(HP.state.level, HP.state.levels.length - 1);
   HP.nextId = Math.max(HP.nextId || 0, msg.nextId || 0);
-  HP.selected = HP.pending = HP.ghost = HP.selectedRoom = null;
+  /* pending + ghost stay untouched — a local placement in flight continues.
+     selected is re-resolved by id (its panel stays open, content refreshes).
+     If the partner deleted that item, selection simply clears. */
+  HP.selected = null;
+  if (selId != null) outer:
+  for (const lvl of HP.state.levels)
+    for (const it of lvl.furniture)
+      if (it.id === selId) { HP.selected = it; break outer; }
+  HP.selectedRoom = keepRoom;
   HP.invalidateRegions(); HP.refreshContext(); HP.markDirty();
   if (HP.updateFloorUI) HP.updateFloorUI();
   try { localStorage.setItem(LS_KEY, JSON.stringify({ state: HP.state, nextId: HP.nextId })); } catch (e) {}
