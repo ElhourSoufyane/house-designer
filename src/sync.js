@@ -121,8 +121,9 @@ function broadcastState() {
   sendTimer = setTimeout(() => {
     rev = Date.now();
     stampOwners();
+    stampDelta();                                 // stamp entities we changed since last send
     lastSentSnap = HP.snap();
-    sendAll({ t: 'state', rev, origin: peer && peer.id, state: HP.state, nextId: HP.nextId });
+    sendAll({ t: 'state', rev, origin: peer && peer.id, state: HP.state, stamps, nextId: HP.nextId });
   }, 120);
 }
 const _saveState = HP.saveState;
@@ -135,28 +136,90 @@ function stampOwners() {
     for (const it of lvl.furniture) if (!it.oid) it.oid = HP.oid;
 }
 
+/* ---------- per-entity mutation stamps (Figma-style LWW registers) ----------
+   Every wall/floor/fence/roomName cell and furniture item gets [seq, oid] —
+   a Lamport clock + author id. Incoming remote values only win when their
+   stamp beats ours: my unacknowledged edit can never be stomped by an older
+   in-flight state (the "wall disappears" bug), and both sides pick the SAME
+   winner → deterministic convergence, no divergence. */
+let mySeq = 0;
+let stamps = {};                                     // {lvl: {dict: {key: [seq, oid]}, items: {id: ...}}}
+const peerStamps = {};                               // origin -> their stamps map from last msg
+const mergedTags = new Set();                        // entities adopted from remote since last send
+let lastSentState = null;                            // deep copy — local-change detector
+const tag = (l, d, k) => l + '|' + d + '|' + k;
+function stMap(l, d) {
+  const s = stamps[l] || (stamps[l] = {});
+  return s[d] || (s[d] = {});
+}
+function cmpStamp(a, b) {                            // >0 → a is newer
+  a = a || [0, '']; b = b || [0, ''];
+  return a[0] - b[0] || (a[1] < b[1] ? -1 : a[1] > b[1] ? 1 : 0);
+}
+function observeStamp(s) { if (s && s[0] > mySeq) mySeq = s[0]; }   // lamport: track max seen
+
+/* at send time: find what WE changed since last send and stamp it ours.
+   Remote-adopted entities are skipped via mergedTags (they already carry the
+   author's stamp — restamping them ours would start an echo war). */
+function stampDelta() {
+  const sent = lastSentState || { levels: [] };
+  HP.state.levels.forEach((cl, i) => {
+    const sl = sent.levels[i] || {};
+    for (const d of ['walls', 'floors', 'fences', 'roomNames']) {
+      const cd = cl[d] || {}, sd = sl[d] || {}, m = stMap(i, d);
+      for (const k in cd)
+        if (!mergedTags.has(tag(i, d, k)) && JSON.stringify(cd[k]) !== JSON.stringify(sd[k]))
+          m[k] = [++mySeq, HP.oid];
+      for (const k in m) if (!(k in cd)) delete m[k];
+    }
+    const sIds = {}; for (const it of sl.furniture || []) sIds[it.id] = it;
+    const im = stMap(i, 'items');
+    for (const it of cl.furniture)
+      if (!mergedTags.has(tag(i, 'items', it.id)) &&
+          JSON.stringify(it) !== JSON.stringify(sIds[it.id] || null))
+        im[it.id] = [++mySeq, HP.oid];
+    const alive = {}; for (const it of cl.furniture) alive[it.id] = 1;
+    for (const k in im) if (!alive[k]) delete im[k];
+  });
+  mergedTags.clear();
+  lastSentState = JSON.parse(JSON.stringify(HP.state));
+}
+
 /* ---------- delta merge: apply only what changed on the peer's side ----------
-   Full-state replace loses concurrent local edits (in-flight races → walls
-   vanish ~300ms later). Keep the last state seen per origin, diff against the
-   incoming one, and apply just that delta onto our own state. */
+   Two layers, Figma-style:
+   1. Diff incoming vs last-seen-state-from-that-origin → what THEY did.
+   2. Apply each change only when its Lamport stamp beats ours → deterministic
+      last-writer-wins per entity, same winner computed on every device.
+      Deletes only land if we haven't touched that entity since their base —
+      otherwise our newer edit survives and the rebroadcast re-converges. */
 const peerBase = {};                                   // originPeerId -> last received state
-function mergeRemote(cur, base, inc) {
+function mergeRemote(cur, base, inc, incStamps, baseStamps) {
   while (cur.levels.length < inc.levels.length)
     cur.levels.push({ walls: {}, floors: {}, roomNames: {}, furniture: [], fences: {} });
   for (let i = 0; i < inc.levels.length; i++) {
     const cl = cur.levels[i], bl = base && base.levels[i] || {}, il = inc.levels[i];
-    for (const dict of ['walls', 'floors', 'fences', 'roomNames']) {
-      const cd = cl[dict] || (cl[dict] = {}), bd = bl[dict] || {}, id = il[dict] || {};
+    const iS = incStamps && incStamps[i] || {}, bS = baseStamps && baseStamps[i] || {};
+    for (const d of ['walls', 'floors', 'fences', 'roomNames']) {
+      const cd = cl[d] || (cl[d] = {}), bd = bl[d] || {}, id = il[d] || {};
+      const isd = iS[d] || {}, bsd = bS[d] || {}, md = stMap(i, d);
       for (const k in bd)
-        if (!(k in id) && k in cd) delete cd[k];                       // they deleted it
-      for (const k in id)
-        if (!(k in bd) || JSON.stringify(id[k]) !== JSON.stringify(bd[k]))  // they added/changed it
-          cd[k] = id[k];
+        if (!(k in id) && k in cd && cmpStamp(md[k], bsd[k]) <= 0) {   // they deleted; we haven't re-edited
+          delete cd[k]; delete md[k];
+        }
+      for (const k in id) {
+        if (k in bd && JSON.stringify(id[k]) === JSON.stringify(bd[k])) continue;  // unchanged
+        observeStamp(isd[k]);
+        if (cmpStamp(isd[k], md[k]) > 0 || !incStamps) {               // their stamp wins (or legacy peer)
+          if (JSON.stringify(cd[k]) !== JSON.stringify(id[k])) { cd[k] = id[k]; }
+          if (isd[k]) { md[k] = isd[k]; mergedTags.add(tag(i, d, k)); }
+        }
+      }
     }
-    const bIds = {}, iIds = {};
+    const bIds = {}, iIds = {}, iim = iS.items || {}, bim = bS.items || {}, mim = stMap(i, 'items');
     for (const it of bl.furniture || []) bIds[it.id] = it;
     for (const it of il.furniture) iIds[it.id] = it;
-    cl.furniture = cl.furniture.filter(it => !bIds[it.id] || it.id in iIds);   // they removed it
+    cl.furniture = cl.furniture.filter(it =>                          // they removed it
+      !bIds[it.id] || it.id in iIds || cmpStamp(mim[it.id], bim[it.id]) > 0);
     for (const it of il.furniture) {
       const b = bIds[it.id];
       const idx = cl.furniture.findIndex(x => x.id === it.id);
@@ -164,8 +227,14 @@ function mergeRemote(cur, base, inc) {
         if (it.oid === HP.oid) continue;                                     // my own item echoing back — skip
         const copy = idx >= 0 ? { ...it, id: ++HP.nextId } : it;               // id collision → new id
         cl.furniture.push(copy);
+        observeStamp(iim[it.id]);
+        if (iim[it.id]) { mim[copy.id] = iim[it.id]; mergedTags.add(tag(i, 'items', copy.id)); }
       } else if (JSON.stringify(b) !== JSON.stringify(it)) {
-        if (idx >= 0) cl.furniture[idx] = it; else cl.furniture.push(it);      // they changed it
+        observeStamp(iim[it.id]);
+        if (cmpStamp(iim[it.id], mim[it.id]) > 0 || !incStamps) {            // they changed it — stamp wins
+          if (idx >= 0) cl.furniture[idx] = it; else cl.furniture.push(it);
+          if (iim[it.id]) { mim[it.id] = iim[it.id]; mergedTags.add(tag(i, 'items', it.id)); }
+        }
       }
     }
   }
@@ -189,13 +258,25 @@ function applyState(msg, fromConn) {
   rev = msg.rev;
   const origin = msg.origin || fromConn.peer;
   const inc = HP.migrate(JSON.parse(JSON.stringify(msg.state)));      // owned copy
+  const baseStamps = peerStamps[origin];
   if (!peerBase[origin]) {
     HP.state = inc;                                // first state from them → adopt wholesale
     HP.state.level = Math.min(HP.state.level, HP.state.levels.length - 1);
+    if (msg.stamps) {                              // adopt their entity stamps
+      for (const l in msg.stamps) {
+        const ms = msg.stamps[l];
+        for (const d in ms) {
+          const sd = stMap(+l, d);
+          for (const k in ms[d]) { sd[k] = ms[d][k]; observeStamp(ms[d][k]); }
+        }
+      }
+    }
+    lastSentState = JSON.parse(JSON.stringify(inc));  // adopted = my baseline, not "my edits"
   } else {
-    mergeRemote(HP.state, peerBase[origin], inc);  // apply only THEIR delta — keep my edits
+    mergeRemote(HP.state, peerBase[origin], inc, msg.stamps, baseStamps);  // apply only THEIR delta
   }
   peerBase[origin] = msg.state;
+  peerStamps[origin] = msg.stamps || {};
   HP.nextId = Math.max(HP.nextId || 0, msg.nextId || 0);
   /* pending + ghost stay untouched — a local placement in flight continues.
      selected is re-resolved by id (its panel stays open, content refreshes).
