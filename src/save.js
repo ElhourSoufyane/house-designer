@@ -110,22 +110,39 @@ HP.addLevel = function () {
   HP.pushUndo();
   const below = HP.cur();
   const nl = HP.newLevel();
-  /* copy the exterior shell up — but only for the building the stairs are in.
-     Compute the region containing the stairs, then take walls that bound it
-     against the outside. Other buildings (garage, pool house…) don't get a
-     second floor just because their walls happen to touch the outdoors. */
+  /* copy the exterior shell up — for the whole CONNECTED building the stairs
+     are in, not just the stair's own room. Regions that share a wall with the
+     stairs' region are part of the same structure: flood the building by
+     walking region→region across shared wall segments. Detached buildings
+     (garage, pool house…) never touch a shared wall so they stay out. */
   const { regionOf } = HP.computeRegions();
   const stair = below.furniture.find(it => it.type === 'stairs');
   const st = stair ? HP.footprint(stair) : null;
   const home = st ? regionOf[(st.y + Math.floor(st.h / 2)) * HP.GRID_W + st.x + Math.floor(st.w / 2)] : -1;
-  const outside = (x, y) => !HP.cellIn(x, y) || regionOf[y * HP.GRID_W + x] < 0;
-  const inHome = (x, y) => home >= 0 && HP.cellIn(x, y) && regionOf[y * HP.GRID_W + x] === home;
+  const W = HP.GRID_W;
+  const outside = (x, y) => !HP.cellIn(x, y) || regionOf[y * W + x] < 0;
+  const reg = (x, y) => HP.cellIn(x, y) ? regionOf[y * W + x] : -2;
+  const inB = new Set();
+  if (home >= 0) {
+    inB.add(home);
+    let grew = true;
+    while (grew) {                                   // regions sharing a wall = same building
+      grew = false;
+      for (const k in below.walls) {
+        const s = HP.parseWallKey(k);
+        const a = s.d === 'h' ? reg(s.x, s.y - 1) : reg(s.x - 1, s.y);
+        const b = s.d === 'h' ? reg(s.x, s.y)     : reg(s.x, s.y);
+        if (a >= 0 && b >= 0 && a !== b && inB.has(a) !== inB.has(b)) {
+          inB.add(a); inB.add(b); grew = true;
+        }
+      }
+    }
+  }
   for (const k in below.walls) {
     const s = HP.parseWallKey(k);
-    /* a wall belongs to the stairs' building shell when it has the home
-       region on one side and the outdoors on the other */
-    const c1 = s.d === 'h' ? inHome(s.x, s.y - 1) : inHome(s.x - 1, s.y);
-    const c2 = s.d === 'h' ? inHome(s.x, s.y)     : inHome(s.x, s.y);
+    /* shell = wall with the building's interior on one side, outdoors on the other */
+    const c1 = s.d === 'h' ? inB.has(reg(s.x, s.y - 1)) : inB.has(reg(s.x - 1, s.y));
+    const c2 = s.d === 'h' ? inB.has(reg(s.x, s.y))     : inB.has(reg(s.x, s.y));
     const o1 = s.d === 'h' ? outside(s.x, s.y - 1) : outside(s.x - 1, s.y);
     const o2 = s.d === 'h' ? outside(s.x, s.y)     : outside(s.x, s.y);
     const shell = home < 0 ? (o1 || o2)            // stairs outdoors → old behaviour
