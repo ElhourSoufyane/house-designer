@@ -327,6 +327,7 @@ function settingsUI() {
 
 /* grouped floor swatches — one block per family, colourways under it */
 function floorSwatches(wrap, activeId, onPick) {
+  if (wrap._io) { wrap._io.disconnect(); wrap._io = null; }
   wrap.innerHTML = '';
   for (const base of HP.FLOOR_MATS) {
     if (base.fam || base.grp) continue;                       // variants render under their family
@@ -340,7 +341,6 @@ function floorSwatches(wrap, activeId, onPick) {
     for (const m of fam) {
       const c = document.createElement('button');
       c.className = 'sw' + (m.id === activeId ? ' active' : '');
-      c.appendChild(HP.floorPreview(m.id, 52, 52));
       const i = document.createElement('i'); i.textContent = m.name; c.appendChild(i);
       c.onclick = () => {
         onPick(m.id);
@@ -348,6 +348,7 @@ function floorSwatches(wrap, activeId, onPick) {
         c.classList.add('active');
       };
       row.appendChild(c);
+      lazyThumb(wrap, c, m.id, id => HP.floorPreview(id, 52, 52));
     }
   }
 }
@@ -411,12 +412,6 @@ function fenceUI() {
     const b = document.createElement('button');
     b.className = 'sw fence-sw' + (HP.fenceType === id ? ' active' : '');
     b.title = f.name;
-    const cv = document.createElement('canvas');
-    cv.width = 108; cv.height = 66;
-    const g = cv.getContext('2d');
-    g.translate(6, 40); g.scale(3.4, 3.4);              // draw a 1-cell sample run
-    HP.drawFenceSeg(g, { d: 'h', x: 0, y: 0 }, { t: id, c: f.c, post: f.post });
-    b.appendChild(cv);
     const nm = document.createElement('i');
     nm.textContent = f.name;
     b.appendChild(nm);
@@ -426,6 +421,15 @@ function fenceUI() {
       b.classList.add('active');
     };
     sw.appendChild(b);
+    lazyThumb(sw, b, id, fid => {
+      const cv = document.createElement('canvas');
+      cv.width = 108; cv.height = 66;
+      const g = cv.getContext('2d');
+      const fd = HP.FENCE_TYPES[fid];
+      g.translate(6, 40); g.scale(3.4, 3.4);            // draw a 1-cell sample run
+      HP.drawFenceSeg(g, { d: 'h', x: 0, y: 0 }, { t: fid, c: fd.c, post: fd.post });
+      return cv;
+    });
   }
 }
 
@@ -467,9 +471,35 @@ function refreshInspector(force) {
 HP.refreshContext = refreshInspector;
 HP.refreshInspector = refreshInspector;
 
+/* ---------- lazy previews ----------
+   Mobile browsers blank canvas elements inside scroll/transformed panels.
+   Render previews to <img> only when a tile scrolls into view — fewer live
+   canvases (iOS/Android purge canvas memory) and images always composite. */
+function lazyThumb(listWrap, el, id, make) {
+  const paint = () => {
+    try {
+      const img = document.createElement('img');
+      img.draggable = false; img.alt = '';
+      img.src = make(id).toDataURL();
+      el.prepend(img);
+    } catch (e) { /* leave the tile empty rather than breaking the list */ }
+  };
+  if (!('IntersectionObserver' in window)) { paint(); return; }
+  if (!listWrap._io) listWrap._io = new IntersectionObserver(entries => {
+    for (const en of entries) {
+      if (!en.isIntersecting) continue;
+      listWrap._io.unobserve(en.target);
+      en.target._paint && en.target._paint();
+    }
+  }, { rootMargin: '300px' });
+  el._paint = paint;
+  listWrap._io.observe(el);
+}
+
 /* ---------- catalog ---------- */
 function buildCatalog(filter) {
   const wrap = $('#catalog-items');
+  if (wrap._io) { wrap._io.disconnect(); wrap._io = null; }
   wrap.innerHTML = '';
   const q = (filter || '').trim().toLowerCase();
   const cats = [], byCat = {};
@@ -488,7 +518,6 @@ function buildCatalog(filter) {
     for (const def of byCat[cat]) {
       const d = document.createElement('button');
       d.className = 'cat-item';
-      d.appendChild(HP.itemPreview(def.id, 112, 80));
       const nm = document.createElement('div'); nm.className = 'nm'; nm.textContent = def.name;
       d.appendChild(nm);
       if (def.brand) {
@@ -506,6 +535,7 @@ function buildCatalog(filter) {
         HP.markDirty();
       };
       grid.appendChild(d);
+      lazyThumb(wrap, d, def.id, id => HP.itemPreview(id, 112, 80));
     }
   }
 }
