@@ -52,8 +52,17 @@ function renderPanel() {
   body.innerHTML = `
     <div class="field"><label>Room code — share this</label>
       <div class="coop-code-big">${roomCode || '—'}</div></div>
+    <button class="panel-btn" id="coop-copy" style="width:100%">Copy invite link</button>
     <div class="hint">Playing with: <b>${names}</b>. Every edit syncs instantly — build together!</div>
     <button class="panel-btn danger" id="coop-leave" style="width:100%">Leave co-op</button>`;
+  $('#coop-copy').onclick = () => {
+    const url = location.origin + location.pathname + '?room=' + roomCode;
+    if (navigator.clipboard)
+      navigator.clipboard.writeText(url)
+        .then(() => HP.status('Invite link copied — send it to your partner'))
+        .catch(() => prompt('Copy this link:', url));
+    else prompt('Copy this link:', url);
+  };
   $('#coop-leave').onclick = leaveGame;
 }
 
@@ -171,16 +180,6 @@ function setupConn(c) {
   c.on('close', drop);
   c.on('error', drop);
 }
-function newPeer(onErr) {
-  const p = new Peer({ debug: 0 });
-  p.on('error', e => {
-    const t = e && e.type;
-    if (onErr) onErr(t);
-    else if (t === 'peer-unavailable') HP.status('No room with that code — check the code');
-    else HP.status('Co-op error: ' + t);
-  });
-  return p;
-}
 function mkCode() {
   const A = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';      // no confusable chars
   let s = ''; for (let i = 0; i < 4; i++) s += A[Math.floor(Math.random() * A.length)];
@@ -190,13 +189,17 @@ function hostGame() {
   leavePeer();
   roomCode = mkCode();
   HP.status('Creating room ' + roomCode + '…');
-  peer = newPeer(t => { if (t === 'unavailable-id') hostGame(); });   // code collision → retry
+  peer = new Peer(PREFIX + roomCode);             // claim the room code as our id
+  peer.on('error', e => {
+    if (e && e.type === 'unavailable-id') hostGame();   // code collision → retry
+    else HP.status('Co-op error: ' + (e && e.type));
+  });
   peer.on('open', () => {
     mode = 'host';
     rev = Date.now();
     coopStatus('Hosting ' + roomCode, true);
     renderPanel();
-    HP.status('Room ' + roomCode + ' ready — share the code with your partner');
+    HP.status('Room ' + roomCode + ' ready — share the code or invite link');
   });
   peer.on('connection', setupConn);
 }
@@ -206,7 +209,12 @@ function joinGame(code) {
   if (cur) localStorage.setItem(LS_BACKUP, cur);
   roomCode = code;
   HP.status('Joining room ' + code + '…');
-  peer = newPeer();
+  peer = new Peer();
+  peer.on('error', e => {
+    const t = e && e.type;
+    if (t === 'peer-unavailable') HP.status('No room with that code — check it and try again');
+    else HP.status('Co-op error: ' + t);
+  });
   peer.on('open', () => {
     mode = 'guest';
     const c = peer.connect(PREFIX + code, { reliable: true });
@@ -254,6 +262,19 @@ function hookCursor() {
 }
 hookCursor();
 window.addEventListener('beforeunload', leavePeer);
+
+/* ---------- invite link: ?room=CODE auto-joins ---------- */
+(function inviteLink() {
+  const code = new URLSearchParams(location.search).get('room');
+  if (!code) return;
+  setTimeout(() => {
+    showPanel();
+    const inp = $('#coop-code');
+    if (inp) inp.value = code.toUpperCase();
+    if (myName) joinGame(code.toUpperCase());        // name saved → straight in
+    else HP.status('Enter your name and tap Join — you were invited to a shared house');
+  }, 600);                                            // let the app boot first
+})();
 
 /* ---------- public ---------- */
 HP.coop = { show: showPanel, hide: hidePanel, leave: leaveGame, online: () => conns.length };
