@@ -1,0 +1,78 @@
+{
+    "onyx":  {
+                 "id":  "Marble016",
+                 "dimCm":  0
+             },
+    "mosaic":  {
+                   "id":  "Tiles063",
+                   "dimCm":  45
+               },
+    "cork":  {
+                 "id":  "Cork004",
+                 "dimCm":  0
+             },
+    "gym":  {
+                "id":  "Rubber004",
+                "dimCm":  75
+            },
+    "grass":  {
+                  "id":  "Grass005",
+                  "dimCm":  0
+              },
+    "tatami":  {
+                   "id":  "Tatami001",
+                   "dimCm":  250
+               },
+    "walnut":  {
+                   "id":  "WoodFloor064",
+                   "dimCm":  0
+               },
+    "marble":  {
+                   "id":  "Tiles012",
+                   "dimCm":  0
+               },
+    "concrete":  {
+                     "id":  "Concrete048",
+                     "dimCm":  0
+                 },
+    "carpet":  {
+                   "id":  "Carpet016",
+                   "dimCm":  170
+               },
+    "terrazzo":  {
+                     "id":  "Tiles040",
+                     "dimCm":  0
+                 },
+    "pebble":  {
+                   "id":  "Gravel023",
+                   "dimCm":  150
+               },
+    "parquet":  {
+                    "id":  "WoodFloor051",
+                    "dimCm":  180
+                },
+    "gravel":  {
+                   "id":  "Ground111",
+                   "dimCm":  280
+               },
+    "herring":  {
+                    "id":  "WoodFloor034",
+                    "dimCm":  190
+                },
+    "sand":  {
+                 "id":  "Ground054",
+                 "dimCm":  350
+             },
+    "travertine":  {
+                       "id":  "Travertine009",
+                       "dimCm":  120
+                   },
+    "hextile":  {
+                    "id":  "PavingStones130",
+                    "dimCm":  230
+                },
+    "dirt":  {
+                 "id":  "Ground109",
+                 "dimCm":  280
+             }
+}
