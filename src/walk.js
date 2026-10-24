@@ -9,7 +9,13 @@ let savedCam = null;
 const SPEED = 4.2;             // cells per second
 const R = 9;                   // player radius in world px
 
-/* wall that blocks walking (doors let you through) */
+/* furniture that lights up / toggles in walk mode */
+const LIGHTS = new Set(['floorlamp', 'lamppost', 'pathlight', 'lamparc', 'lamptripod',
+  'lamptorch', 'lamptable', 'lamppaper', 'lampmush', 'lampcandle', 'lampbanker',
+  'artneon', 'topcandles', 'fllantern', 'nightlight', 'fireplace', 'firepit']);
+HP.isLamp = t => LIGHTS.has(t);
+
+/* wall that blocks walking (open doors let you through, closed ones don't) */
 function solidBetween(x, y, nx, ny) {
   const w = HP.cur().walls;
   let k = null;
@@ -20,6 +26,7 @@ function solidBetween(x, y, nx, ny) {
   if (!k) return false;
   const s = w[k];
   if (s && s.f !== 'door') return true;
+  if (s && s.f === 'door' && s.c) return true;              // closed door blocks
   const f = HP.cur().fences[k];                        // fences block too; gates / step-over edges don't
   return !!(f && f.t !== 'gate' && f.t !== 'rope' && f.t !== 'fieldstone');
 }
@@ -80,17 +87,19 @@ HP.togglePlay = function () {
     if (btn) btn.innerHTML = '<svg class="ic"><use href="#i-stop"/></svg>Stop';
     if (hint) {
       hint.textContent = ('ontouchstart' in window)
-        ? 'Drag anywhere to walk · tap Stop to exit'
-        : 'WASD / arrows to walk · Esc to exit';
+        ? 'Drag anywhere to walk · tap the button to open doors & lamps'
+        : 'WASD / arrows to walk · E to open doors & lamps · Esc to exit';
       hint.classList.remove('hidden');
     }
     HP.status('Walk mode — WASD / arrows, or drag on touch screens');
   } else {
     if (savedCam) HP.camera = savedCam;
     HP.player = null; keys.clear(); joy = null; hideJoy();
-    stairsShown = '';
+    stairsShown = ''; curUse = null; useShown = '';
     const ui = document.getElementById('stairs-ui');
     if (ui) { ui.classList.add('hidden'); ui.innerHTML = ''; }
+    const uu = document.getElementById('use-ui');
+    if (uu) { uu.classList.add('hidden'); uu.innerHTML = ''; }
     if (btn) btn.innerHTML = '<svg class="ic"><use href="#i-play"/></svg>Play';
     if (hint) hint.classList.add('hidden');
     HP.status('Ready');
@@ -121,8 +130,72 @@ HP.tickPlayer = function (dt) {
   HP.camera.x += (HP.player.x - HP.camera.x) * Math.min(1, dt * 8);
   HP.camera.y += (HP.player.y - HP.camera.y) * Math.min(1, dt * 8);
   checkStairs();
+  checkUse();
   HP.markDirty();
 };
+
+/* ---------- interact: doors + lamps near the player ---------- */
+let curUse = null, useShown = '';
+function nearestUse() {
+  const C = HP.CELL, lvl = HP.cur();
+  const px = HP.player.x, py = HP.player.y;
+  const cx = Math.floor(px / C), cy = Math.floor(py / C);
+  let best = null, bd = 1.7 * C;
+  for (let y = cy - 1; y <= cy + 1; y++) for (let x = cx - 1; x <= cx + 1; x++) {
+    for (const k of ['h,' + x + ',' + y, 'h,' + x + ',' + (y + 1), 'v,' + x + ',' + y, 'v,' + (x + 1) + ',' + y]) {
+      const s = lvl.walls[k];
+      if (!s || s.f !== 'door') continue;
+      const p = HP.parseWallKey(k);
+      const mx = (p.d === 'h' ? p.x + 0.5 : p.x) * C, my = (p.d === 'h' ? p.y : p.y + 0.5) * C;
+      const d = Math.hypot(mx - px, my - py);
+      if (d < bd) { bd = d; best = { kind: 'door', key: k, label: (s.c ? 'Open' : 'Close') + ' door' }; }
+    }
+  }
+  for (const it of lvl.furniture) {
+    if (!HP.isLamp(it.type)) continue;
+    const f = HP.footprint(it);
+    const mx = (f.x + f.w / 2) * C, my = (f.y + f.h / 2) * C;
+    const d = Math.hypot(mx - px, my - py);
+    if (d < bd) { bd = d; const def = HP.itemDef(it.type); best = { kind: 'lamp', it, label: (it.on ? 'Turn off ' : 'Turn on ') + def.name }; }
+  }
+  return best;
+}
+function checkUse() {
+  curUse = nearestUse();
+  const lbl = curUse ? curUse.label : '';
+  if (lbl === useShown) return;
+  useShown = lbl;
+  const ui = document.getElementById('use-ui');
+  if (!ui) return;
+  if (!curUse) { ui.classList.add('hidden'); ui.innerHTML = ''; return; }
+  ui.innerHTML = '';
+  const b = document.createElement('button');
+  b.innerHTML = '<svg class="ic"><use href="#i-door"/></svg>' + curUse.label;
+  b.onclick = doUse;
+  ui.appendChild(b);
+  ui.classList.remove('hidden');
+}
+function doUse() {
+  const u = curUse;
+  if (!u) return;
+  if (u.kind === 'door') {
+    const w = HP.cur().walls, s = w[u.key];
+    if (!s) return;
+    s.c = !s.c;
+    const p = HP.parseWallKey(u.key);               // mirror a double door's pair
+    for (const kk of (p.d === 'h'
+      ? ['h,' + (p.x - 1) + ',' + p.y, 'h,' + (p.x + 1) + ',' + p.y]
+      : ['v,' + p.x + ',' + (p.y - 1), 'v,' + p.x + ',' + (p.y + 1)])) {
+      const s2 = w[kk];
+      if (s2 && s2.f === 'door') s2.c = s.c;
+    }
+    HP.invalidateRegions();                          // doors live in the static layer
+  } else {
+    u.it.on = !u.it.on;
+  }
+  useShown = '';                                     // refresh the prompt label
+  HP.markDirty(); HP.saveState();                    // saveState broadcasts to co-op peers
+}
 
 /* ---------- stairs: travel between floors ---------- */
 function stairsAt(cx, cy) {
@@ -255,9 +328,10 @@ HP.initWalk = function () {
     if (!HP.playing) return;
     const k = e.key.toLowerCase();
     keys.add(k);
-    // use stairs
-    if ((k === 'e' || k === 'enter') && stairsShown) {
-      HP.travelFloor(stairsShown.includes('u') ? 1 : -1);
+    // use stairs / interact
+    if (k === 'e' || k === 'enter') {
+      if (stairsShown) HP.travelFloor(stairsShown.includes('u') ? 1 : -1);
+      else doUse();
       e.preventDefault(); return;
     }
     if (['arrowup', 'arrowdown', 'arrowleft', 'arrowright', ' '].includes(k))

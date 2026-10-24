@@ -1691,7 +1691,25 @@ function insideDir(s) {                      // which side is inside? for door s
 
 function drawDoor(g, s, t) {
   const C = HP.CELL, dir = insideDir(s);
+  const rec = HP.cur().walls[s.d + ',' + s.x + ',' + s.y];
+  const closed = rec && rec.c;
   g.strokeStyle = '#7c5a38'; g.fillStyle = '#7c5a38'; g.lineWidth = 3;
+  if (closed) {                                  // leaf shut across the doorway
+    if (s.d === 'h') {
+      const jy = s.y * C;
+      g.fillRect(s.x * C - 2, jy - t / 2, 5, t);
+      g.fillRect((s.x + 1) * C - 3, jy - t / 2, 5, t);
+      g.fillRect(s.x * C + 3, jy - 3.5, C - 6, 7);
+      g.beginPath(); g.arc(s.x * C + C * 0.8, jy + 5.5, 1.7, 0, 7); g.fill();
+    } else {
+      const jx = s.x * C;
+      g.fillRect(jx - t / 2, s.y * C - 2, t, 5);
+      g.fillRect(jx - t / 2, (s.y + 1) * C - 3, t, 5);
+      g.fillRect(jx - 3.5, s.y * C + 3, 7, C - 6);
+      g.beginPath(); g.arc(jx + 5.5, s.y * C + C * 0.8, 1.7, 0, 7); g.fill();
+    }
+    return;
+  }
   if (s.d === 'h') {
     const jx = s.x * C, jy = s.y * C;                    // hinge at left vertex
     g.fillRect(jx - 2, jy - t / 2, 5, t);                // jamb caps
@@ -1714,6 +1732,24 @@ function drawDoor(g, s, t) {
 /* double door: 2-cell opening, jambs at outer ends, two leaves swung inward */
 function drawDoubleDoor(g, s, t) {
   const C = HP.CELL, dir = insideDir(s);
+  const rec = HP.cur().walls[s.d + ',' + s.x + ',' + s.y];
+  if (rec && rec.c) {                              // both leaves shut, meeting in the middle
+    g.fillStyle = '#7c5a38';
+    if (s.d === 'h') {
+      const y = s.y * C, xL = s.x * C, xR = (s.x + 2) * C;
+      g.fillRect(xL - 2, y - t / 2, 5, t); g.fillRect(xR - 3, y - t / 2, 5, t);
+      g.fillRect(xL + 3, y - 3.5, C - 3, 7); g.fillRect(xL + C, y - 3.5, C - 6, 7);
+      g.beginPath(); g.arc(xL + C - 5, y + 5.5, 1.7, 0, 7); g.fill();
+      g.beginPath(); g.arc(xL + C + 5, y + 5.5, 1.7, 0, 7); g.fill();
+    } else {
+      const x = s.x * C, yT = s.y * C, yB = (s.y + 2) * C;
+      g.fillRect(x - t / 2, yT - 2, t, 5); g.fillRect(x - t / 2, yB - 3, t, 5);
+      g.fillRect(x - 3.5, yT + 3, 7, C - 3); g.fillRect(x - 3.5, yT + C, 7, C - 6);
+      g.beginPath(); g.arc(x + 5.5, yT + C - 5, 1.7, 0, 7); g.fill();
+      g.beginPath(); g.arc(x + 5.5, yT + C + 5, 1.7, 0, 7); g.fill();
+    }
+    return;
+  }
   const LEN = C * 0.95, ANG = Math.PI / 3;              // leaves ~60° open
   const dl = Math.cos(ANG) * LEN, dw = Math.sin(ANG) * LEN * dir;
   g.fillStyle = '#2e3138';
@@ -1975,6 +2011,24 @@ function drawItems(g) {
   for (const it of HP.cur().furniture) HP.drawItem(g, it);
 }
 
+/* warm light pools under lamps that are switched on (walk-mode interact) */
+function drawLights(g) {
+  const C = HP.CELL;
+  for (const it of HP.cur().furniture) {
+    if (!it.on || !HP.isLamp || !HP.isLamp(it.type)) continue;
+    const f = HP.footprint(it);
+    const mx = (f.x + f.w / 2) * C, my = (f.y + f.h / 2) * C, Rr = C * 3.6;
+    const gr = g.createRadialGradient(mx, my, C * 0.3, mx, my, Rr);
+    gr.addColorStop(0, 'rgba(255,216,130,.40)');
+    gr.addColorStop(0.55, 'rgba(255,216,130,.16)');
+    gr.addColorStop(1, 'rgba(255,216,130,0)');
+    g.fillStyle = gr;
+    g.fillRect(mx - Rr, my - Rr, Rr * 2, Rr * 2);
+    g.beginPath(); g.arc(mx, my, C * 0.16, 0, 7);
+    g.fillStyle = 'rgba(255,242,195,.9)'; g.fill();
+  }
+}
+
 function drawOverlays(g) {
   const C = HP.CELL;
   if (HP.drawPeerCursors) HP.drawPeerCursors(g);   // live co-op cursors
@@ -2098,6 +2152,7 @@ HP.renderAll = function (g, cam, layer) {
     drawGround(g); drawFloors(g); drawLabels(g); drawWalls(g); drawFences(g);
   }
   drawItems(g);
+  drawLights(g);
   if (!cam.export) drawOverlays(g);
   g.restore();
 };

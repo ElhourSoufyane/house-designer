@@ -124,7 +124,10 @@ const _saveState = HP.saveState;
 HP.saveState = function () { _saveState(); broadcastState(); };
 
 function applyState(msg, fromConn) {
-  if (msg.rev <= rev) return;                    // last-write-wins
+  /* no rev comparison — clocks differ across devices and a skewed clock
+     would silently drop a partner's edits. States can't echo back
+     (applying=true blocks rebroadcast), so latest-arrival wins safely. */
+  HP.pushUndoSnap(HP.snap());                    // remote edits join the shared undo timeline
   applying = true;
   rev = msg.rev;
   HP.state = HP.migrate(msg.state);
@@ -152,16 +155,16 @@ function nameColor(n) {
   let h = 0; for (const ch of n || '?') h = (h * 31 + ch.charCodeAt(0)) % 997;
   return CURSOR_COLORS[h % CURSOR_COLORS.length];
 }
-function onCursor(d) {
-  cursors[d.name] = { x: d.x, y: d.y, name: d.name, color: nameColor(d.name), at: Date.now() };
+function onCursor(d, key) {
+  cursors[key] = { x: d.x, y: d.y, name: d.name, color: nameColor(d.name), at: Date.now() };
   HP.markDirty();
 }
 
 /* ---------- remote walk avatars ---------- */
 const avatars = {};                        // name -> {x, y, a, lvl, at, color}
-function onPos(d) {
-  if (d.off) { delete avatars[d.name]; HP.markDirty(); return; }
-  avatars[d.name] = { x: d.x, y: d.y, a: d.a, lvl: d.lvl, color: nameColor(d.name), at: Date.now() };
+function onPos(d, key) {
+  if (d.off) { delete avatars[key]; HP.markDirty(); return; }
+  avatars[key] = { x: d.x, y: d.y, a: d.a, lvl: d.lvl, name: d.name, color: nameColor(d.name), at: Date.now() };
   HP.markDirty();
 }
 function nameTag(g, n, x, y, color) {
@@ -193,7 +196,7 @@ HP.drawPeerCursors = function (g) {
   for (const n in avatars) {
     const p = avatars[n];
     if (now - p.at > 2500) { delete avatars[n]; continue; }
-    if (p.lvl === HP.state.level) drawPeerAvatar(g, n, p);
+    if (p.lvl === HP.state.level) drawPeerAvatar(g, p.name || '?', p);
   }
   for (const n in cursors) {
     const c = cursors[n];
@@ -202,7 +205,7 @@ HP.drawPeerCursors = function (g) {
     g.fillStyle = c.color;
     g.beginPath(); g.arc(c.x, c.y, 7, 0, 7); g.fill();
     g.strokeStyle = '#fff'; g.lineWidth = 2; g.stroke();
-    nameTag(g, n, c.x, c.y, c.color);
+    nameTag(g, c.name || '?', c.x, c.y, c.color);
   }
 };
 
@@ -221,12 +224,12 @@ function setupConn(c) {
     if (!d || !d.t) return;
     if (d.t === 'hello') { c.name = d.name; HP.status(d.name + ' joined the house'); setConnected(); }
     else if (d.t === 'state') applyState(d, c);
-    else if (d.t === 'cursor') onCursor(d);
-    else if (d.t === 'pos') onPos(d);
+    else if (d.t === 'cursor') onCursor(d, c.peer);
+    else if (d.t === 'pos') onPos(d, c.peer);
   });
   const drop = () => {
     conns = conns.filter(x => x !== c);
-    if (c.name) { delete cursors[c.name]; delete avatars[c.name]; }
+    delete cursors[c.peer]; delete avatars[c.peer];   // keyed by peer id — same-name peers are safe
     if (c.name) HP.status(c.name + ' left');
     setConnected();
   };

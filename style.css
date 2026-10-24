@@ -212,8 +212,12 @@ button { font-family: inherit; color: inherit; }
   position: absolute; bottom: 22px; left: 50%; transform: translateX(-50%); z-index: 20;
   display: flex; gap: 10px;
 }
-#stairs-ui.hidden { display: none; }
-#stairs-ui button {
+#use-ui {
+  position: absolute; bottom: 84px; left: 50%; transform: translateX(-50%); z-index: 20;
+  display: flex; gap: 10px;
+}
+#stairs-ui.hidden, #use-ui.hidden { display: none; }
+#stairs-ui button, #use-ui button {
   display: inline-flex; align-items: center; gap: 8px;
   background: var(--accent); border: 2px solid var(--border); color: var(--accent-ink);
   font-weight: 700; font-size: 14px; padding: 12px 20px; border-radius: 12px; cursor: pointer;
