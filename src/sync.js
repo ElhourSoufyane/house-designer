@@ -118,11 +118,51 @@ function broadcastState() {
   clearTimeout(sendTimer);
   sendTimer = setTimeout(() => {
     rev = Date.now();
-    sendAll({ t: 'state', rev, state: HP.state, nextId: HP.nextId });
+    sendAll({ t: 'state', rev, origin: peer && peer.id, state: HP.state, nextId: HP.nextId });
   }, 300);
 }
 const _saveState = HP.saveState;
 HP.saveState = function () { _saveState(); broadcastState(); };
+
+/* ---------- delta merge: apply only what changed on the peer's side ----------
+   Full-state replace loses concurrent local edits (in-flight races → walls
+   vanish ~300ms later). Keep the last state seen per origin, diff against the
+   incoming one, and apply just that delta onto our own state. */
+const peerBase = {};                                   // originPeerId -> last received state
+function mergeRemote(cur, base, inc) {
+  while (cur.levels.length < inc.levels.length)
+    cur.levels.push({ walls: {}, floors: {}, roomNames: {}, furniture: [], fences: {} });
+  for (let i = 0; i < inc.levels.length; i++) {
+    const cl = cur.levels[i], bl = base && base.levels[i] || {}, il = inc.levels[i];
+    for (const dict of ['walls', 'floors', 'fences', 'roomNames']) {
+      const cd = cl[dict] || (cl[dict] = {}), bd = bl[dict] || {}, id = il[dict] || {};
+      for (const k in bd)
+        if (!(k in id) && k in cd) delete cd[k];                       // they deleted it
+      for (const k in id)
+        if (!(k in bd) || JSON.stringify(id[k]) !== JSON.stringify(bd[k]))  // they added/changed it
+          cd[k] = id[k];
+    }
+    const bIds = {}, iIds = {};
+    for (const it of bl.furniture || []) bIds[it.id] = it;
+    for (const it of il.furniture) iIds[it.id] = it;
+    cl.furniture = cl.furniture.filter(it => !bIds[it.id] || it.id in iIds);   // they removed it
+    for (const it of il.furniture) {
+      const b = bIds[it.id];
+      const idx = cl.furniture.findIndex(x => x.id === it.id);
+      if (!b) {                                                              // they added it
+        const copy = idx >= 0 ? { ...it, id: ++HP.nextId } : it;               // id collision → new id
+        cl.furniture.push(copy);
+      } else if (JSON.stringify(b) !== JSON.stringify(it)) {
+        if (idx >= 0) cl.furniture[idx] = it; else cl.furniture.push(it);      // they changed it
+      }
+    }
+  }
+  for (const k of ['bg', 'photoFloors'])
+    if (inc[k] !== undefined && (!base || JSON.stringify(inc[k]) !== JSON.stringify(base[k]))) cur[k] = inc[k];
+  if (typeof inc.level === 'number' && (!base || inc.level !== base.level))
+    cur.level = Math.min(inc.level, cur.levels.length - 1);
+  return cur;
+}
 
 function applyState(msg, fromConn) {
   /* no rev comparison — clocks differ across devices and a skewed clock
@@ -135,8 +175,15 @@ function applyState(msg, fromConn) {
   HP.pushUndoSnap(HP.snap());                    // remote edits join the shared undo timeline
   applying = true;
   rev = msg.rev;
-  HP.state = HP.migrate(msg.state);
-  HP.state.level = Math.min(HP.state.level, HP.state.levels.length - 1);
+  const origin = msg.origin || fromConn.peer;
+  const inc = HP.migrate(JSON.parse(JSON.stringify(msg.state)));      // owned copy
+  if (!peerBase[origin]) {
+    HP.state = inc;                                // first state from them → adopt wholesale
+    HP.state.level = Math.min(HP.state.level, HP.state.levels.length - 1);
+  } else {
+    mergeRemote(HP.state, peerBase[origin], inc);  // apply only THEIR delta — keep my edits
+  }
+  peerBase[origin] = msg.state;
   HP.nextId = Math.max(HP.nextId || 0, msg.nextId || 0);
   /* pending + ghost stay untouched — a local placement in flight continues.
      selected is re-resolved by id (its panel stays open, content refreshes).
@@ -230,7 +277,7 @@ function setupConn(c) {
     conns.push(c);
     sendTo(c, { t: 'hello', name: myName || 'Player' });
     if (mode === 'host')
-      sendTo(c, { t: 'state', rev: Date.now(), state: HP.state, nextId: HP.nextId });
+      sendTo(c, { t: 'state', rev: Date.now(), origin: peer.id, state: HP.state, nextId: HP.nextId });
     setConnected();
     HP.status('Co-op connected — you are building together now');
   });
