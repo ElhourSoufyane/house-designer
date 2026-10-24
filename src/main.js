@@ -1650,19 +1650,10 @@ function wallThick(seg) {                    // exterior → thicker
 function drawWalls(g) {
   const C = HP.CELL;
   const lvl = HP.cur();
-  const isDoor = (d, x, y) => { const w = lvl.walls[d + ',' + x + ',' + y]; return w && w.f === 'door'; };
   for (const k in lvl.walls) {
     const s = HP.parseWallKey(k);
     const feat = lvl.walls[k].f;
-    // within a run of adjacent doors, even offsets start a pair, odd are skipped
-    let pair = false;
-    if (feat === 'door') {
-      let offset = 0;
-      if (s.d === 'h') { for (let x = s.x - 1; isDoor('h', x, s.y); x--) offset++; }
-      else             { for (let y = s.y - 1; isDoor('v', s.x, y); y--) offset++; }
-      if (offset % 2 === 1) continue;
-      pair = s.d === 'h' ? isDoor('h', s.x + 1, s.y) : isDoor('v', s.x, s.y + 1);
-    }
+    if (feat === 'door') continue;              // doors draw dynamically (open/close state)
     const t = wallThick(s) * C;
     // body: dark shell + light core (architectural plan look)
     g.fillStyle = '#2e3138';
@@ -1672,9 +1663,36 @@ function drawWalls(g) {
     g.fillStyle = '#f5f3ec';
     if (s.d === 'h') g.fillRect(s.x * C + 2, s.y * C - ti / 2, C - 3.4, ti);
     else g.fillRect(s.x * C - ti / 2, s.y * C + 2, ti, C - 3.4);
-    if (feat) drawGap(g, s, t, pair);        // cut opening after body
-    if (feat === 'door') (pair ? drawDoubleDoor : drawDoor)(g, s, t);
-    else if (feat === 'window') drawWindow(g, s, t);
+    if (feat) drawGap(g, s, t, false);       // cut opening after body
+    if (feat === 'window') drawWindow(g, s, t);
+  }
+}
+
+/* doors draw every frame, not baked into the static layer — toggling open/closed
+   must not rebuild the whole cached scene (that was the split-second freeze) */
+function drawDoors(g) {
+  const C = HP.CELL, lvl = HP.cur();
+  const isDoor = (d, x, y) => { const w = lvl.walls[d + ',' + x + ',' + y]; return w && w.f === 'door'; };
+  for (const k in lvl.walls) {
+    if (lvl.walls[k].f !== 'door') continue;
+    const s = HP.parseWallKey(k);
+    // within a run of adjacent doors, even offsets start a pair, odd are skipped
+    let offset = 0;
+    if (s.d === 'h') { for (let x = s.x - 1; isDoor('h', x, s.y); x--) offset++; }
+    else             { for (let y = s.y - 1; isDoor('v', s.x, y); y--) offset++; }
+    if (offset % 2 === 1) continue;
+    const pair = s.d === 'h' ? isDoor('h', s.x + 1, s.y) : isDoor('v', s.x, s.y + 1);
+    const t = wallThick(s) * C;
+    // same body + gap + leaf the static pass used to draw
+    g.fillStyle = '#2e3138';
+    if (s.d === 'h') g.fillRect(s.x * C, s.y * C - t / 2, C + 0.6, t);
+    else g.fillRect(s.x * C - t / 2, s.y * C, t, C + 0.6);
+    const ti = Math.max(2, t - 8);
+    g.fillStyle = '#f5f3ec';
+    if (s.d === 'h') g.fillRect(s.x * C + 2, s.y * C - ti / 2, C - 3.4, ti);
+    else g.fillRect(s.x * C - ti / 2, s.y * C + 2, ti, C - 3.4);
+    drawGap(g, s, t, pair);
+    (pair ? drawDoubleDoor : drawDoor)(g, s, t);
   }
 }
 
@@ -2155,6 +2173,7 @@ HP.renderAll = function (g, cam, layer) {
   } else {
     drawGround(g); drawFloors(g); drawLabels(g); drawWalls(g); drawFences(g);
   }
+  drawDoors(g);
   drawLights(g);
   drawItems(g);
   if (!cam.export) drawOverlays(g);

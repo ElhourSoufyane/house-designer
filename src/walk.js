@@ -315,7 +315,8 @@ function doUse() {
       const s2 = w[kk];
       if (s2 && s2.f === 'door') s2.c = s.c;
     }
-    HP.invalidateRegions();                          // doors live in the static layer
+    // no invalidateRegions: doors render per-frame now, and open/closed
+    // doesn't change room regions (doors block flood-fill either way)
   } else {
     u.it.on = !u.it.on;
   }
