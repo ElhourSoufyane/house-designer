@@ -42,14 +42,32 @@ function solidBetween(x, y, nx, ny) {
   return !!(f && f.t !== 'gate' && f.t !== 'rope' && f.t !== 'fieldstone');
 }
 
+/* things you can step onto/over in walk mode — thin poles, wall-hung art,
+   floor-level stuff. def.walkable covers the rest (rugs, mats, stairs). */
+const WALKTHROUGH = new Set([
+  // lamps & thin poles — step past/over the base
+  'floorlamp', 'lamparc', 'lamptripod', 'lamptorch', 'lamppaper', 'lampmush',
+  'lampcandle', 'lampbanker', 'lamptable', 'fllantern', 'nightlight',
+  'lamppost', 'pathlight', 'topcandles', 'fan', 'coatrack',
+  // bathroom — walk into the shower, step over small fixtures
+  'shower', 'towelrack', 'radiator',
+  // wall-hung — art, mirrors, curtains sit on/against the wall, floor is free
+  'wallart', 'artabstract', 'artgeo', 'artland', 'artbotan', 'artline',
+  'arttriptych', 'artneon', 'artphoto', 'floormirror', 'curtains',
+  // small ground items — step over
+  'plantSm', 'plantBig', 'vase', 'umbstand', 'trashbin', 'robotvac',
+  'petbed', 'hamper', 'wbins', 'firepit'
+]);
+
 /* set of cells blocked by furniture (walkable defs like rugs excluded) */
 let blockedCells = null, blockedFor = -1;
+HP.invalidateBlocked = () => { blockedFor = -1; };    // co-op remote edits change furniture
 function blockedSet() {
   if (blockedFor === HP.state.level && blockedCells) return blockedCells;
   blockedCells = new Set();
   for (const it of HP.cur().furniture) {
     const def = HP.itemDef(it.type);
-    if (def.walkable) continue;
+    if (def.walkable || WALKTHROUGH.has(it.type)) continue;
     const f = HP.footprint(it);
     for (let y = f.y; y < f.y + f.h; y++)
       for (let x = f.x; x < f.x + f.w; x++)

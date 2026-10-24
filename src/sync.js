@@ -289,6 +289,7 @@ function applyState(msg, fromConn) {
   HP.selectedRoom = keepRoom;
   HP.invalidateRegions(); HP.refreshContext(); HP.markDirty();
   if (HP.updateFloorUI) HP.updateFloorUI();
+  if (HP.invalidateBlocked) HP.invalidateBlocked();
   try { localStorage.setItem(LS_KEY, JSON.stringify({ state: HP.state, nextId: HP.nextId })); } catch (e) {}
   applying = false;
   /* converged rebroadcast: if the merge produced a state different from what we
