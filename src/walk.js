@@ -15,6 +15,17 @@ const LIGHTS = new Set(['floorlamp', 'lamppost', 'pathlight', 'lamparc', 'lamptr
   'artneon', 'topcandles', 'fllantern', 'nightlight', 'fireplace', 'firepit']);
 HP.isLamp = t => LIGHTS.has(t);
 
+/* furniture you can sit on / lie down in (walk-mode interact) */
+const SEATS = new Set(['sofa2', 'sofa3', 'sofaL', 'sofaU', 'outsofa', 'modseat', 'loveseat2',
+  'reclinerSofa', 'curvedSofa', 'recliner', 'armchair', 'tubchair', 'clubchair', 'accentchair',
+  'swivelchair', 'rockchair', 'rocker', 'chair', 'highchair', 'offchair', 'gamingchair',
+  'kneelchair', 'bench', 'gardenbench', 'entrybench', 'showerbench', 'bedbench', 'weightbench',
+  'barstool', 'footstool', 'beanbag', 'beanbag2', 'toilet', 'bathtub', 'hottub', 'lounger',
+  'cinemaseats', 'swingset', 'car']);
+const LIES = new Set(['bedSingle', 'bedDouble', 'bedQueen', 'bedKing', 'bunkbed',
+  'daybed', 'daybed2', 'futon', 'hammock', 'petbed']);
+HP.seatKind = t => SEATS.has(t) ? 'sit' : LIES.has(t) ? 'lie' : null;
+
 /* wall that blocks walking (open doors let you through, closed ones don't) */
 function solidBetween(x, y, nx, ny) {
   const w = HP.cur().walls;
@@ -95,7 +106,7 @@ HP.togglePlay = function () {
   } else {
     if (savedCam) HP.camera = savedCam;
     HP.player = null; keys.clear(); joy = null; hideJoy();
-    stairsShown = ''; curUse = null; useShown = '';
+    stairsShown = ''; curUse = null; useShown = ''; sitting = null;
     const ui = document.getElementById('stairs-ui');
     if (ui) { ui.classList.add('hidden'); ui.innerHTML = ''; }
     const uu = document.getElementById('use-ui');
@@ -118,7 +129,9 @@ HP.tickPlayer = function (dt) {
   if (keys.has('d') || keys.has('arrowright')) dx += 1;
   if (joy) { dx += joy.dx; dy += joy.dy; }
   const len = Math.hypot(dx, dy);
-  if (len > 0.01) {
+  if (sitting) {                              // any move input stands you up
+    if (len > 0.01) standUp();
+  } else if (len > 0.01) {
     dx /= Math.max(1, len); dy /= Math.max(1, len);
     const step = SPEED * HP.CELL * dt;
     const nx = HP.player.x + dx * step, ny = HP.player.y + dy * step;
@@ -134,9 +147,17 @@ HP.tickPlayer = function (dt) {
   HP.markDirty();
 };
 
-/* ---------- interact: doors + lamps near the player ---------- */
-let curUse = null, useShown = '';
+/* ---------- interact: doors + lamps + seats near the player ---------- */
+let curUse = null, useShown = '', sitting = null;
+Object.defineProperty(HP, 'playerSitting', { get: () => !!sitting });   // sync.js reads this
+/* distance from point to item footprint edge (better than centre for big sofas) */
+function distToItem(px, py, it) {
+  const C = HP.CELL, f = HP.footprint(it);
+  const x0 = f.x * C, y0 = f.y * C, x1 = (f.x + f.w) * C, y1 = (f.y + f.h) * C;
+  return Math.hypot(Math.max(x0 - px, 0, px - x1), Math.max(y0 - py, 0, py - y1));
+}
 function nearestUse() {
+  if (sitting) return { kind: 'stand', label: 'Stand up' };
   const C = HP.CELL, lvl = HP.cur();
   const px = HP.player.x, py = HP.player.y;
   const cx = Math.floor(px / C), cy = Math.floor(py / C);
@@ -152,13 +173,27 @@ function nearestUse() {
     }
   }
   for (const it of lvl.furniture) {
-    if (!HP.isLamp(it.type)) continue;
-    const f = HP.footprint(it);
-    const mx = (f.x + f.w / 2) * C, my = (f.y + f.h / 2) * C;
-    const d = Math.hypot(mx - px, my - py);
-    if (d < bd) { bd = d; const def = HP.itemDef(it.type); best = { kind: 'lamp', it, label: (it.on ? 'Turn off ' : 'Turn on ') + def.name }; }
+    const sk = HP.seatKind(it.type);
+    if (sk && distToItem(px, py, it) < bd) {
+      bd = distToItem(px, py, it);
+      const def = HP.itemDef(it.type);
+      best = { kind: 'sit', it, label: (sk === 'lie' ? 'Lie on ' : 'Sit on ') + def.name };
+      continue;
+    }
+    if (HP.isLamp(it.type) && distToItem(px, py, it) < bd) {
+      bd = distToItem(px, py, it);
+      const def = HP.itemDef(it.type);
+      best = { kind: 'lamp', it, label: (it.on ? 'Turn off ' : 'Turn on ') + def.name };
+    }
   }
   return best;
+}
+function standUp() {
+  if (!sitting) return;
+  const s = sitting; sitting = null;
+  if (free(s.px, s.py)) { HP.player.x = s.px; HP.player.y = s.py; }
+  useShown = '';
+  HP.markDirty();
 }
 function checkUse() {
   curUse = nearestUse();
@@ -178,6 +213,17 @@ function checkUse() {
 function doUse() {
   const u = curUse;
   if (!u) return;
+  if (u.kind === 'stand') { standUp(); return; }
+  if (u.kind === 'sit') {
+    const C = HP.CELL, f = HP.footprint(u.it);
+    sitting = { it: u.it, px: HP.player.x, py: HP.player.y };
+    HP.player.x = (f.x + f.w / 2) * C;
+    HP.player.y = (f.y + f.h / 2) * C;
+    HP.player.angle = Math.PI / 2;            // face "down" like sitting forward
+    useShown = '';
+    HP.markDirty();
+    return;
+  }
   if (u.kind === 'door') {
     const w = HP.cur().walls, s = w[u.key];
     if (!s) return;
@@ -269,7 +315,7 @@ function spawnPoint() {
 
 /* top-down person */
 HP.drawPlayer = function (g) {
-  const p = HP.player, r = R + 2;
+  const p = HP.player, r = sitting ? (R + 2) * 0.82 : R + 2;
   g.save();
   g.translate(p.x, p.y);
   g.fillStyle = 'rgba(0,0,0,.28)';
@@ -279,9 +325,10 @@ HP.drawPlayer = function (g) {
   g.beginPath(); g.arc(0, 0, r, 0, 7);
   g.fillStyle = '#4fc3f7'; g.fill();
   g.strokeStyle = '#22749e'; g.lineWidth = 2; g.stroke();
-  // facing wedge
-  g.fillStyle = '#e8eaf0';
-  g.beginPath(); g.moveTo(r + 3, 0); g.lineTo(r - 4, -4); g.lineTo(r - 4, 4); g.closePath(); g.fill();
+  if (!sitting) {                              // facing wedge — hidden when seated
+    g.fillStyle = '#e8eaf0';
+    g.beginPath(); g.moveTo(r + 3, 0); g.lineTo(r - 4, -4); g.lineTo(r - 4, 4); g.closePath(); g.fill();
+  }
   g.restore();
 };
 

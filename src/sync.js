@@ -164,7 +164,7 @@ function onCursor(d, key) {
 const avatars = {};                        // name -> {x, y, a, lvl, at, color}
 function onPos(d, key) {
   if (d.off) { delete avatars[key]; HP.markDirty(); return; }
-  avatars[key] = { x: d.x, y: d.y, a: d.a, lvl: d.lvl, name: d.name, color: nameColor(d.name), at: Date.now() };
+  avatars[key] = { x: d.x, y: d.y, a: d.a, lvl: d.lvl, s: d.s, name: d.name, color: nameColor(d.name), at: Date.now() };
   HP.markDirty();
 }
 function nameTag(g, n, x, y, color) {
@@ -176,7 +176,7 @@ function nameTag(g, n, x, y, color) {
 }
 /* top-down person — same shape as drawPlayer, colored per peer */
 function drawPeerAvatar(g, n, p) {
-  const r = 11;
+  const r = p.s ? 9 : 11;
   g.save();
   g.translate(p.x, p.y);
   g.fillStyle = 'rgba(0,0,0,.28)';
@@ -185,8 +185,10 @@ function drawPeerAvatar(g, n, p) {
   g.beginPath(); g.arc(0, 0, r, 0, 7);
   g.fillStyle = p.color; g.fill();
   g.strokeStyle = 'rgba(0,0,0,.45)'; g.lineWidth = 2; g.stroke();
-  g.fillStyle = '#e8eaf0';
-  g.beginPath(); g.moveTo(r + 3, 0); g.lineTo(r - 4, -4); g.lineTo(r - 4, 4); g.closePath(); g.fill();
+  if (!p.s) {
+    g.fillStyle = '#e8eaf0';
+    g.beginPath(); g.moveTo(r + 3, 0); g.lineTo(r - 4, -4); g.lineTo(r - 4, 4); g.closePath(); g.fill();
+  }
   g.restore();
   nameTag(g, n, p.x, p.y, p.color);
 }
@@ -331,7 +333,7 @@ function hookWalk() {
     const now = performance.now();
     if (conns.length && HP.player && now - lastPosSent > 90) {
       lastPosSent = now;
-      sendAll({ t: 'pos', x: HP.player.x, y: HP.player.y, a: HP.player.angle, lvl: HP.state.level, name: myName || 'Player' });
+      sendAll({ t: 'pos', x: HP.player.x, y: HP.player.y, a: HP.player.angle, lvl: HP.state.level, s: HP.playerSitting ? 1 : 0, name: myName || 'Player' });
     }
   };
   const play0 = HP.togglePlay;
