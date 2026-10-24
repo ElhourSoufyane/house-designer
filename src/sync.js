@@ -113,16 +113,27 @@ async function sendTo(c, obj) {
   try { c.send(await packMsg(obj)); } catch (e) {}
 }
 function sendAll(obj) { for (const c of conns) sendTo(c, obj); }
+let lastSentSnap = '';
 function broadcastState() {
   if (applying || !conns.length) return;
+  if (lastSentSnap === HP.snap()) return;         // nothing new — stops apply→broadcast ping-pong
   clearTimeout(sendTimer);
   sendTimer = setTimeout(() => {
     rev = Date.now();
+    stampOwners();
+    lastSentSnap = HP.snap();
     sendAll({ t: 'state', rev, origin: peer && peer.id, state: HP.state, nextId: HP.nextId });
-  }, 300);
+  }, 120);
 }
 const _saveState = HP.saveState;
 HP.saveState = function () { _saveState(); broadcastState(); };
+
+/* claim untagged furniture as mine before sharing — presets & legacy saves
+   would otherwise echo back from the partner as anonymous "new" items */
+function stampOwners() {
+  for (const lvl of HP.state.levels)
+    for (const it of lvl.furniture) if (!it.oid) it.oid = HP.oid;
+}
 
 /* ---------- delta merge: apply only what changed on the peer's side ----------
    Full-state replace loses concurrent local edits (in-flight races → walls
@@ -150,6 +161,7 @@ function mergeRemote(cur, base, inc) {
       const b = bIds[it.id];
       const idx = cl.furniture.findIndex(x => x.id === it.id);
       if (!b) {                                                              // they added it
+        if (it.oid === HP.oid) continue;                                     // my own item echoing back — skip
         const copy = idx >= 0 ? { ...it, id: ++HP.nextId } : it;               // id collision → new id
         cl.furniture.push(copy);
       } else if (JSON.stringify(b) !== JSON.stringify(it)) {
@@ -198,9 +210,14 @@ function applyState(msg, fromConn) {
   if (HP.updateFloorUI) HP.updateFloorUI();
   try { localStorage.setItem(LS_KEY, JSON.stringify({ state: HP.state, nextId: HP.nextId })); } catch (e) {}
   applying = false;
+  /* converged rebroadcast: if the merge produced a state different from what we
+     last sent (e.g. simultaneous same-item edits), send it so both sides settle */
+  broadcastState();
   if (mode === 'host')                           // star: relay to the other guests
     for (const c of conns) if (c !== fromConn) { try { c.send(msg); } catch (e) {} }
 }
+
+/* ---------- live cursors ---------- */
 
 /* ---------- live cursors ---------- */
 function sendCursor(x, y) {
@@ -276,8 +293,10 @@ function setupConn(c) {
   c.on('open', () => {
     conns.push(c);
     sendTo(c, { t: 'hello', name: myName || 'Player' });
-    if (mode === 'host')
+    if (mode === 'host') {
+      stampOwners();
       sendTo(c, { t: 'state', rev: Date.now(), origin: peer.id, state: HP.state, nextId: HP.nextId });
+    }
     setConnected();
     HP.status('Co-op connected — you are building together now');
   });

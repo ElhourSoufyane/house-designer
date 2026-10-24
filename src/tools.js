@@ -320,7 +320,7 @@ HP.duplicateSelected = function () {
   const gid = it.g ? HP.maxGroup() + 1 : 0;
   let anchor = null;
   for (const m of members) {
-    const copy = { id: HP.nextId++, type: m.type, x: m.x + dx, y: m.y + dy, rot: m.rot, v: m.v };
+    const copy = { id: HP.nextId++, type: m.type, x: m.x + dx, y: m.y + dy, rot: m.rot, v: m.v, oid: HP.oid };
     if (m.w) { copy.w = m.w; copy.h = m.h; }
     if (gid) copy.g = gid;
     HP.cur().furniture.push(copy);

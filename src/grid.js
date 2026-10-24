@@ -26,6 +26,10 @@ HP.regions = null;       // cached flood-fill result
 HP.wallPreview = null;   // segments being dragged by wall tool
 
 HP.nextId = 1;
+/* stable per-device id — tags locally-created furniture so co-op delta-merge
+   can recognize its own items echoing back (prevents duplication) */
+HP.oid = localStorage.getItem('hp_oid');
+if (!HP.oid) { HP.oid = 'p' + Math.random().toString(36).slice(2, 10); localStorage.setItem('hp_oid', HP.oid); }
 
 HP.FLOOR_MATS = [
   { id: 'wood',     name: 'Wood',     col: '#c9a877' },

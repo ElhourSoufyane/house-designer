@@ -95,7 +95,7 @@ HP.initInput = function () {
           const it = {
             id: HP.nextId++, type: HP.pending.def.id,
             x: HP.ghost.x, y: HP.ghost.y,
-            rot: HP.pending.rot, v: HP.pending.v || 0
+            rot: HP.pending.rot, v: HP.pending.v || 0, oid: HP.oid
           };
           HP.cur().furniture.push(it);
           HP.autoConnect(it);                        // modular pieces join what they touch
