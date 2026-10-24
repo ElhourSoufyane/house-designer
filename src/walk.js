@@ -230,7 +230,11 @@ function nearestUse() {
       const p = HP.parseWallKey(k);
       const mx = (p.d === 'h' ? p.x + 0.5 : p.x) * C, my = (p.d === 'h' ? p.y : p.y + 0.5) * C;
       const d = Math.hypot(mx - px, my - py);
-      if (d < bd && clearShot(px, py, mx, my)) { bd = d; best = { kind: 'door', key: k, label: (s.c ? 'Open' : 'Close') + ' door' }; }
+      /* the door sits ON the wall — sight-check a point on OUR side of it,
+         else a closed door would block its own reach and never open */
+      const rx = d > 0 ? mx + (px - mx) / d * Math.min(0.3 * C, d * 0.5) : px;
+      const ry = d > 0 ? my + (py - my) / d * Math.min(0.3 * C, d * 0.5) : py;
+      if (d < bd && clearShot(px, py, rx, ry)) { bd = d; best = { kind: 'door', key: k, label: (s.c ? 'Open' : 'Close') + ' door' }; }
     }
   }
   for (const it of lvl.furniture) {
