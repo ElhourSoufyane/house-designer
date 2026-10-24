@@ -23,9 +23,35 @@ function coopStatus(txt, on) {
 function showPanel() { $('#coop-panel').classList.remove('hidden'); renderPanel(); }
 function hidePanel() { $('#coop-panel').classList.add('hidden'); }
 
+function copyInvite() {
+  const url = location.origin + location.pathname + '?room=' + roomCode;
+  if (navigator.clipboard)
+    navigator.clipboard.writeText(url)
+      .then(() => HP.status('Invite link copied — send it to your partner'))
+      .catch(() => prompt('Copy this link:', url));
+  else prompt('Copy this link:', url);
+}
+
 function renderPanel() {
   const body = $('#coop-body');
   if (!conns.length) {
+    if (peer && peer.open && mode === 'host') {
+      /* hosting, waiting for partner — show code + invite link up front */
+      body.innerHTML = `
+        <div class="field"><label>Send this link to your partner</label>
+          <button class="panel-btn primary" id="coop-copy" style="width:100%">Copy invite link</button></div>
+        <div class="field"><label>…or give them the code</label>
+          <div class="coop-code-big">${roomCode}</div></div>
+        <div class="hint">Waiting for someone to join…</div>
+        <button class="panel-btn danger" id="coop-cancel" style="width:100%">Cancel hosting</button>`;
+      $('#coop-copy').onclick = copyInvite;
+      $('#coop-cancel').onclick = leaveGame;
+      return;
+    }
+    if (peer && mode === 'guest') {
+      body.innerHTML = `<div class="hint">Connecting…</div>`;
+      return;
+    }
     const hasBackup = !!localStorage.getItem(LS_BACKUP);
     body.innerHTML = `
       <div class="field"><label>Your name</label>
@@ -55,14 +81,7 @@ function renderPanel() {
     <button class="panel-btn" id="coop-copy" style="width:100%">Copy invite link</button>
     <div class="hint">Playing with: <b>${names}</b>. Every edit syncs instantly — build together!</div>
     <button class="panel-btn danger" id="coop-leave" style="width:100%">Leave co-op</button>`;
-  $('#coop-copy').onclick = () => {
-    const url = location.origin + location.pathname + '?room=' + roomCode;
-    if (navigator.clipboard)
-      navigator.clipboard.writeText(url)
-        .then(() => HP.status('Invite link copied — send it to your partner'))
-        .catch(() => prompt('Copy this link:', url));
-    else prompt('Copy this link:', url);
-  };
+  $('#coop-copy').onclick = copyInvite;
   $('#coop-leave').onclick = leaveGame;
 }
 
@@ -212,8 +231,10 @@ function joinGame(code) {
   peer = new Peer();
   peer.on('error', e => {
     const t = e && e.type;
-    if (t === 'peer-unavailable') HP.status('No room with that code — check it and try again');
-    else HP.status('Co-op error: ' + t);
+    if (t === 'peer-unavailable') {
+      HP.status('No room with that code — check it and try again');
+      mode = null; renderPanel();
+    } else HP.status('Co-op error: ' + t);
   });
   peer.on('open', () => {
     mode = 'guest';
