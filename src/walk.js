@@ -194,13 +194,12 @@ function seatSpots(it) {
   }
   return spots;
 }
-/* closest point on an item's footprint (world px) — what you actually reach */
-function closestOnItem(px, py, it) {
+/* point on an item you must reach to use it. Center is stricter than the
+   closest edge — an edge can peek through a doorway while the item itself
+   is still behind the wall, which reads as a bug. */
+function itemReach(it) {
   const C = HP.CELL, f = HP.footprint(it);
-  return {
-    x: Math.min(Math.max(px / C, f.x), f.x + f.w) * C,
-    y: Math.min(Math.max(py / C, f.y), f.y + f.h) * C
-  };
+  return { x: (f.x + f.w / 2) * C, y: (f.y + f.h / 2) * C };
 }
 /* line of sight: step cell-to-cell along the segment; any solid wall
    (incl. closed doors & blocking fences) crossed = can't use it */
@@ -237,7 +236,7 @@ function nearestUse() {
   for (const it of lvl.furniture) {
     const sk = HP.seatKind(it.type);
     if (sk && distToItem(px, py, it) < bd) {
-      const p = closestOnItem(px, py, it);
+      const p = itemReach(it);
       if (!clearShot(px, py, p.x, p.y)) continue;
       bd = distToItem(px, py, it);
       const def = HP.itemDef(it.type);
@@ -245,7 +244,7 @@ function nearestUse() {
       continue;
     }
     if (HP.isLamp(it.type) && distToItem(px, py, it) < bd) {
-      const p = closestOnItem(px, py, it);
+      const p = itemReach(it);
       if (!clearShot(px, py, p.x, p.y)) continue;
       bd = distToItem(px, py, it);
       const def = HP.itemDef(it.type);
