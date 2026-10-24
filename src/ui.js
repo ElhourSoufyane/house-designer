@@ -317,6 +317,12 @@ function settingsUI() {
     });
     s.appendChild(d);
   }
+
+  const v = document.createElement('div');
+  v.className = 'hint';
+  v.style.marginTop = '14px';
+  v.textContent = 'Build ' + (HP.VERSION || '?') + ' — house-designer on GitHub Pages';
+  s.appendChild(v);
 }
 
 /* grouped floor swatches — one block per family, colourways under it */

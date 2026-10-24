@@ -1,6 +1,7 @@
 /* grid.js — core constants, shared state, coordinate math */
 window.HP = {};
 
+HP.VERSION = 'v36';
 HP.GRID_W = 64;          // cells wide  (32 m)
 HP.GRID_H = 44;          // cells tall  (22 m)
 HP.CELL   = 28;          // world px per cell (1 cell = 0.5 m)
