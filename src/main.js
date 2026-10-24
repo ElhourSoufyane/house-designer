@@ -1977,6 +1977,7 @@ function drawItems(g) {
 
 function drawOverlays(g) {
   const C = HP.CELL;
+  if (HP.drawPeerCursors) HP.drawPeerCursors(g);   // live co-op cursors
   if (HP.playing) {                       // walk mode: just the player
     if (HP.player) HP.drawPlayer(g);
     return;

@@ -545,6 +545,8 @@ HP.initUI = function () {
   $('#btn-undo').onclick = () => HP.undo();
   $('#btn-redo').onclick = () => HP.redo();
   $('#btn-export').onclick = () => HP.exportPNG();
+  $('#btn-coop').onclick = () => HP.coop && HP.coop.show();
+  $('#coop-x').onclick = () => HP.coop && HP.coop.hide();
 
   $('#btn-zoomin').onclick = () => HP.zoomBtn(1);
   $('#btn-zoomout').onclick = () => HP.zoomBtn(-1);

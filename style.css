@@ -393,6 +393,28 @@ button { font-family: inherit; color: inherit; }
 }
 .panel-btn:hover { transform: translate(-1px,-1px); box-shadow: var(--sh); color: var(--accent); }
 .panel-btn:active { transform: translate(2px,2px); box-shadow: none; }
+/* ---------- co-op panel ---------- */
+#coop-panel {
+  position: absolute; top: 12px; right: 12px; width: min(280px, 84vw);
+  background: var(--panel); border: 1px solid var(--border); border-radius: 12px;
+  box-shadow: var(--sh-lg); z-index: 30; overflow: hidden;
+}
+#coop-panel.hidden { display: none; }
+.coop-head {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 10px 14px; border-bottom: 1px solid var(--border-soft);
+  font-size: 11px; font-weight: 800; letter-spacing: 1px; text-transform: uppercase;
+  position: sticky; top: 0; background: var(--panel); z-index: 3;
+}
+.coop-head button { background: none; border: none; color: var(--text-dim); font-size: 14px; cursor: pointer; }
+#coop-body { padding: 4px 14px 14px; }
+.coop-code-big {
+  font-size: 28px; font-weight: 800; letter-spacing: 8px; text-align: center;
+  padding: 10px 8px 10px 16px; background: var(--panel-2); border-radius: 8px;
+  color: var(--accent); border: 2px dashed var(--border);
+}
+#st-coop { color: var(--text-dim); }
+#st-coop.on { color: #46a35e; font-weight: 700; }
 .panel-btn.danger { border-color: var(--danger); color: var(--danger); }
 .panel-btn.danger:hover { background: var(--danger-soft); color: var(--danger); }
 .panel-btn.primary {

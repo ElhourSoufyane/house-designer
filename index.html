@@ -6,7 +6,7 @@
 <title>HouseDesigner — 2D Home Planner</title>
 <meta name="theme-color" content="#e8e4d8">
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🏠</text></svg>">
-<link rel="stylesheet" href="style.css?v=28">
+<link rel="stylesheet" href="style.css?v=29">
 </head>
 <body>
 
@@ -114,6 +114,7 @@
   <div class="logo"><svg class="ic"><use href="#i-logo"/></svg>House<span>Designer</span></div>
   <button class="tbtn" id="btn-new">New</button>
   <button class="tbtn" id="btn-export">Export</button>
+  <button class="tbtn" id="btn-coop" title="Build together live">Co-op</button>
   <div class="tb-sep"></div>
   <button class="tbtn" id="btn-undo" title="Undo (Ctrl+Z)"><svg class="ic"><use href="#i-undo"/></svg>Undo</button>
   <button class="tbtn" id="btn-redo" title="Redo (Ctrl+Y)"><svg class="ic"><use href="#i-redo"/></svg>Redo</button>
@@ -159,6 +160,10 @@
     <div id="edit-panel" class="hidden">
       <div id="edit-head"><span id="edit-title">Edit</span><button id="edit-close" aria-label="Close panel">&#10005;</button></div>
       <div id="insp-top"></div>
+    </div>
+    <div id="coop-panel" class="hidden">
+      <div class="coop-head"><span>Play together</span><button id="coop-x" aria-label="Close">&#10005;</button></div>
+      <div id="coop-body"></div>
     </div>
     <button id="catalog-fab"><svg class="ic"><use href="#i-grid"/></svg>Catalog</button>
     <div id="play-hint" class="hidden">WASD / arrows to walk &nbsp;·&nbsp; Esc to exit</div>
@@ -206,6 +211,7 @@
     <span id="st-grid">Grid: ON</span>
     <span id="st-floor">Floor 1/1</span>
     <span id="st-save">Autosaved</span>
+    <span id="st-coop">Solo</span>
   </div>
 </footer>
 
@@ -228,16 +234,18 @@
   </div>
 </div>
 
-<script src="src/grid.js?v=28"></script>
-<script src="src/catalog.js?v=28"></script>
-<script src="src/sprites.js?v=28"></script>
-<script src="src/rooms.js?v=28"></script>
-<script src="src/tools.js?v=28"></script>
-<script src="src/presets.js?v=28"></script>
-<script src="src/save.js?v=28"></script>
-<script src="src/walk.js?v=28"></script>
-<script src="src/input.js?v=28"></script>
-<script src="src/ui.js?v=28"></script>
-<script src="src/main.js?v=28"></script>
+<script src="lib/peerjs.min.js"></script>
+<script src="src/grid.js?v=29"></script>
+<script src="src/catalog.js?v=29"></script>
+<script src="src/sprites.js?v=29"></script>
+<script src="src/rooms.js?v=29"></script>
+<script src="src/tools.js?v=29"></script>
+<script src="src/presets.js?v=29"></script>
+<script src="src/save.js?v=29"></script>
+<script src="src/walk.js?v=29"></script>
+<script src="src/input.js?v=29"></script>
+<script src="src/ui.js?v=29"></script>
+<script src="src/main.js?v=29"></script>
+<script src="src/sync.js?v=29"></script>
 </body>
 </html>
