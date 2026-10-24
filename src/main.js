@@ -2185,7 +2185,7 @@ function boot() {
   HP.canvas = document.getElementById('view');
   HP.ctx = HP.canvas.getContext('2d');
   function resize() {
-    dpr = window.devicePixelRatio || 1;
+    dpr = Math.min(window.devicePixelRatio || 1, 2);   // dpr 3+ quadruples canvas memory — imperceptible gain
     HP.canvas.width = HP.canvas.clientWidth * dpr;
     HP.canvas.height = HP.canvas.clientHeight * dpr;
     HP.markDirty();
