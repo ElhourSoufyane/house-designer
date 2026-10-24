@@ -575,11 +575,18 @@ HP.initUI = function () {
     $('#preset-overlay').classList.remove('hidden');
   };
   $('#preset-cancel').onclick = () => $('#preset-overlay').classList.add('hidden');
+  $('#preset-open').onclick = () => {
+    const inp = document.createElement('input');
+    inp.type = 'file'; inp.accept = '.json,application/json';
+    inp.onchange = () => { if (inp.files[0]) HP.importFile(inp.files[0]); };
+    inp.click();
+  };
   $('#preset-overlay').onclick = e => { if (e.target.id === 'preset-overlay') e.target.classList.add('hidden'); };
   $('#dialog-overlay').onclick = e => { if (e.target.id === 'dialog-overlay') e.target.classList.add('hidden'); };
 
   $('#btn-undo').onclick = () => HP.undo();
   $('#btn-redo').onclick = () => HP.redo();
+  $('#btn-save').onclick = () => HP.exportFile();
   $('#btn-export').onclick = () => HP.exportPNG();
   $('#btn-coop').onclick = () => HP.coop && HP.coop.show();
   $('#coop-x').onclick = () => HP.coop && HP.coop.hide();

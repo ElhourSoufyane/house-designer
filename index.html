@@ -6,7 +6,7 @@
 <title>HouseDesigner — 2D Home Planner</title>
 <meta name="theme-color" content="#e8e4d8">
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🏠</text></svg>">
-<link rel="stylesheet" href="style.css?v=55">
+<link rel="stylesheet" href="style.css?v=56">
 </head>
 <body>
 
@@ -113,6 +113,7 @@
 <header class="topbar">
   <div class="logo"><svg class="ic"><use href="#i-logo"/></svg>House<span>Designer</span></div>
   <button class="tbtn" id="btn-new">New</button>
+  <button class="tbtn" id="btn-save" title="Download house as a backup file">Save</button>
   <button class="tbtn" id="btn-export">Export</button>
   <button class="tbtn" id="btn-coop" title="Build together live">Co-op</button>
   <div class="tb-sep"></div>
@@ -221,6 +222,7 @@
   <div id="preset-panel">
     <h2>New House</h2>
     <p class="dim">Pick a starting layout — you can edit everything after.</p>
+    <button id="preset-open" class="panel-btn" style="margin-bottom:10px">📂 Open saved house file…</button>
     <div id="preset-list"></div>
     <button id="preset-cancel" class="panel-btn">Cancel</button>
   </div>
@@ -236,17 +238,17 @@
 </div>
 
 <script src="lib/peerjs.min.js"></script>
-<script src="src/grid.js?v=55"></script>
-<script src="src/catalog.js?v=55"></script>
-<script src="src/sprites.js?v=55"></script>
-<script src="src/rooms.js?v=55"></script>
-<script src="src/tools.js?v=55"></script>
-<script src="src/presets.js?v=55"></script>
-<script src="src/save.js?v=55"></script>
-<script src="src/walk.js?v=55"></script>
-<script src="src/input.js?v=55"></script>
-<script src="src/ui.js?v=55"></script>
-<script src="src/main.js?v=55"></script>
-<script src="src/sync.js?v=55"></script>
+<script src="src/grid.js?v=56"></script>
+<script src="src/catalog.js?v=56"></script>
+<script src="src/sprites.js?v=56"></script>
+<script src="src/rooms.js?v=56"></script>
+<script src="src/tools.js?v=56"></script>
+<script src="src/presets.js?v=56"></script>
+<script src="src/save.js?v=56"></script>
+<script src="src/walk.js?v=56"></script>
+<script src="src/input.js?v=56"></script>
+<script src="src/ui.js?v=56"></script>
+<script src="src/main.js?v=56"></script>
+<script src="src/sync.js?v=56"></script>
 </body>
 </html>

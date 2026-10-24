@@ -162,6 +162,41 @@ HP.removeLevel = function () {
   HP.setLevel(HP.state.level);
 };
 
+/* ---------- house file export/import (.json backup) ---------- */
+HP.exportFile = function () {
+  const data = JSON.stringify({ app: 'housedesigner', v: 1, state: HP.state, nextId: HP.nextId });
+  const blob = new Blob([data], { type: 'application/json' });
+  const a = document.createElement('a');
+  a.download = 'my-house.house.json';
+  a.href = URL.createObjectURL(blob);
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+  HP.status('House saved to file — keep it as a backup');
+};
+
+HP.importFile = function (file) {
+  const rd = new FileReader();
+  rd.onload = () => {
+    try {
+      const data = JSON.parse(rd.result);
+      const st = data && (data.state || data);       // accept {state:…} or bare state
+      if (!st || !Array.isArray(st.levels)) throw new Error('bad file');
+      HP.pushUndo();
+      HP.state = HP.migrate(st);
+      HP.nextId = Math.max(data.nextId || 0, HP.maxFurnitureId() + 1);
+      HP.selected = null; HP.pending = null; HP.ghost = null; HP.selectedRoom = null;
+      HP.invalidateRegions(); HP.saveState(); HP.refreshContext();
+      if (HP.updateFloorUI) HP.updateFloorUI();
+      const ov = document.getElementById('preset-overlay');
+      if (ov) ov.classList.add('hidden');
+      HP.status('House file loaded — ' + HP.state.levels.length + ' floor(s)');
+    } catch (e) {
+      HP.status('Could not open that file — pick a .house.json saved by this app', false);
+    }
+  };
+  rd.readAsText(file);
+};
+
 /* ---------- PNG export ---------- */
 HP.exportPNG = function () {
   const scale = 2;                                   // 2× resolution
