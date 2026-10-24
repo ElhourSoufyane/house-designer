@@ -20,7 +20,7 @@ function rebuildStatic() {
   g.save();
   g.translate(MARGIN * C, MARGIN * C);
   drawGround(g);
-  drawUnderlay(g);
+  drawBelowWorld(g);
   drawFloors(g);
   if (HP.showGrid) drawGridLines(g);
   drawLabels(g);
@@ -58,29 +58,34 @@ function drawGround(g) {
   }
 }
 
-/* faint ghost of the floor below, for aligning walls/stairs */
-function drawUnderlay(g) {
+/* the world below: a real dimmed render of the level underneath — upstairs
+   sits on top of the yard instead of a green void. Reuses the normal draw
+   functions under a temporary level swap (region cache saved/restored). */
+let belowLayer = null;
+function drawBelowWorld(g) {
   if (HP.state.level <= 0 || HP.showUnderlay === false) return;
-  const below = HP.state.levels[HP.state.level - 1];
-  const C = HP.CELL;
-  g.save();
-  // walls: the alignment cue — darker marks
-  g.globalAlpha = 0.4;
-  g.fillStyle = '#33415c';
-  for (const k in below.walls) {
-    const s = HP.parseWallKey(k);
-    if (s.d === 'h') g.fillRect(s.x * C, s.y * C - 3, C, 6);
-    else g.fillRect(s.x * C - 3, s.y * C, 6, C);
+  const C = HP.CELL, w = (HP.GRID_W + MARGIN * 2) * C, h = (HP.GRID_H + MARGIN * 2) * C;
+  if (!belowLayer) {
+    belowLayer = document.createElement('canvas');
+    belowLayer.width = w; belowLayer.height = h;
   }
-  // furniture: outlines only
-  g.globalAlpha = 0.3;
-  g.strokeStyle = '#33415c'; g.lineWidth = 1.5; g.setLineDash([5, 4]);
-  for (const it of below.furniture) {
-    const f = HP.footprint(it);
-    g.strokeRect(f.x * C, f.y * C, f.w * C, f.h * C);
-  }
-  g.setLineDash([]);
-  g.restore();
+  const bg = belowLayer.getContext('2d');
+  bg.clearRect(0, 0, w, h);
+  bg.save();
+  bg.translate(MARGIN * C, MARGIN * C);
+  const saveLvl = HP.state.level, saveReg = HP.regions;
+  HP.state.level = saveLvl - 1; HP.regions = null;
+  drawGround(bg);
+  drawFloors(bg);
+  drawLabels(bg);
+  drawWalls(bg);
+  drawFences(bg);
+  for (const it of HP.cur().furniture) HP.drawItem(bg, it);
+  HP.state.level = saveLvl; HP.regions = saveReg;
+  bg.restore();
+  g.globalAlpha = 0.6;                      // world below, clearly faded
+  g.drawImage(belowLayer, 0, 0);
+  g.globalAlpha = 1;
 }
 
 const MATS = {
