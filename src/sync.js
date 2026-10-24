@@ -156,20 +156,53 @@ function onCursor(d) {
   cursors[d.name] = { x: d.x, y: d.y, name: d.name, color: nameColor(d.name), at: Date.now() };
   HP.markDirty();
 }
-/* prune stale cursors + draw them — called from drawOverlays */
+
+/* ---------- remote walk avatars ---------- */
+const avatars = {};                        // name -> {x, y, a, lvl, at, color}
+function onPos(d) {
+  if (d.off) { delete avatars[d.name]; HP.markDirty(); return; }
+  avatars[d.name] = { x: d.x, y: d.y, a: d.a, lvl: d.lvl, color: nameColor(d.name), at: Date.now() };
+  HP.markDirty();
+}
+function nameTag(g, n, x, y, color) {
+  g.font = '600 11px "Segoe UI", sans-serif'; g.textAlign = 'center';
+  const w = g.measureText(n).width + 12;
+  g.fillStyle = 'rgba(20,23,28,.85)';
+  g.fillRect(x - w / 2, y - 30, w, 18);
+  g.fillStyle = '#fff'; g.fillText(n, x, y - 17);
+}
+/* top-down person — same shape as drawPlayer, colored per peer */
+function drawPeerAvatar(g, n, p) {
+  const r = 11;
+  g.save();
+  g.translate(p.x, p.y);
+  g.fillStyle = 'rgba(0,0,0,.28)';
+  g.beginPath(); g.ellipse(2, 3, r, r * 0.85, 0, 0, 7); g.fill();
+  g.rotate(p.a || 0);
+  g.beginPath(); g.arc(0, 0, r, 0, 7);
+  g.fillStyle = p.color; g.fill();
+  g.strokeStyle = 'rgba(0,0,0,.45)'; g.lineWidth = 2; g.stroke();
+  g.fillStyle = '#e8eaf0';
+  g.beginPath(); g.moveTo(r + 3, 0); g.lineTo(r - 4, -4); g.lineTo(r - 4, 4); g.closePath(); g.fill();
+  g.restore();
+  nameTag(g, n, p.x, p.y, p.color);
+}
+/* prune stale peers + draw cursors & walk avatars — called from drawOverlays */
 HP.drawPeerCursors = function (g) {
   const now = Date.now();
+  for (const n in avatars) {
+    const p = avatars[n];
+    if (now - p.at > 2500) { delete avatars[n]; continue; }
+    if (p.lvl === HP.state.level) drawPeerAvatar(g, n, p);
+  }
   for (const n in cursors) {
     const c = cursors[n];
     if (now - c.at > 4000) { delete cursors[n]; continue; }
+    if (avatars[n] && now - avatars[n].at <= 2500) continue;   // walking → avatar, not cursor
     g.fillStyle = c.color;
     g.beginPath(); g.arc(c.x, c.y, 7, 0, 7); g.fill();
     g.strokeStyle = '#fff'; g.lineWidth = 2; g.stroke();
-    g.font = '600 11px "Segoe UI", sans-serif'; g.textAlign = 'center';
-    g.fillStyle = 'rgba(20,23,28,.85)';
-    const w = g.measureText(n).width + 12;
-    g.fillRect(c.x - w / 2, c.y - 30, w, 18);
-    g.fillStyle = '#fff'; g.fillText(n, c.x, c.y - 17);
+    nameTag(g, n, c.x, c.y, c.color);
   }
 };
 
@@ -189,10 +222,11 @@ function setupConn(c) {
     if (d.t === 'hello') { c.name = d.name; HP.status(d.name + ' joined the house'); setConnected(); }
     else if (d.t === 'state') applyState(d, c);
     else if (d.t === 'cursor') onCursor(d);
+    else if (d.t === 'pos') onPos(d);
   });
   const drop = () => {
     conns = conns.filter(x => x !== c);
-    if (c.name) delete cursors[c.name];
+    if (c.name) { delete cursors[c.name]; delete avatars[c.name]; }
     if (c.name) HP.status(c.name + ' left');
     setConnected();
   };
@@ -248,6 +282,7 @@ function leavePeer() {
   conns = [];
   if (peer) { try { peer.destroy(); } catch (e) {} peer = null; }
   for (const n in cursors) delete cursors[n];
+  for (const n in avatars) delete avatars[n];
   mode = null;
 }
 function leaveGame() {
@@ -276,12 +311,34 @@ function restoreSolo() {
 function hookCursor() {
   if (!HP.canvas) { setTimeout(hookCursor, 300); return; }
   HP.canvas.addEventListener('pointermove', e => {
+    if (HP.playing) return;                        // walking → send avatar pos instead
     const r = HP.canvas.getBoundingClientRect();
     const w = HP.s2w(e.clientX - r.left, e.clientY - r.top);
     sendCursor(w.x, w.y);
   });
 }
 hookCursor();
+
+/* ---------- walk-mode position broadcast ---------- */
+let lastPosSent = 0;
+function hookWalk() {
+  if (!HP.tickPlayer || !HP.togglePlay) { setTimeout(hookWalk, 300); return; }
+  const tick0 = HP.tickPlayer;
+  HP.tickPlayer = function (dt) {
+    tick0(dt);
+    const now = performance.now();
+    if (conns.length && HP.player && now - lastPosSent > 90) {
+      lastPosSent = now;
+      sendAll({ t: 'pos', x: HP.player.x, y: HP.player.y, a: HP.player.angle, lvl: HP.state.level, name: myName || 'Player' });
+    }
+  };
+  const play0 = HP.togglePlay;
+  HP.togglePlay = function () {
+    play0();
+    if (!HP.playing) sendAll({ t: 'pos', off: true, name: myName || 'Player' });
+  };
+}
+hookWalk();
 window.addEventListener('beforeunload', leavePeer);
 
 /* ---------- invite link: ?room=CODE auto-joins ---------- */
