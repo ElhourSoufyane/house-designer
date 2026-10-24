@@ -12,6 +12,7 @@ let myName = localStorage.getItem('hd_name') || '';
 let rev = 0, applying = false, sendTimer = null, lastCursorSent = 0;
 const cursors = {};                        // name -> {x, y, color, at}
 HP.peerCursors = cursors;
+HP.peerAvatarList = () => Object.values(avatars);   // [{x,y,a,lvl,s,name}…] for seat picking
 
 const $ = s => document.querySelector(s);
 

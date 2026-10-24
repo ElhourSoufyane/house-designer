@@ -17,13 +17,13 @@ HP.isLamp = t => LIGHTS.has(t);
 
 /* furniture you can sit on / lie down in (walk-mode interact) */
 const SEATS = new Set(['sofa2', 'sofa3', 'sofaL', 'sofaU', 'outsofa', 'modseat', 'loveseat2',
-  'reclinerSofa', 'curvedSofa', 'recliner', 'armchair', 'tubchair', 'clubchair', 'accentchair',
-  'swivelchair', 'rockchair', 'rocker', 'chair', 'highchair', 'offchair', 'gamingchair',
-  'kneelchair', 'bench', 'gardenbench', 'entrybench', 'showerbench', 'bedbench', 'weightbench',
-  'barstool', 'footstool', 'beanbag', 'beanbag2', 'toilet', 'bathtub', 'hottub', 'lounger',
-  'cinemaseats', 'swingset', 'car']);
-const LIES = new Set(['bedSingle', 'bedDouble', 'bedQueen', 'bedKing', 'bunkbed',
-  'daybed', 'daybed2', 'futon', 'hammock', 'petbed']);
+  'settee', 'reclinerSofa', 'curvedSofa', 'recliner', 'armchair', 'tubchair', 'clubchair',
+  'accentchair', 'swivelchair', 'rockchair', 'rocker', 'chair', 'highchair', 'offchair',
+  'gamingchair', 'kneelchair', 'bench', 'gardenbench', 'entrybench', 'showerbench',
+  'bedbench', 'weightbench', 'barstool', 'footstool', 'ottoman', 'ottomanTuft', 'ottomanStor',
+  'beanbag', 'beanbag2', 'toilet', 'bathtub', 'hottub', 'lounger', 'cinemaseats', 'swingset', 'car']);
+const LIES = new Set(['bedSingle', 'bedDouble', 'bedQueen', 'bedKing', 'bunkbed', 'daybed',
+  'daybed2', 'futon', 'sleeper', 'hammock', 'crib', 'petbed', 'chaise', 'modchaise']);
 HP.seatKind = t => SEATS.has(t) ? 'sit' : LIES.has(t) ? 'lie' : null;
 
 /* wall that blocks walking (open doors let you through, closed ones don't) */
@@ -156,6 +156,26 @@ function distToItem(px, py, it) {
   const x0 = f.x * C, y0 = f.y * C, x1 = (f.x + f.w) * C, y1 = (f.y + f.h) * C;
   return Math.hypot(Math.max(x0 - px, 0, px - x1), Math.max(y0 - py, 0, py - y1));
 }
+/* where a player can sit/lie on an item:
+   sofas & benches → one cushion per cell along the long axis
+   beds & wide lie-downs → two sides (left / right) along the narrow axis */
+function seatSpots(it) {
+  const C = HP.CELL, f = HP.footprint(it), spots = [];
+  if (HP.seatKind(it.type) === 'lie') {
+    if (f.w >= f.h) {                                   // wide → left & right halves
+      const my = (f.y + f.h / 2) * C;
+      spots.push({ x: (f.x + f.w / 4) * C, y: my }, { x: (f.x + f.w * 3 / 4) * C, y: my });
+    } else {                                            // tall → top & bottom halves
+      const mx = (f.x + f.w / 2) * C;
+      spots.push({ x: mx, y: (f.y + f.h / 4) * C }, { x: mx, y: (f.y + f.h * 3 / 4) * C });
+    }
+  } else if (f.w >= f.h) {
+    for (let i = 0; i < f.w; i++) spots.push({ x: (f.x + i + 0.5) * C, y: (f.y + f.h / 2) * C });
+  } else {
+    for (let i = 0; i < f.h; i++) spots.push({ x: (f.x + f.w / 2) * C, y: (f.y + i + 0.5) * C });
+  }
+  return spots;
+}
 function nearestUse() {
   if (sitting) return { kind: 'stand', label: 'Stand up' };
   const C = HP.CELL, lvl = HP.cur();
@@ -215,10 +235,21 @@ function doUse() {
   if (!u) return;
   if (u.kind === 'stand') { standUp(); return; }
   if (u.kind === 'sit') {
-    const C = HP.CELL, f = HP.footprint(u.it);
+    const C = HP.CELL;
     sitting = { it: u.it, px: HP.player.x, py: HP.player.y };
-    HP.player.x = (f.x + f.w / 2) * C;
-    HP.player.y = (f.y + f.h / 2) * C;
+    /* pick the free spot nearest where you're standing — partners get
+       different cushions / their own side of the bed instead of stacking */
+    const peers = (HP.peerAvatarList ? HP.peerAvatarList() : [])
+      .filter(a => a.s && a.lvl === HP.state.level);
+    const spots = seatSpots(u.it);
+    const free = spots.filter(sp => !peers.some(a => Math.hypot(a.x - sp.x, a.y - sp.y) < C * 0.4));
+    const pool = free.length ? free : spots;
+    let best = pool[0], bd = Infinity;
+    for (const sp of pool) {
+      const d = Math.hypot(sp.x - HP.player.x, sp.y - HP.player.y);
+      if (d < bd) { bd = d; best = sp; }
+    }
+    HP.player.x = best.x; HP.player.y = best.y;
     HP.player.angle = Math.PI / 2;            // face "down" like sitting forward
     useShown = '';
     HP.markDirty();
