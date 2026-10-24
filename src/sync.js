@@ -240,8 +240,9 @@ function mergeRemote(cur, base, inc, incStamps, baseStamps) {
   }
   for (const k of ['bg', 'photoFloors'])
     if (inc[k] !== undefined && (!base || JSON.stringify(inc[k]) !== JSON.stringify(base[k]))) cur[k] = inc[k];
-  if (typeof inc.level === 'number' && (!base || inc.level !== base.level))
-    cur.level = Math.min(inc.level, cur.levels.length - 1);
+  /* inc.level is deliberately NOT synced — the viewed floor is a personal
+     view choice, not shared house data. Her climbing stairs shouldn't drag
+     my screen to floor 2. (Adopted once on join in applyState.) */
   return cur;
 }
 
@@ -258,6 +259,10 @@ function applyState(msg, fromConn) {
   rev = msg.rev;
   const origin = msg.origin || fromConn.peer;
   const inc = HP.migrate(JSON.parse(JSON.stringify(msg.state)));      // owned copy
+  /* floor-change notification — she moved floors, tell me where she went */
+  const prevLvl = peerBase[origin] && peerBase[origin].level;
+  if (prevLvl !== undefined && inc.level !== prevLvl && fromConn.name && HP.status)
+    HP.status(fromConn.name + ' went to floor ' + (inc.level + 1));
   const baseStamps = peerStamps[origin];
   if (!peerBase[origin]) {
     HP.state = inc;                                // first state from them → adopt wholesale
