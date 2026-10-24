@@ -1717,12 +1717,22 @@ function drawDoors(g) {
 }
 
 function drawGap(g, s, t, dbl) {
-  const C = HP.CELL, n = dbl ? 2 : 1;
-  g.save();
-  g.fillStyle = '#e8e2d6';
-  if (s.d === 'h') g.fillRect(s.x * C + 2, s.y * C - t / 2 - 2, n * C - 4, t + 4);
-  else g.fillRect(s.x * C - t / 2 - 2, s.y * C + 2, t + 4, n * C - 4);
-  g.restore();
+  const C = HP.CELL, n = dbl ? 2 : 1, mats = HP.cur().floors;
+  const matOf = (x, y) => HP.cellIn(x, y) ? (mats[x + ',' + y] || 'default') : 'default';
+  for (let i = 0; i < n; i++) {
+    const cx = s.d === 'h' ? s.x + i : s.x, cy = s.d === 'h' ? s.y : s.y + i;
+    g.save();
+    if (s.d === 'h') {
+      g.beginPath(); g.rect(cx * C + 2, s.y * C - t / 2 - 2, C - 4, t + 4); g.clip();
+      paintFloorCell(g, matOf(cx, cy - 1), cx * C, (cy - 1) * C);   // outer half of threshold
+      paintFloorCell(g, matOf(cx, cy), cx * C, cy * C);             // inner half
+    } else {
+      g.beginPath(); g.rect(s.x * C - t / 2 - 2, cy * C + 2, t + 4, C - 4); g.clip();
+      paintFloorCell(g, matOf(cx - 1, cy), (cx - 1) * C, cy * C);
+      paintFloorCell(g, matOf(cx, cy), cx * C, cy * C);
+    }
+    g.restore();
+  }
 }
 
 function insideDir(s) {                      // which side is inside? for door swing
