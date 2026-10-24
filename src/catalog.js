@@ -1106,10 +1106,11 @@ HP.CATALOG = [
       g.beginPath(); g.ellipse(W * 0.72, H * 0.6, 5, 2.5, -0.2, 0, 7); g.fill();
       g.fillStyle = '#6a9e5f'; g.fillRect(W * 0.2, H * 0.55, 4, 8);     // plant
     } },
-  { id: 'bench', name: 'Bench', cat: 'Living', w: 2, h: 1, colors: ['#9a774f', '#5b5f6b', '#7d8fa3'],
-    draw(g, W, H, v) {
+  { id: 'bench', name: 'Bench', cat: 'Living', w: 2, h: 1, colors: ['#9a774f', '#5b5f6b', '#7d8fa3'], joins: true,
+    draw(g, W, H, v, m) {
       const p = P(), c = this.colors[v];
-      p.fabric(g, 4, 6, W - 8, H - 12, 6, c);
+      const x0 = (m & 4) ? 0 : 4, x1 = (m & 1) ? W : W - 8;
+      p.fabric(g, x0, 6, x1 - x0, H - 12, 6, c);
       g.strokeStyle = HP.shade(c, 0.7); g.lineWidth = 1;
       g.beginPath(); g.moveTo(W / 2, 8); g.lineTo(W / 2, H - 8); g.stroke();
     } },
@@ -1696,13 +1697,17 @@ HP.CATALOG = [
         p.pillow(g, 12 + i * (W * 0.3), 10, 12, c, 0);
       p.fabric(g, 8, H * 0.5, W - 16, H * 0.42, 4, c);                           // cushion
     } },
-  { id: 'bedbench', name: 'Bed Bench', cat: 'Bedroom', w: 2, h: 1, colors: ['#a07858', '#7d8fa3', '#6d7a68'],
-    draw(g, W, H, v) {
+  { id: 'bedbench', name: 'Bed Bench', cat: 'Bedroom', w: 2, h: 1, colors: ['#a07858', '#7d8fa3', '#6d7a68'], joins: true,
+    draw(g, W, H, v, m) {
       const p = P(), c = this.colors[v];
-      p.fabric(g, 6, 10, W - 12, H - 20, 7, c);
+      const x0 = (m & 4) ? 2 : 6, x1 = (m & 1) ? W - 2 : W - 6;
+      p.fabric(g, x0, 10, x1 - x0, H - 20, 7, c);
       g.fillStyle = HP.shade(c, 0.5);
-      [[10, H - 8], [W - 10, H - 8], [10, 10], [W - 10, 10]].forEach(pt => {
-        g.beginPath(); g.arc(pt[0], pt[1], 3, 0, 7); g.fill();
+      [[10, H - 8], [10, 10]].forEach(pt => {
+        if (!(m & 4)) { g.beginPath(); g.arc(pt[0], pt[1], 3, 0, 7); g.fill(); }
+      });
+      [[W - 10, H - 8], [W - 10, 10]].forEach(pt => {
+        if (!(m & 1)) { g.beginPath(); g.arc(pt[0], pt[1], 3, 0, 7); g.fill(); }
       });
       g.strokeStyle = 'rgba(0,0,0,.15)'; g.setLineDash([3, 3]);
       P().RR(g, 10, 14, W - 20, H - 28, 4); g.stroke(); g.setLineDash([]);
@@ -4002,11 +4007,12 @@ HP.CATALOG = [
       });
       p.cushion(g, 6, 6, W - 12, H - 12, c);
     } },
-  { id: 'entrybench', name: 'Entry Bench', cat: 'Living', brand: 'Nordvik', w: 3, h: 1, colors: FABC,
-    draw(g, W, H, v) {
+  { id: 'entrybench', name: 'Entry Bench', cat: 'Living', brand: 'Nordvik', w: 3, h: 1, colors: FABC, joins: true,
+    draw(g, W, H, v, m) {
       const p = P(), c = this.colors[v];
-      p.wood(g, 4, 4, W - 8, H - 8, '#8a6844');
-      p.cushion(g, 8, 8, W - 16, H - 16, c);
+      const x0 = (m & 4) ? 0 : 4, x1 = (m & 1) ? W : W - 8;
+      p.wood(g, x0, 4, x1 - x0, H - 8, '#8a6844');
+      p.cushion(g, x0 + 4, 8, x1 - x0 - 8, H - 16, c);
       g.strokeStyle = 'rgba(0,0,0,.15)'; g.lineWidth = 1;
       for (let i = 1; i < 4; i++) {
         g.beginPath(); g.moveTo(10, H - 8 - i * 4 + 12); g.lineTo(W - 10, H - 8 - i * 4 + 12); g.stroke();
@@ -4630,17 +4636,21 @@ HP.CATALOG = [
     } },
 
   /* ---------------- GARDEN / OUTDOOR extras ---------------- */
-  { id: 'gardenbench', name: 'Garden Bench', cat: 'Garden', brand: 'Heritage', w: 3, h: 1, colors: ['#8a6844', '#3a5f5d', '#a8a294', '#5b5f6b'],
-    draw(g, W, H, v) {
+  { id: 'gardenbench', name: 'Garden Bench', cat: 'Garden', brand: 'Heritage', w: 3, h: 1, colors: ['#8a6844', '#3a5f5d', '#a8a294', '#5b5f6b'], joins: true,
+    draw(g, W, H, v, m) {
       const p = P(), c = this.colors[v];
-      g.fillStyle = HP.shade(c, 0.55);                                            // legs
-      [[0.12, 0.3], [0.88, 0.3], [0.12, 0.7], [0.88, 0.7]].forEach(pt => {
-        g.fillRect(W * pt[0] - 4, H * pt[1] - 4, 8, 8);
+      const x0 = (m & 4) ? 0 : 4, x1 = (m & 1) ? W : W - 8;                       // slats run into neighbours
+      g.fillStyle = HP.shade(c, 0.55);                                            // legs, hidden on joined ends
+      [[0.12, 0.3], [0.12, 0.7]].forEach(pt => {
+        if (!(m & 4)) g.fillRect(W * pt[0] - 4, H * pt[1] - 4, 8, 8);
+      });
+      [[0.88, 0.3], [0.88, 0.7]].forEach(pt => {
+        if (!(m & 1)) g.fillRect(W * pt[0] - 4, H * pt[1] - 4, 8, 8);
       });
       for (let i = 0; i < 3; i++)                                                 // seat slats
-        p.box(g, 4, H * (0.35 + i * 0.13), W - 8, H * 0.09, 2, HP.shade(c, 0.9 + i * 0.04));
+        p.box(g, x0, H * (0.35 + i * 0.13), x1 - x0, H * 0.09, 2, HP.shade(c, 0.9 + i * 0.04));
       for (let i = 0; i < 2; i++)                                                 // back slats
-        p.box(g, 4, H * (0.1 + i * 0.1), W - 8, H * 0.07, 2, HP.shade(c, 0.95));
+        p.box(g, x0, H * (0.1 + i * 0.1), x1 - x0, H * 0.07, 2, HP.shade(c, 0.95));
     } },
   { id: 'birdhouse', name: 'Birdhouse', cat: 'Garden', brand: 'TerraHome', w: 1, h: 1, colors: ['#a06558', '#8a6844', '#5d8a5d', '#e8e2d6'],
     draw(g, W, H, v) {

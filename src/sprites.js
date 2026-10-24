@@ -101,25 +101,45 @@ HP.P = {
 };
 
 /* ---------- sprite cache ---------- */
-HP.getSprite = function (type, v, w, h) {
+HP.getSprite = function (type, v, w, h, mask) {
   const def = HP.itemDef(type);
   const iw = w || def.w, ih = h || def.h;         // resized items render at their own size
-  const key = type + ':' + v + ':' + iw + 'x' + ih;
+  const key = type + ':' + v + ':' + iw + 'x' + ih + (mask ? ':' + mask : '');
   if (cache[key]) return cache[key];
   const c = document.createElement('canvas');
   c.width = iw * HP.PPC + HP.PAD * 2;
   c.height = ih * HP.PPC + HP.PAD * 2;
   const g = c.getContext('2d');
   g.translate(HP.PAD, HP.PAD);
-  def.draw.call(def, g, iw * HP.PPC, ih * HP.PPC, v || 0);
+  def.draw.call(def, g, iw * HP.PPC, ih * HP.PPC, v || 0, mask || 0);
   cache[key] = c;
   return c;
+};
+
+/* joinable items: bitmask of sides where an identical (same type+rot) item touches.
+   bit0=right 1=down 2=left 3=up, in the sprite's LOCAL frame (before rotation) */
+HP._joinMask = function (item) {
+  const f = HP.footprint(item);
+  const same = (cx, cy) => {
+    const o = HP.itemAt(cx, cy);
+    return o && o !== item && o.type === item.type && o.rot === item.rot;
+  };
+  let wm = 0;
+  for (let j = 0; j < f.h; j++) if (same(f.x + f.w, f.y + j)) { wm |= 1; break; }
+  for (let i = 0; i < f.w; i++) if (same(f.x + i, f.y + f.h)) { wm |= 2; break; }
+  for (let j = 0; j < f.h; j++) if (same(f.x - 1, f.y + j)) { wm |= 4; break; }
+  for (let i = 0; i < f.w; i++) if (same(f.x + i, f.y - 1)) { wm |= 8; break; }
+  let lm = 0;                                     // sprite is drawn, then rotated rot*90° CW
+  for (let s = 0; s < 4; s++) if (wm & (1 << s)) lm |= 1 << ((s - item.rot + 4) & 3);
+  return lm;
 };
 
 /* draw a furniture item (rotated) onto the main canvas at world coords */
 HP.drawItem = function (g, item, ghostOk) {
   const f = HP.footprint(item);
-  const spr = HP.getSprite(item.type, item.v, item.w, item.h);
+  const def = HP.itemDef(item.type);
+  const mask = def.joins ? HP._joinMask(item) : 0;
+  const spr = HP.getSprite(item.type, item.v, item.w, item.h, mask);
   const k = HP.CELL / HP.PPC;                     // world-px per sprite-px
   const cx = (f.x + f.w / 2) * HP.CELL, cy = (f.y + f.h / 2) * HP.CELL;
   g.save();
@@ -127,7 +147,6 @@ HP.drawItem = function (g, item, ghostOk) {
   g.rotate(item.rot * Math.PI / 2);
   if (ghostOk === false) g.globalAlpha = 0.55;    // invalid ghost
   else if (ghostOk === 'ghost') g.globalAlpha = 0.8;
-  const def = HP.itemDef(item.type);
   const dw = (item.w || def.w) * HP.CELL, dh = (item.h || def.h) * HP.CELL; // sprite is stored unrotated
   g.drawImage(spr, -dw / 2 - HP.PAD * k, -dh / 2 - HP.PAD * k,
     (spr.width) * k, (spr.height) * k);
