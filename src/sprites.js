@@ -6,6 +6,13 @@ HP.PPC = 64;     // px per cell inside sprites
 HP.PAD = 12;     // shadow margin
 
 const cache = {};
+const CACHE_MAX = 700;                              // cap sprite canvases (mobile RAM)
+function cachePut(key, c) {
+  const keys = Object.keys(cache);
+  if (keys.length >= CACHE_MAX)
+    for (let i = 0; i < keys.length - CACHE_MAX + 200; i++) delete cache[keys[i]];
+  cache[key] = c;
+}
 
 /* ---------- painter helpers ---------- */
 HP.P = {
@@ -112,7 +119,7 @@ HP.getSprite = function (type, v, w, h, mask) {
   const g = c.getContext('2d');
   g.translate(HP.PAD, HP.PAD);
   def.draw.call(def, g, iw * HP.PPC, ih * HP.PPC, v || 0, mask || 0);
-  cache[key] = c;
+  cachePut(key, c);
   return c;
 };
 

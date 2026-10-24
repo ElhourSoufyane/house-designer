@@ -1469,14 +1469,34 @@ HP._texImg = _texImg;                                // debug/inspection
 if (HP.FLOOR_MATS) for (const m of HP.FLOOR_MATS)
   if (m.fam && !TEX[m.id]) TEX[m.id] = TEX[m.fam] || 96;
 
+const TEX_MAX = 256;                                 // working size — tiles draw at ~96px anyway
+const TEX_KEEP = 48, _texLRU = [];                   // cap decoded textures (mobile RAM)
+
+function _texTouch(mat) {
+  const i = _texLRU.indexOf(mat);
+  if (i >= 0) _texLRU.splice(i, 1);
+  _texLRU.push(mat);
+  while (_texLRU.length > TEX_KEEP) {
+    const old = _texLRU.shift();
+    delete _texImg[old]; delete _texPat[old];       // evict — reloads lazily on next use
+  }
+}
+
 function loadTex(mat) {                              // lazy: load on first use
   const st = _texImg[mat];
-  if (st !== undefined) return st;
+  if (st !== undefined) { if (st) _texTouch(mat); return st; }
   _texImg[mat] = false;
   if (typeof Image === 'undefined') return false;
   const im = new Image();
   im.onload = () => {
-    _texImg[mat] = im; _texPat[mat] = null;
+    let src = im;
+    if (im.width > TEX_MAX) {                        // downscale — drops ~75% of decode memory
+      const c = document.createElement('canvas');
+      c.width = TEX_MAX; c.height = Math.max(1, Math.round(im.height * TEX_MAX / im.width));
+      c.getContext('2d').drawImage(im, 0, 0, c.width, c.height);
+      src = c;
+    }
+    _texImg[mat] = src; _texPat[mat] = null; _texTouch(mat);
     HP.invalidateRegions();                         // rebuild static layer
     for (const p of _prevCvs) if (p.mat === mat) paintPreview(p);   // live swatch update
   };
