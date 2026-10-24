@@ -2067,6 +2067,13 @@ function frame(t) {
   if (HP.playing) HP.tickPlayer(dt);
   if (staticDirty) rebuildStatic();
   if (HP.dirty) {
+    /* Safari can change the wrap size without firing resize — re-check
+       every painted frame or the backing store smears at the edges */
+    const cw = Math.round(HP.canvas.clientWidth * dpr);
+    const ch = Math.round(HP.canvas.clientHeight * dpr);
+    if (HP.canvas.width !== cw || HP.canvas.height !== ch) {
+      HP.canvas.width = cw; HP.canvas.height = ch;
+    }
     const ctx = HP.ctx, w = HP.canvas.clientWidth, h = HP.canvas.clientHeight;
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     ctx.fillStyle = HP.shade(HP.state.bg || '#aebfa0', 0.82);   // far grass
@@ -2106,6 +2113,7 @@ function boot() {
     HP.markDirty();
   }
   window.addEventListener('resize', resize);
+  if (window.visualViewport) window.visualViewport.addEventListener('resize', resize);
   resize();
 
   if (!HP.loadState()) HP.state = HP.migrate(HP.PRESETS[0].build());   // first run → cozy apartment

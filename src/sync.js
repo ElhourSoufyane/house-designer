@@ -131,7 +131,7 @@ function applyState(msg, fromConn) {
   HP.state.level = Math.min(HP.state.level, HP.state.levels.length - 1);
   HP.nextId = Math.max(HP.nextId || 0, msg.nextId || 0);
   HP.selected = HP.pending = HP.ghost = HP.selectedRoom = null;
-  HP.invalidateRegions(); HP.refreshContext();
+  HP.invalidateRegions(); HP.refreshContext(); HP.markDirty();
   if (HP.updateFloorUI) HP.updateFloorUI();
   try { localStorage.setItem(LS_KEY, JSON.stringify({ state: HP.state, nextId: HP.nextId })); } catch (e) {}
   applying = false;
@@ -312,8 +312,7 @@ function hookCursor() {
   if (!HP.canvas) { setTimeout(hookCursor, 300); return; }
   HP.canvas.addEventListener('pointermove', e => {
     if (HP.playing) return;                        // walking → send avatar pos instead
-    const r = HP.canvas.getBoundingClientRect();
-    const w = HP.s2w(e.clientX - r.left, e.clientY - r.top);
+    const w = HP.s2w(e.clientX, e.clientY);        // s2w handles the canvas offset
     sendCursor(w.x, w.y);
   });
 }
