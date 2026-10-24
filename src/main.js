@@ -2011,21 +2011,20 @@ function drawItems(g) {
   for (const it of HP.cur().furniture) HP.drawItem(g, it);
 }
 
-/* warm light pools under lamps that are switched on (walk-mode interact) */
+/* warm light pools under lamps that are switched on (walk-mode interact).
+   Drawn BEFORE items so the lamp sits inside its own glow — no floating dot. */
 function drawLights(g) {
   const C = HP.CELL;
   for (const it of HP.cur().furniture) {
     if (!it.on || !HP.isLamp || !HP.isLamp(it.type)) continue;
     const f = HP.footprint(it);
-    const mx = (f.x + f.w / 2) * C, my = (f.y + f.h / 2) * C, Rr = C * 3.6;
-    const gr = g.createRadialGradient(mx, my, C * 0.3, mx, my, Rr);
-    gr.addColorStop(0, 'rgba(255,216,130,.40)');
-    gr.addColorStop(0.55, 'rgba(255,216,130,.16)');
+    const mx = (f.x + f.w / 2) * C, my = (f.y + f.h / 2) * C, Rr = C * 3.4;
+    const gr = g.createRadialGradient(mx, my, 0, mx, my, Rr);
+    gr.addColorStop(0, 'rgba(255,216,130,.45)');
+    gr.addColorStop(0.4, 'rgba(255,216,130,.22)');
     gr.addColorStop(1, 'rgba(255,216,130,0)');
     g.fillStyle = gr;
     g.fillRect(mx - Rr, my - Rr, Rr * 2, Rr * 2);
-    g.beginPath(); g.arc(mx, my, C * 0.16, 0, 7);
-    g.fillStyle = 'rgba(255,242,195,.9)'; g.fill();
   }
 }
 
@@ -2151,8 +2150,8 @@ HP.renderAll = function (g, cam, layer) {
   } else {
     drawGround(g); drawFloors(g); drawLabels(g); drawWalls(g); drawFences(g);
   }
-  drawItems(g);
   drawLights(g);
+  drawItems(g);
   if (!cam.export) drawOverlays(g);
   g.restore();
 };
