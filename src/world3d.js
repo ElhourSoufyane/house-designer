@@ -188,7 +188,24 @@ function buildWalls(group) {
     const nbR = walls[s.d + ',' + (s.d === 'h' ? s.x + n : s.x) + ',' + (s.d === 'h' ? s.y : s.y + n)];
     const extL = eat(s.d, s.d === 'h' ? s.x - 1 : s.x, s.d === 'h' ? s.y : s.y - 1);
     const extR = eat(s.d, s.d === 'h' ? s.x + n : s.x, s.d === 'h' ? s.y : s.y + n);
-    const ox0 = p0 - extL + 1, ox1 = pEnd + extR - 1;
+    /* the opening may never cross a junction vertex — a perpendicular wall
+       post MUST stand (it's real wall, not a patch). bound the opening at
+       the post's inner face; it becomes the jamb, exactly like framing. */
+    const perpHalf = (vx, vy) => {
+      let m = 0;
+      if (s.d === 'h') {
+        for (const dy of [0, -1]) if (walls['v,' + vx + ',' + (vy + dy)])
+          m = Math.max(m, segThick({ d: 'v', x: vx, y: vy + dy }) / 2);
+      } else {
+        for (const dx of [0, -1]) if (walls['h,' + (vx + dx) + ',' + vy])
+          m = Math.max(m, segThick({ d: 'h', x: vx + dx, y: vy }) / 2);
+      }
+      return m;
+    };
+    const faceL = perpHalf(s.x, s.y);
+    const faceR = perpHalf(s.d === 'h' ? s.x + n : s.x, s.d === 'h' ? s.y : s.y + n);
+    const ox0 = Math.max(p0 - extL + 1, p0 + faceL);
+    const ox1 = Math.min(pEnd + extR - 1, pEnd - faceR);
     const gw = ox1 - ox0;
     // extend cut to WIN_TOP when it eats into a window so no band sliver remains
     const apTop = (nbL && nbL.f === 'window') || (nbR && nbR.f === 'window') ? WIN_TOP : DOOR_H;
