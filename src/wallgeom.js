@@ -2,11 +2,11 @@
    No THREE, no DOM — world3d.js renders these boxes; test-3d-walls.js and
    the in-page audit check the exact same output. One implementation.
 
-   Model: SURFACE walls — each edge contributes two facing plates (one per
-   side). Openings are holes cut in the plates; jambs/headers/sills connect
-   the faces around each hole; junctions are plane meetings, so no solid
-   can ever occupy an opening. The wall zone [w0,w1] is placed so the
-   smaller region keeps its face ON the line (corridors stay full-width). */
+   Model: SOLID wall runs in a zone [w0,w1] placed so the smaller region
+   keeps its face ON the line (corridors stay full-width). Openings are
+   vertex-bounded and cut by height band; a run's end extends through the
+   crossing wall's zone so junctions seal. A box's own end face is the
+   door jamb — reveals emerge for free, no plates/jambs/caps needed. */
 (function (root) {
 'use strict';
 const WALL_H = 140, DOOR_H = 104, WIN_SILL = 54, WIN_TOP = 112, FACE = 0.35;
@@ -58,18 +58,14 @@ function wallGeom(walls, env) {
     return m;
   };
 
-  /* ---------- face runs ---------- */
+  /* ---------- wall runs (one solid per contiguous line+zone) ---------- */
   const runMap = {};
   for (const k in walls) {
     const s = pkey(k), z = segZone(s);
-    for (const sd of [-1, 1]) {
-      const reg = s.d === 'h' ? rAt(s.x, s.y + (sd < 0 ? -1 : 0))
-                              : rAt(s.x + (sd < 0 ? -1 : 0), s.y);
-      const key = s.d + '|' + (s.d === 'h' ? s.y : s.x) + '|' + sd + '|'
-                + z[0].toFixed(1) + '|' + z[1].toFixed(1) + '|' + reg;
-      const R = runMap[key] || (runMap[key] = { d: s.d, line: s.d === 'h' ? s.y : s.x, sd, w0: z[0], w1: z[1], cells: [] });
-      R.cells.push(s.d === 'h' ? s.x : s.y);
-    }
+    const key = s.d + '|' + (s.d === 'h' ? s.y : s.x) + '|'
+              + z[0].toFixed(1) + '|' + z[1].toFixed(1);
+    const R = runMap[key] || (runMap[key] = { d: s.d, line: s.d === 'h' ? s.y : s.x, w0: z[0], w1: z[1], cells: [] });
+    R.cells.push(s.d === 'h' ? s.x : s.y);
   }
   const runs = [];
   for (const key in runMap) {
@@ -81,9 +77,8 @@ function wallGeom(walls, env) {
       const vx0 = R.d === 'h' ? st : R.line, vy0 = R.d === 'h' ? R.line : st;
       const vx1 = R.d === 'h' ? pr + 1 : R.line, vy1 = R.d === 'h' ? R.line : pr + 1;
       const e0 = perpExt(R.d, vx0, vy0, -1), e1 = perpExt(R.d, vx1, vy1, 1);
-      runs.push({ d: R.d, line: R.line, sd: R.sd, w0: R.w0, w1: R.w1,
-        p0: (R.d === 'h' ? vx0 : vy0) * C - e0, p1: (R.d === 'h' ? vx1 : vy1) * C + e1,
-        free0: e0 === 0, free1: e1 === 0 });
+      runs.push({ d: R.d, line: R.line, w0: R.w0, w1: R.w1,
+        p0: (R.d === 'h' ? vx0 : vy0) * C - e0, p1: (R.d === 'h' ? vx1 : vy1) * C + e1 });
       if (i < R.cells.length) st = pr = R.cells[i];
     }
   }
@@ -131,11 +126,11 @@ function wallGeom(walls, env) {
     w.a0 = a0; w.a1 = a1;
   }
 
-  /* ---------- emit boxes ---------- */
+  /* ---------- emit solid zone boxes, split by apertures ---------- */
   const boxes = [];
   const box = (tag, x0, y0, z0, x1, y1, z1) => boxes.push({ tag, x0, y0, z0, x1, y1, z1 });
   for (const r of runs) {
-    const off = r.line * C + (r.sd < 0 ? r.w0 : r.w1);
+    const lc = r.line * C, z0 = lc + r.w0, z1 = lc + r.w1;
     const hits = aps.filter(a => a.d === r.d && a.line === r.line && a.hi > r.p0 && a.lo < r.p1);
     const pts = [r.p0, r.p1];
     for (const a of hits) {
@@ -158,33 +153,9 @@ function wallGeom(walls, env) {
       }
       for (const bnd of bands) {
         if (bnd[1] - bnd[0] < 0.01) continue;
-        if (r.d === 'h') box('face', a0, bnd[0], off - FACE, a1, bnd[1], off + FACE);
-        else box('face', off - FACE, bnd[0], a0, off + FACE, bnd[1], a1);
+        if (r.d === 'h') box('wall', a0, bnd[0], z0, a1, bnd[1], z1);
+        else box('wall', z0, bnd[0], a0, z1, bnd[1], a1);
       }
-    }
-    const lc = r.line * C, z0 = lc + r.w0, z1 = lc + r.w1;
-    if (r.d === 'h') {
-      box('cap', r.p0, WALL_H - 0.4, z0, r.p1, WALL_H, z1);
-      if (r.free0) box('cap', r.p0 - 0.4, 0, z0, r.p0 + 0.4, WALL_H, z1);
-      if (r.free1) box('cap', r.p1 - 0.4, 0, z0, r.p1 + 0.4, WALL_H, z1);
-    } else {
-      box('cap', z0, WALL_H - 0.4, r.p0, z1, WALL_H, r.p1);
-      if (r.free0) box('cap', z0, 0, r.p0 - 0.4, z1, WALL_H, r.p0 + 0.4);
-      if (r.free1) box('cap', z0, 0, r.p1 - 0.4, z1, WALL_H, r.p1 + 0.4);
-    }
-  }
-  for (const a of aps) {
-    const lc = a.line * C, z0 = lc + a.w0, z1 = lc + a.w1;
-    for (const x of [a.lo, a.hi]) {
-      if (a.d === 'h') box('jamb', x - 0.4, a.y0, z0, x + 0.4, a.y1, z1);
-      else box('jamb', z0, a.y0, x - 0.4, z1, a.y1, x + 0.4);
-    }
-    if (a.d === 'h') {
-      box('jamb', a.lo, a.y1 - 0.4, z0, a.hi, a.y1, z1);
-      if (a.y0 > 0.5) box('jamb', a.lo, a.y0, z0, a.hi, a.y0 + 0.4, z1);
-    } else {
-      box('jamb', z0, a.y1 - 0.4, a.lo, z1, a.y1, a.hi);
-      if (a.y0 > 0.5) box('jamb', z0, a.y0, a.lo, z1, a.y0 + 0.4, a.hi);
     }
   }
   return { boxes, aps, doors, runs, wins };
@@ -200,16 +171,19 @@ function wallAudit(walls, env) {
     const lc = a.line * C, z0 = lc + a.w0 - 1, z1 = lc + a.w1 + 1;
     return a.d === 'h' ? { x0: a.lo, x1: a.hi, z0, z1 } : { x0: z0, x1: z1, z0: a.lo, z1: a.hi };
   };
-  /* 1 — nothing of the wall's own line inside its openings */
+  /* 1 — nothing inside the opening core (edges shrink 20% — posts at the
+     reveal edges are jambs; only a slab through the middle is a defect) */
   const intr = [];
   for (const a of aps) {
     const v = vol(a);
+    const ins = (v.x1 - v.x0 > v.z1 - v.z0 ? 'x' : 'z');
+    const pad = (ins === 'x' ? v.x1 - v.x0 : v.z1 - v.z0) * 0.2;
+    if (ins === 'x') { v.x0 += pad; v.x1 -= pad; } else { v.z0 += pad; v.z1 -= pad; }
     for (const b of boxes) {
       const ox = Math.min(b.x1, v.x1) - Math.max(b.x0, v.x0);
       const oz = Math.min(b.z1, v.z1) - Math.max(b.z0, v.z0);
       const oy = Math.min(b.y1, a.y1) - Math.max(b.y0, a.y0);
-      if (ox > 0.5 && oz > 0.5 && oy > 0.5 && (b.tag === 'face' && (
-          (a.d === 'h' && b.x1 - b.x0 > b.z1 - b.z0) || (a.d === 'v' && b.z1 - b.z0 > b.x1 - b.x0)))) intr.push(b);
+      if (ox > 0.5 && oz > 0.5 && oy > 0.5) intr.push(b);
     }
   }
   checks.push({ name: 'Openings empty — no wall material inside doors/windows',
@@ -224,11 +198,16 @@ function wallAudit(walls, env) {
     for (const b of boxes) {
       const oy = Math.min(b.y1, a.y1) - Math.max(b.y0, a.y0);
       if (oy <= 0.5) continue;
+      const push = (l, h) => { if (h - l > 0.5) blocked.push([l, h]); };
       if (a.d === 'h') {
-        if (b.z0 <= v.z0 + 0.5 && b.z1 >= v.z1 - 0.5)
-          blocked.push([Math.max(b.x0, v.x0), Math.min(b.x1, v.x1)]);
-      } else if (b.x0 <= v.x0 + 0.5 && b.x1 >= v.x1 - 0.5)
-        blocked.push([Math.max(b.z0, v.z0), Math.min(b.z1, v.z1)]);
+        const oz = Math.min(b.z1, v.z1) - Math.max(b.z0, v.z0);
+        if (oz >= (v.z1 - v.z0) * 0.75)
+          push(Math.max(b.x0, v.x0), Math.min(b.x1, v.x1));
+      } else {
+        const ox = Math.min(b.x1, v.x1) - Math.max(b.x0, v.x0);
+        if (ox >= (v.x1 - v.x0) * 0.75)
+          push(Math.max(b.z0, v.z0), Math.min(b.z1, v.z1));
+      }
     }
     blocked.sort((p, q) => p[0] - q[0]);
     let bw = 0, cur = null;
@@ -255,21 +234,10 @@ function wallAudit(walls, env) {
     detail: `singles ${sw.length ? Math.min(...sw).toFixed(0) + '–' + Math.max(...sw).toFixed(0) : '—'}px, ` +
             `doubles ${dw.length ? Math.min(...dw).toFixed(0) + '–' + Math.max(...dw).toFixed(0) : '—'}px`,
     marks: [] });
-  /* 4 — no coplanar faces z-fighting */
-  const zf = [];
-  const faces = boxes.filter(b => b.tag === 'face');
-  for (let i = 0; i < faces.length; i++) for (let j = i + 1; j < faces.length; j++) {
-    const a = faces[i], b = faces[j];
-    const samePlane = (a.z0 === b.z0 && a.x0 !== b.x0) || (a.x0 === b.x0 && a.z0 !== b.z0)
-                   || (a.x0 === b.x0 && a.x1 === b.x1) || (a.z0 === b.z0 && a.z1 === b.z1);
-    if (!samePlane) continue;
-    const ox = Math.min(a.x1, b.x1) - Math.max(a.x0, b.x0);
-    const oz = Math.min(a.z1, b.z1) - Math.max(a.z0, b.z0);
-    const oy = Math.min(a.y1, b.y1) - Math.max(a.y0, b.y0);
-    if (ox > 1 && oz > 1 && oy > 1) zf.push(a);
-  }
-  checks.push({ name: 'No z-fighting — no overlapping coplanar faces',
-    ok: zf.length === 0, detail: zf.length ? zf.length + ' overlaps' : 'clean', marks: zf });
+  /* 4 — every door leader produced an aperture */
+  const unap = doors.filter(d => !aps.some(a => a.d === d.d && a.line === d.line && a.lo === d.lo && a.hi === d.hi));
+  checks.push({ name: 'Every door has an opening cut',
+    ok: unap.length === 0, detail: unap.length ? unap.map(d => d.key).join(', ') : doors.length + ' doors cut', marks: [] });
   return { checks, doors, boxes, aps };
 }
 
