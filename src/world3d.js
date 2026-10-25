@@ -215,9 +215,16 @@ function buildWalls(group) {
       const n = dbl ? 2 : 1, span = n * C();
       const p0 = s.d === 'h' ? x0 : y0, pEnd = p0 + span;
       // uniform opening: ~0.9 m single, ~1.6 m double — every non-door
-      // neighbour grants ~0.45 cell; perpendicular walls clip themselves
-      const extL = eat(s.d, s.d === 'h' ? s.x - 1 : s.x, s.d === 'h' ? s.y : s.y - 1);
-      const extR = eat(s.d, s.d === 'h' ? s.x + n : s.x, s.d === 'h' ? s.y : s.y + n);
+      // neighbour grants ~0.45 cell, BUT the opening may never cross a
+      // vertex where a perpendicular wall stands: its stub sits inside
+      // the extended part. junction vertex = hard stop (corner post).
+      const perpAt = (vx, vy) => s.d === 'h'
+        ? !!(walls['v,' + vx + ',' + vy] || walls['v,' + vx + ',' + (vy - 1)])
+        : !!(walls['h,' + vx + ',' + vy] || walls['h,' + (vx - 1) + ',' + vy]);
+      const extL = perpAt(s.x, s.y) ? 0
+        : eat(s.d, s.d === 'h' ? s.x - 1 : s.x, s.d === 'h' ? s.y : s.y - 1);
+      const extR = perpAt(s.d === 'h' ? s.x + n : s.x, s.d === 'h' ? s.y : s.y + n) ? 0
+        : eat(s.d, s.d === 'h' ? s.x + n : s.x, s.d === 'h' ? s.y : s.y + n);
       const ox0 = p0 - extL + 2, ox1 = pEnd + extR - 2;
       const gw = ox1 - ox0;
       /* structural opening: jambs + header in wall material */
