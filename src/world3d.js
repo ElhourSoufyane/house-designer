@@ -4,7 +4,7 @@
 if (typeof THREE === 'undefined') return;
 
 const WALL_H = 140;                       // ~2.5 m — chunky enough to read as walls
-const DOOR_H = 96, WIN_SILL = 54, WIN_TOP = 112;
+const DOOR_H = 104, WIN_SILL = 54, WIN_TOP = 112;   // ~1.9 m leaf, ~0.9 m opening
 const EYE = 78, EYE_SIT = 48;
 const MAX_LAMP_LIGHTS = 6;
 
@@ -151,12 +151,13 @@ function buildWalls(group) {
     const x0 = s.x * C(), y0 = s.y * C(), x1 = x0 + (s.d === 'h' ? C() : 0), y1 = y0 + (s.d === 'v' ? C() : 0);
     const isPlain = (d, x, y) => { const w = walls[d + ',' + x + ',' + y]; return w && !w.f; };
     /* how much of a plain segment an adjacent door opening may take —
-       less when the segment is pinched between two doors (keeps a post) */
+       a real doorway is ~0.8-0.9 m (~1.7 cells); a segment pinched
+       between two doors grants less so a post survives */
     const eat = (d, x, y) => {
       if (!isPlain(d, x, y)) return 0;
       const doors = (isDoor(d, x - (d === 'h'), y - (d === 'v')) ? 1 : 0)
                   + (isDoor(d, x + (d === 'h'), y + (d === 'v')) ? 1 : 0);
-      return (doors > 1 ? 0.3 : 0.38) * C();
+      return (doors > 1 ? 0.28 : 0.45) * C();
     };
     if (!feat) {                                            // solid segment
       if (s.d === 'h') {
@@ -185,8 +186,8 @@ function buildWalls(group) {
       // opening grows up to ~0.38 cell into each adjacent PLAIN segment
       const extL = eat(s.d, s.d === 'h' ? s.x - 1 : s.x, s.d === 'h' ? s.y : s.y - 1);
       const extR = eat(s.d, s.d === 'h' ? s.x + n : s.x, s.d === 'h' ? s.y : s.y + n);
-      const ox0 = (s.d === 'h' ? x0 : y0) - extL + 3;
-      const ox1 = (s.d === 'h' ? x0 : y0) + span + extR - 3;
+      const ox0 = (s.d === 'h' ? x0 : y0) - extL + 2;
+      const ox1 = (s.d === 'h' ? x0 : y0) + span + extR - 2;
       const gAll = ox1 - ox0;
       if (s.d === 'h') {
         batch.box(x0 - extL, 0, y0 - ht, ox0, WALL_H, y0 + ht);                // left jamb
