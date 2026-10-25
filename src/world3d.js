@@ -130,10 +130,12 @@ function floorMesh() {
 
 /* ---------------- walls / doors / windows / fences ---------------- */
 function segThick(s) {
+  /* must match wallThick() in main.js — the plan draws 0.30/0.44; thicker
+     3D walls squeeze every corridor + doorway into a slit */
   const { regionOf } = HP.computeRegions();
   const out = (x, y) => !HP.cellIn(x, y) || regionOf[y * HP.GRID_W + x] < 0;
-  if (s.d === 'h') return (out(s.x, s.y - 1) || out(s.x, s.y)) ? 0.55 * C() : 0.42 * C();
-  return (out(s.x - 1, s.y) || out(s.x, s.y)) ? 0.55 * C() : 0.42 * C();
+  if (s.d === 'h') return (out(s.x, s.y - 1) || out(s.x, s.y)) ? 0.44 * C() : 0.30 * C();
+  return (out(s.x - 1, s.y) || out(s.x, s.y)) ? 0.44 * C() : 0.30 * C();
 }
 function insideSign(s) {                    // which way the door swings (toward room)
   const { regionOf } = HP.computeRegions();
