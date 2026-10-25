@@ -145,135 +145,42 @@ function insideSign(s) {                    // which way the door swings (toward
 }
 
 function buildWalls(group) {
-  /* SURFACE-MODEL walls (portal-style): a wall is two facing surfaces, one
-     per side of its edge — not a solid volume. Openings are holes cut in
-     each surface; jambs connect the faces around a hole. Junctions are
-     plane meetings: a perpendicular wall's face terminates flush against
-     this wall's face, so NO solid can ever stand inside an opening. */
+  /* surface-model walls — geometry computed by wallgeom.js (shared with the
+     audit + tests); here we only render boxes + door/window visuals */
   const walls = HP.cur().walls, batch = new GeoBatch(), trim = new GeoBatch();
   const wallMat = std('#f2efe8', 0.95);
-  let hasTrim = false;
-  const isDoor = (d, x, y) => { const w = walls[d + ',' + x + ',' + y]; return w && w.f === 'door'; };
-  const eat = (d, x, y) => {
-    const w = walls[d + ',' + x + ',' + y];
-    if (!w || w.f === 'door') return 0;
-    const doors = (isDoor(d, x - (d === 'h'), y - (d === 'v')) ? 1 : 0)
-                + (isDoor(d, x + (d === 'h'), y + (d === 'v')) ? 1 : 0);
-    return (doors > 1 ? 0.28 : 0.45) * C();
-  };
   const { regionOf } = HP.computeRegions();
-  const rsz = {};
-  for (let i = 0; i < regionOf.length; i++) if (regionOf[i] >= 0) rsz[regionOf[i]] = (rsz[regionOf[i]] || 0) + 1;
-  const rAt = (x, y) => HP.cellIn(x, y) ? regionOf[y * HP.GRID_W + x] : -1;
-  const FACE = 0.35;                                   // face plate half-depth
-  /* wall zone [w0,w1] relative to the edge line: the SMALLER region keeps
-     its face ON the line (corridors stay full-width), thickness lives in
-     the bigger room; exterior walls keep the outside face on the line */
-  const segZone = (s) => {
-    const t = segThick(s);
-    const a = s.d === 'h' ? rAt(s.x, s.y - 1) : rAt(s.x - 1, s.y);   // − side
-    const b = s.d === 'h' ? rAt(s.x, s.y) : rAt(s.x, s.y);           // + side
-    if (a < 0 && b < 0) return [-t / 2, t / 2];
-    if (a < 0) return [0, t];
-    if (b < 0) return [-t, 0];
-    return (rsz[a] || 1) <= (rsz[b] || 1) ? [0, t] : [-t, 0];
-  };
-  /* how far a run's end extends past a vertex: the crossing wall's zone
-     boundary on the continuation side, so this face ends flush behind
-     the crossing wall's face */
-  const zoneOfKey = (k) => segZone(HP.parseWallKey(k));
-  const perpExt = (d, vx, vy, dir) => {
-    let m = 0;
-    const edges = d === 'h' ? ['v,' + vx + ',' + vy, 'v,' + vx + ',' + (vy - 1)]
-                            : ['h,' + vx + ',' + vy, 'h,' + (vx - 1) + ',' + vy];
-    for (const ek of edges) if (walls[ek]) {
-      const z = zoneOfKey(ek);
-      m = Math.max(m, dir > 0 ? z[1] : -z[0]);
-    }
-    return m;
-  };
-  const perpAt = (d, vx, vy) => {
-    if (d === 'h') return walls['v,' + vx + ',' + vy] || walls['v,' + vx + ',' + (vy - 1)] ? 1 : 0;
-    return walls['h,' + vx + ',' + vy] || walls['h,' + (vx - 1) + ',' + vy] ? 1 : 0;
-  };
+  const geo = HP3D.wallGeom(walls, { C: C(), GRID_W: HP.GRID_W, GRID_H: HP.GRID_H, cellIn: HP.cellIn, regionOf });
+  for (const b of geo.boxes) batch.box(b.x0, b.y0, b.z0, b.x1, b.y1, b.z1);
+  const wm = batch.mesh(wallMat);
+  group.add(wm);
+  solidMeshes.push(wm);
+  HP._geo3d = geo;                                   // audit/debug access
 
-  /* group wall edges into face runs: same orientation, line, side, zone,
-     region — then merge contiguous cells; ends extended by the crossing
-     wall's zone so faces terminate flush on its far surface */
-  const runMap = {};
-  for (const k in walls) {
-    const s = HP.parseWallKey(k), z = segZone(s);
-    for (const sd of [-1, 1]) {
-      const reg = s.d === 'h' ? rAt(s.x, s.y + (sd < 0 ? -1 : 0))
-                              : rAt(s.x + (sd < 0 ? -1 : 0), s.y);
-      const key = s.d + '|' + (s.d === 'h' ? s.y : s.x) + '|' + sd + '|' + z[0].toFixed(1) + '|' + z[1].toFixed(1) + '|' + reg;
-      const R = runMap[key] || (runMap[key] = { d: s.d, line: s.d === 'h' ? s.y : s.x, sd, w0: z[0], w1: z[1], cells: [] });
-      R.cells.push(s.d === 'h' ? s.x : s.y);
-    }
-  }
-  const runs = [];
-  for (const key in runMap) {
-    const R = runMap[key];
-    R.cells.sort((a, b) => a - b);
-    let st = R.cells[0], pr = R.cells[0];
-    for (let i = 1; i <= R.cells.length; i++) {
-      if (i < R.cells.length && R.cells[i] === pr + 1) { pr = R.cells[i]; continue; }
-      const vx0 = R.d === 'h' ? st : R.line, vy0 = R.d === 'h' ? R.line : st;
-      const vx1 = R.d === 'h' ? pr + 1 : R.line, vy1 = R.d === 'h' ? R.line : pr + 1;
-      const e0 = perpExt(R.d, vx0, vy0, -1), e1 = perpExt(R.d, vx1, vy1, 1);
-      const p0 = (R.d === 'h' ? vx0 : vy0) * C() - e0;
-      const p1 = (R.d === 'h' ? vx1 : vy1) * C() + e1;
-      runs.push({ d: R.d, line: R.line, sd: R.sd, w0: R.w0, w1: R.w1, p0, p1, free0: e0 === 0, free1: e1 === 0 });
-      if (i < R.cells.length) st = pr = R.cells[i];
-    }
-  }
-
-  const aps = [], wins = [];
-  for (const k in walls) {
-    const s = HP.parseWallKey(k), feat = walls[k].f, t = segThick(s), zn = segZone(s);
-    const w0 = zn[0], w1 = zn[1], wc = (w0 + w1) / 2;     // wall zone + centre
-    const x0 = s.x * C(), y0 = s.y * C();
-    if (feat === 'window') { wins.push({ s, w0, w1, t }); continue; }
-    if (feat !== 'door') continue;
-    // pair check like drawDoors: even offset leads a double door
-    let off = 0;
-    if (s.d === 'h') { for (let x = s.x - 1; isDoor('h', x, s.y); x--) off++; }
-    else { for (let y = s.y - 1; isDoor('v', s.x, y); y--) off++; }
-    if (off % 2 === 1) continue;                            // handled by pair leader
-    const dbl = s.d === 'h' ? isDoor('h', s.x + 1, s.y) : isDoor('v', s.x, s.y + 1);
-    const n = dbl ? 2 : 1, span = n * C();
-    const p0 = s.d === 'h' ? x0 : y0, pEnd = p0 + span;
-    const nbL = walls[s.d + ',' + (s.d === 'h' ? s.x - 1 : s.x) + ',' + (s.d === 'h' ? s.y : s.y - 1)];
-    const nbR = walls[s.d + ',' + (s.d === 'h' ? s.x + n : s.x) + ',' + (s.d === 'h' ? s.y : s.y + n)];
-    /* a perpendicular wall at a vertex bounds the opening AT the vertex —
-       its faces terminate there, so the opening gets the full cell with
-       nothing inside it; free vertices let the opening grow (wide doors) */
-    const jL = perpAt(s.d, s.x, s.y) > 0;
-    const jR = s.d === 'h' ? perpAt(s.d, s.x + n, s.y) > 0 : perpAt(s.d, s.x, s.y + n) > 0;
-    const ox0 = jL ? p0 : p0 - eat(s.d, s.d === 'h' ? s.x - 1 : s.x, s.d === 'h' ? s.y : s.y - 1) + 1;
-    const ox1 = jR ? pEnd : pEnd + eat(s.d, s.d === 'h' ? s.x + n : s.x, s.d === 'h' ? s.y : s.y + n) - 1;
-    const gw = ox1 - ox0;
-    // extend cut to WIN_TOP when it eats into a window so no band sliver remains
-    const apTop = (nbL && nbL.f === 'window') || (nbR && nbR.f === 'window') ? WIN_TOP : DOOR_H;
-    aps.push({ d: s.d, line: s.d === 'h' ? s.y : s.x, lo: ox0, hi: ox1, y0: 0, y1: apTop, w0, w1 });
-    /* casing frame — flat boxes just off each wall face, no coplanar overlaps */
-    const fw = 5, ec = s.d === 'h' ? y0 + wc : x0 + wc;    // wall zone centre
+  let hasTrim = false;
+  for (const d of geo.doors) {
+    const s = HP.parseWallKey(d.key);
+    const ox0 = d.lo, ox1 = d.hi, gw = ox1 - ox0;
+    const wc = (d.w0 + d.w1) / 2;
+    const ec = d.d === 'h' ? d.cy + wc : d.cx + wc;    // wall zone centre
+    /* casing frame — flat boxes just off each wall face */
+    const fw = 5;
     for (const sgn of [-1, 1]) {
-      const fa = sgn < 0 ? w0 - 1.2 : w1, fb = sgn < 0 ? w0 : w1 + 1.2;
-      if (s.d === 'h') {
-        trim.box(ox0 - fw, 0, y0 + fa, ox0, DOOR_H, y0 + fb);
-        trim.box(ox1, 0, y0 + fa, ox1 + fw, DOOR_H, y0 + fb);
-        trim.box(ox0 - fw, DOOR_H, y0 + fa, ox1 + fw, DOOR_H + 4, y0 + fb);
+      const fa = sgn < 0 ? d.w0 - 1.2 : d.w1, fb = sgn < 0 ? d.w0 : d.w1 + 1.2;
+      if (d.d === 'h') {
+        trim.box(ox0 - fw, 0, d.cy + fa, ox0, DOOR_H, d.cy + fb);
+        trim.box(ox1, 0, d.cy + fa, ox1 + fw, DOOR_H, d.cy + fb);
+        trim.box(ox0 - fw, DOOR_H, d.cy + fa, ox1 + fw, DOOR_H + 4, d.cy + fb);
       } else {
-        trim.box(x0 + fa, 0, ox0 - fw, x0 + fb, DOOR_H, ox0);
-        trim.box(x0 + fa, 0, ox1, x0 + fb, DOOR_H, ox1 + fw);
-        trim.box(x0 + fa, DOOR_H, ox0 - fw, x0 + fb, DOOR_H + 4, ox1 + fw);
+        trim.box(d.cx + fa, 0, ox0 - fw, d.cx + fb, DOOR_H, ox0);
+        trim.box(d.cx + fa, 0, ox1, d.cx + fb, DOOR_H, ox1 + fw);
+        trim.box(d.cx + fa, DOOR_H, ox0 - fw, d.cx + fb, DOOR_H + 4, ox1 + fw);
       }
     }
     hasTrim = true;
     /* leaf — solid slab filling the opening, raised panels, knobs */
     const dir = insideSign(s);
-    const lw = gw / (dbl ? 2 : 1) - 1;
+    const lw = gw / (d.dbl ? 2 : 1) - 1;
     const leafMat = std('#8f6d45', 0.62), panelMat = std('#7a5c38', 0.7);
     const mk = (hx, hz, alongX, extend) => {
       const lg = new THREE.Group();
@@ -296,117 +203,35 @@ function buildWalls(group) {
         lg.add(knob);
       }
       group.add(lg);
-      // 'h': rot.y=-dir*extend swings tip into room; 'v': +dir*extend (mirrored axis)
-      doorLeaves.push({ grp: lg, key: k, open: (alongX ? -dir : dir) * extend * 1.62 });
+      doorLeaves.push({ grp: lg, key: d.key, open: (alongX ? -dir : dir) * extend * 1.62 });
     };
-    if (s.d === 'h') {
+    if (d.d === 'h') {
       mk(ox0, ec, true, 1);
-      if (dbl) mk(ox1, ec, true, -1);
+      if (d.dbl) mk(ox1, ec, true, -1);
     } else {
       mk(ec, ox0, false, 1);
-      if (dbl) mk(ec, ox1, false, -1);
+      if (d.dbl) mk(ec, ox1, false, -1);
     }
-    // aim hitbox over the whole doorway (leader covers the pair)
     const hb = new THREE.Mesh(new THREE.BoxGeometry(
-      s.d === 'h' ? gw + 10 : t + 14, DOOR_H, s.d === 'h' ? t + 14 : gw + 10));
-    hb.position.set(s.d === 'h' ? (ox0 + ox1) / 2 : ec, DOOR_H / 2,
-      s.d === 'h' ? ec : (ox0 + ox1) / 2);
+      d.d === 'h' ? gw + 10 : d.t + 14, DOOR_H, d.d === 'h' ? d.t + 14 : gw + 10));
+    hb.position.set(d.d === 'h' ? (ox0 + ox1) / 2 : ec, DOOR_H / 2,
+      d.d === 'h' ? ec : (ox0 + ox1) / 2);
     hb.visible = false;
     group.add(hb);
-    hitTargets.push({ mesh: hb, use: { kind: 'door', key: k } });
+    hitTargets.push({ mesh: hb, use: { kind: 'door', key: d.key } });
   }
-
-  /* windows — glass span clipped against door apertures, then their own
-     sill..top aperture */
-  const gap = Math.min(0.82 * C(), C() - 6), jw = (C() - gap) / 2;
-  for (const w of wins) {
-    const s = w.s;
-    let a0 = (s.d === 'h' ? s.x : s.y) * C() + jw;
-    let a1 = (s.d === 'h' ? s.x : s.y) * C() + C() - jw;
-    const ln = s.d === 'h' ? s.y : s.x;
-    for (const a of aps) {
-      if (a.d !== s.d || a.line !== ln) continue;
-      if (a.hi <= a0 || a.lo >= a1) continue;
-      if (a.lo <= a0) a0 = a.hi;
-      else if (a.hi >= a1) a1 = a.lo;
-      else if (a.lo - a0 >= a1 - a.hi) a1 = a.lo; else a0 = a.hi;  // keep bigger side
-    }
-    if (a1 - a0 < 8) continue;                                // fully eaten — solid
-    aps.push({ d: s.d, line: ln, lo: a0, hi: a1, y0: WIN_SILL, y1: WIN_TOP, w0: w.w0, w1: w.w1 });
-    const gc = (s.d === 'h' ? s.y : s.x) * C() + (w.w0 + w.w1) / 2;  // glass at zone centre
+  for (const w of geo.wins) {
+    if (w.eaten) continue;
+    const gc = (w.s.d === 'h' ? w.s.y : w.s.x) * C() + (w.w0 + w.w1) / 2;
     const gl = new THREE.Mesh(
-      new THREE.PlaneGeometry(a1 - a0, WIN_TOP - WIN_SILL),
+      new THREE.PlaneGeometry(w.a1 - w.a0, WIN_TOP - WIN_SILL),
       new THREE.MeshStandardMaterial({ color: '#bcd8e8', transparent: true, opacity: 0.25, roughness: 0.1, side: THREE.DoubleSide }));
-    if (s.d === 'h') gl.position.set((a0 + a1) / 2, (WIN_SILL + WIN_TOP) / 2, gc);
-    else { gl.rotation.y = Math.PI / 2; gl.position.set(gc, (WIN_SILL + WIN_TOP) / 2, (a0 + a1) / 2); }
+    if (w.s.d === 'h') gl.position.set((w.a0 + w.a1) / 2, (WIN_SILL + WIN_TOP) / 2, gc);
+    else { gl.rotation.y = Math.PI / 2; gl.position.set(gc, (WIN_SILL + WIN_TOP) / 2, (w.a0 + w.a1) / 2); }
     group.add(gl);
   }
-
-  /* emit faces: split each run at aperture edges along its axis, subtract
-     height bands — produces thin plate boxes at the face plane */
-  for (const r of runs) {
-    const off = r.line * C() + (r.sd < 0 ? r.w0 : r.w1);
-    const hits = aps.filter(a => a.d === r.d && a.line === r.line && a.hi > r.p0 && a.lo < r.p1);
-    const pts = [r.p0, r.p1];
-    for (const a of hits) {
-      if (a.lo > r.p0 && a.lo < r.p1) pts.push(a.lo);
-      if (a.hi > r.p0 && a.hi < r.p1) pts.push(a.hi);
-    }
-    pts.sort((a, b) => a - b);
-    for (let i = 0; i + 1 < pts.length; i++) {
-      const a0 = pts[i], a1 = pts[i + 1];
-      let bands = [[0, WALL_H]];
-      for (const a of hits) {
-        if (a.lo > a0 + 0.01 || a.hi < a1 - 0.01) continue;   // doesn't cover this span
-        const nb = [];
-        for (const bnd of bands) {
-          if (a.y1 <= bnd[0] + 0.01 || a.y0 >= bnd[1] - 0.01) { nb.push(bnd); continue; }
-          if (bnd[0] < a.y0 - 0.01) nb.push([bnd[0], a.y0]);
-          if (bnd[1] > a.y1 + 0.01) nb.push([a.y1, bnd[1]]);
-        }
-        bands = nb;
-      }
-      for (const bnd of bands) {
-        if (bnd[1] - bnd[0] < 0.01) continue;
-        if (r.d === 'h') batch.box(a0, bnd[0], off - FACE, a1, bnd[1], off + FACE);
-        else batch.box(off - FACE, bnd[0], a0, off + FACE, bnd[1], a1);
-      }
-    }
-    /* top cap + end caps close the hollow between the two faces */
-    const lc = r.line * C(), z0 = lc + r.w0, z1 = lc + r.w1;
-    if (r.d === 'h') {
-      batch.box(r.p0, WALL_H - 0.4, z0, r.p1, WALL_H, z1);
-      if (r.free0) batch.box(r.p0 - 0.4, 0, z0, r.p0 + 0.4, WALL_H, z1);
-      if (r.free1) batch.box(r.p1 - 0.4, 0, z0, r.p1 + 0.4, WALL_H, z1);
-    } else {
-      batch.box(z0, WALL_H - 0.4, r.p0, z1, WALL_H, r.p1);
-      if (r.free0) batch.box(z0, 0, r.p0 - 0.4, z1, WALL_H, r.p0 + 0.4);
-      if (r.free1) batch.box(z0, 0, r.p1 - 0.4, z1, WALL_H, r.p1 + 0.4);
-    }
-  }
-
-  /* reveals — jambs connect the two faces around every aperture edge,
-     header on top, sill under windows: real wall thickness at openings */
-  for (const a of aps) {
-    const lc = a.line * C(), z0 = lc + a.w0, z1 = lc + a.w1;
-    for (const x of [a.lo, a.hi]) {
-      if (a.d === 'h') batch.box(x - 0.4, a.y0, z0, x + 0.4, a.y1, z1);
-      else batch.box(z0, a.y0, x - 0.4, z1, a.y1, x + 0.4);
-    }
-    if (a.d === 'h') {
-      batch.box(a.lo, a.y1 - 0.4, z0, a.hi, a.y1, z1);                // header
-      if (a.y0 > 0.5) batch.box(a.lo, a.y0, z0, a.hi, a.y0 + 0.4, z1);  // sill
-    } else {
-      batch.box(z0, a.y1 - 0.4, a.lo, z1, a.y1, a.hi);
-      if (a.y0 > 0.5) batch.box(z0, a.y0, a.lo, z1, a.y0 + 0.4, a.hi);
-    }
-  }
-
-  const wm = batch.mesh(wallMat);
-  group.add(wm);
-  solidMeshes.push(wm);
   if (hasTrim) {
-    const tm = trim.mesh(std('#cbb691', 0.7));        // door casings, warmer wood tone
+    const tm = trim.mesh(std('#cbb691', 0.7));
     group.add(tm);
   }
 }
@@ -512,6 +337,7 @@ HP.buildScene = function () {
     }
   }
   scene.add(levelGroup);
+  HP._lg3d = levelGroup;                               // audit markers attach here
   builtLevel = HP.state.level;
   lastBuild = performance.now();
   renderer.shadowMap.needsUpdate = true;               // rebake static shadows

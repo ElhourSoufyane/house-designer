@@ -34,7 +34,17 @@ function inject() {
     'background:rgba(20,23,28,.8);color:#fff;font:600 12px/1.4 system-ui;padding:4px 10px;' +
     'border-radius:8px;display:none;z-index:21;pointer-events:none;white-space:nowrap}\n' +
     'body.playing3d #xh-lbl.on{display:block}\n' +
-    'body.playing3d #use-ui{display:none!important}\n';   // crosshair replaces proximity prompts
+    'body.playing3d #use-ui{display:none!important}\n' +   // crosshair replaces proximity prompts
+    '#btn-audit{position:absolute;top:10px;left:10px;z-index:22;display:none;' +
+    'background:rgba(20,23,28,.75);color:#fff;border:1px solid rgba(255,255,255,.25);' +
+    'border-radius:8px;font:600 12px system-ui;padding:6px 10px;cursor:pointer}\n' +
+    'body.playing3d #btn-audit{display:block}\n' +
+    '#audit3d{position:absolute;top:44px;left:10px;z-index:22;display:none;max-width:330px;' +
+    'background:rgba(14,17,22,.88);color:#e8e8ea;border-radius:10px;padding:10px 12px;' +
+    'font:500 12px/1.5 system-ui;backdrop-filter:blur(4px)}\n' +
+    '#audit3d b{display:block;margin-bottom:6px;font-size:13px}\n' +
+    '#audit3d div.ok{color:#8fdca8}#audit3d div.bad{color:#ff8f8f}\n' +
+    '#audit3d small{display:block;color:#9aa1a8;font-weight:400;margin:0 0 6px 16px}\n';
   document.head.appendChild(st);
   const cv = document.createElement('canvas');
   cv.id = 'view3d';
@@ -60,6 +70,12 @@ function inject() {
     pb.parentNode.insertBefore(btn, pb.nextSibling);
     btn.onclick = () => HP.togglePlay3();
   }
+  const ab = document.createElement('button');
+  ab.id = 'btn-audit'; ab.textContent = 'Wall check';
+  ab.onclick = () => HP.audit3D();
+  v.parentNode.appendChild(ab);
+  const ap = document.createElement('div'); ap.id = 'audit3d';
+  v.parentNode.appendChild(ap);
   cv.addEventListener('pointerdown', onDown);
   window.addEventListener('pointermove', onMove);
   window.addEventListener('pointerup', onUp);
@@ -125,6 +141,7 @@ HP.togglePlay3 = function () {
     HP.yaw3 = look.yaw; HP.pitch3 = look.pitch;
     HP._rot3 = look.yaw;
     HP.buildScene();
+    if (/[?&]audit/.test(location.search)) HP.audit3D();
     if (!isTouch) try { HP.canvas3d.requestPointerLock(); } catch (_) {}
     if (btn) btn.textContent = 'Stop 3D';
     HP.status(isTouch
@@ -204,6 +221,37 @@ function setKeys(dx, dy) {
   for (const k in want)
     if (!!joyKeys[k] !== want[k]) { simKey(k, want[k]); joyKeys[k] = want[k] ? 1 : 0; }
 }
+
+/* ---------------- wall audit ----------------
+   Runs HP3D.wallAudit on the REAL house — same geometry function the
+   renderer used — shows a checklist overlay + red markers at failures */
+HP.audit3D = function () {
+  if (!HP3D || !HP3D.wallAudit || !HP._lg3d) return;
+  const { regionOf } = HP.computeRegions();
+  const res = HP3D.wallAudit(HP.cur().walls,
+    { C: HP.CELL, GRID_W: HP.GRID_W, GRID_H: HP.GRID_H, cellIn: HP.cellIn, regionOf });
+  if (HP._auditMarks) { HP._lg3d.remove(HP._auditMarks); HP._auditMarks = null; }
+  const mg = new THREE.Group();
+  const mm = new THREE.MeshBasicMaterial({ color: '#ff4455', transparent: true, opacity: 0.4, depthTest: false });
+  for (const c of res.checks) for (const b of (c.marks || []).slice(0, 60)) {
+    const m = new THREE.Mesh(new THREE.BoxGeometry(
+      Math.max(2, b.x1 - b.x0), Math.max(8, b.y1 - b.y0), Math.max(2, b.z1 - b.z0)), mm);
+    m.position.set((b.x0 + b.x1) / 2, (b.y0 + b.y1) / 2, (b.z0 + b.z1) / 2);
+    m.renderOrder = 99;
+    mg.add(m);
+  }
+  HP._auditMarks = mg; HP._lg3d.add(mg);
+  const el = document.getElementById('audit3d');
+  if (el) {
+    const fails = res.checks.filter(c => !c.ok).length;
+    el.innerHTML = '<b>Wall check — ' + (fails ? fails + ' problem' + (fails > 1 ? 's' : '') : 'all good') + '</b>' +
+      res.checks.map(c => '<div class="' + (c.ok ? 'ok' : 'bad') + '">' + (c.ok ? '✓' : '✗') + ' ' + c.name +
+        '<small>' + c.detail + '</small></div>').join('') +
+      '<small style="margin-left:0">doors: ' + res.doors.map(d =>
+        d.key + ' ' + (d.clear || 0).toFixed(0) + 'px').join(' · ') + '</small>';
+    el.style.display = el.style.display === 'block' ? 'none' : 'block';
+  }
+};
 
 /* ---------------- render loop ---------------- */
 let last = 0;
