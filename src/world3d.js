@@ -147,6 +147,34 @@ function buildWalls(group) {
   const wallMat = std('#f2efe8', 0.95);
   let hasTrim = false;
   const isDoor = (d, x, y) => { const w = walls[d + ',' + x + ',' + y]; return w && w.f === 'door'; };
+  /* emit a wall-material box for segment s spanning along-axis a0..a1 and
+     vertically yLo..yHi. If a perpendicular DOOR meets either end vertex,
+     that end's stub is clipped on the door side so the junction wall never
+     pokes into the doorway — wall loses, door wins. */
+  const STUB = 16;
+  const segBox = (s, a0, a1, yLo, yHi) => {
+    const ht = segThick(s) / 2;
+    let cL = 0, cH = 0, loT0 = true, loT1 = true, hiT0 = true, hiT1 = true;
+    if (s.d === 'v') {
+      if (isDoor('h', s.x - 1, s.y)) { cL = STUB; loT0 = false; }
+      if (isDoor('h', s.x, s.y)) { cL = STUB; loT1 = false; }
+      if (isDoor('h', s.x - 1, s.y + 1)) { cH = STUB; hiT0 = false; }
+      if (isDoor('h', s.x, s.y + 1)) { cH = STUB; hiT1 = false; }
+      const ex = s.x * C(), m0 = a0 + cL, m1 = a1 - cH;
+      if (m1 > m0) batch.box(ex - ht, yLo, m0, ex + ht, yHi, m1);
+      if (cL && (loT0 || loT1)) batch.box(loT0 ? ex - ht : ex, yLo, a0, loT1 ? ex + ht : ex, yHi, a0 + cL);
+      if (cH && (hiT0 || hiT1)) batch.box(hiT0 ? ex - ht : ex, yLo, a1 - cH, hiT1 ? ex + ht : ex, yHi, a1);
+    } else {
+      if (isDoor('v', s.x, s.y - 1)) { cL = STUB; loT0 = false; }
+      if (isDoor('v', s.x, s.y)) { cL = STUB; loT1 = false; }
+      if (isDoor('v', s.x + 1, s.y - 1)) { cH = STUB; hiT0 = false; }
+      if (isDoor('v', s.x + 1, s.y)) { cH = STUB; hiT1 = false; }
+      const ey = s.y * C(), m0 = a0 + cL, m1 = a1 - cH;
+      if (m1 > m0) batch.box(m0, yLo, ey - ht, m1, yHi, ey + ht);
+      if (cL && (loT0 || loT1)) batch.box(a0, yLo, loT0 ? ey - ht : ey, a0 + cL, yHi, loT1 ? ey + ht : ey);
+      if (cH && (hiT0 || hiT1)) batch.box(a1 - cH, yLo, hiT0 ? ey - ht : ey, a1, yHi, hiT1 ? ey + ht : ey);
+    }
+  };
   for (const k in walls) {
     const s = HP.parseWallKey(k), feat = walls[k].f, t = segThick(s), ht = t / 2;
     const x0 = s.x * C(), y0 = s.y * C(), x1 = x0 + (s.d === 'h' ? C() : 0), y1 = y0 + (s.d === 'v' ? C() : 0);
@@ -166,12 +194,12 @@ function buildWalls(group) {
         let ax0 = x0, ax1 = x1;
         if (isDoor('h', s.x - 1, s.y)) ax0 += eat('h', s.x, s.y);
         if (isDoor('h', s.x + 1, s.y)) ax1 -= eat('h', s.x, s.y);
-        if (ax1 > ax0) batch.box(ax0, 0, y0 - ht, ax1, WALL_H, y0 + ht);
+        if (ax1 > ax0) segBox(s, ax0, ax1, 0, WALL_H);
       } else {
         let ay0 = y0, ay1 = y1;
         if (isDoor('v', s.x, s.y - 1)) ay0 += eat('v', s.x, s.y);
         if (isDoor('v', s.x, s.y + 1)) ay1 -= eat('v', s.x, s.y);
-        if (ay1 > ay0) batch.box(x0 - ht, 0, ay0, x0 + ht, WALL_H, ay1);
+        if (ay1 > ay0) segBox(s, ay0, ay1, 0, WALL_H);
       }
       continue;
     }
@@ -185,30 +213,12 @@ function buildWalls(group) {
       if (off % 2 === 1) continue;                          // handled by pair leader
       const dbl = s.d === 'h' ? isDoor('h', s.x + 1, s.y) : isDoor('v', s.x, s.y + 1);
       const n = dbl ? 2 : 1, span = n * C();
-      const p0 = s.d === 'h' ? x0 : y0;
-      const pEnd = p0 + span;
+      const p0 = s.d === 'h' ? x0 : y0, pEnd = p0 + span;
       // uniform opening: ~0.9 m single, ~1.6 m double — every non-door
-      // neighbour grants ~0.45 cell; corners grant what physically exists
+      // neighbour grants ~0.45 cell; perpendicular walls clip themselves
       const extL = eat(s.d, s.d === 'h' ? s.x - 1 : s.x, s.d === 'h' ? s.y : s.y - 1);
       const extR = eat(s.d, s.d === 'h' ? s.x + n : s.x, s.d === 'h' ? s.y : s.y + n);
-      /* perpendicular walls at the opening's vertices bound it — the
-         opening stops at their inner face so no post pokes through */
-      const perpFace = (vx, vy) => {
-        let mx = 0;
-        if (s.d === 'h') {
-          for (const vy2 of [vy, vy - 1])
-            if (walls['v,' + vx + ',' + vy2]) mx = Math.max(mx, segThick({ d: 'v', x: vx, y: vy2 }) / 2);
-        } else {
-          for (const vx2 of [vx, vx - 1])
-            if (walls['h,' + vx2 + ',' + vy]) mx = Math.max(mx, segThick({ d: 'h', x: vx2, y: vy }) / 2);
-        }
-        return mx;
-      };
-      const faceL = perpFace(s.x, s.y);
-      const faceR = perpFace(s.d === 'h' ? s.x + n : s.x, s.d === 'h' ? s.y : s.y + n);
-      let ox0 = Math.max(p0 - extL + 2, p0 + faceL);
-      let ox1 = Math.min(pEnd + extR - 2, pEnd - faceR);
-      if (ox1 - ox0 < 8) { const m = (p0 + pEnd) / 2; ox0 = m - 4; ox1 = m + 4; }
+      const ox0 = p0 - extL + 2, ox1 = pEnd + extR - 2;
       const gw = ox1 - ox0;
       /* structural opening: jambs + header in wall material */
       if (s.d === 'h') {
@@ -280,18 +290,18 @@ function buildWalls(group) {
         let ax0 = x0, ax1 = x1;
         if (isDoor('h', s.x - 1, s.y)) ax0 += eat('h', s.x, s.y);
         if (isDoor('h', s.x + 1, s.y)) ax1 -= eat('h', s.x, s.y);
-        batch.box(ax0, 0, y0 - ht, ax0 + jw, WALL_H, y0 + ht);
-        batch.box(ax1 - jw, 0, y0 - ht, ax1, WALL_H, y0 + ht);
-        batch.box(ax0 + jw, 0, y0 - ht, ax1 - jw, WIN_SILL, y0 + ht);         // sill
-        batch.box(ax0 + jw, WIN_TOP, y0 - ht, ax1 - jw, WALL_H, y0 + ht);     // header
+        segBox(s, ax0, ax0 + jw, 0, WALL_H);
+        segBox(s, ax1 - jw, ax1, 0, WALL_H);
+        segBox(s, ax0 + jw, ax1 - jw, 0, WIN_SILL);                          // sill
+        segBox(s, ax0 + jw, ax1 - jw, WIN_TOP, WALL_H);                      // header
       } else {
         let ay0 = y0, ay1 = y1;
         if (isDoor('v', s.x, s.y - 1)) ay0 += eat('v', s.x, s.y);
         if (isDoor('v', s.x, s.y + 1)) ay1 -= eat('v', s.x, s.y);
-        batch.box(x0 - ht, 0, ay0, x0 + ht, WALL_H, ay0 + jw);
-        batch.box(x0 - ht, 0, ay1 - jw, x0 + ht, WALL_H, ay1);
-        batch.box(x0 - ht, 0, ay0 + jw, x0 + ht, WIN_SILL, ay1 - jw);
-        batch.box(x0 - ht, WIN_TOP, ay0 + jw, x0 + ht, WALL_H, ay1 - jw);
+        segBox(s, ay0, ay0 + jw, 0, WALL_H);
+        segBox(s, ay1 - jw, ay1, 0, WALL_H);
+        segBox(s, ay0 + jw, ay1 - jw, 0, WIN_SILL);
+        segBox(s, ay0 + jw, ay1 - jw, WIN_TOP, WALL_H);
       }
       const gl = new THREE.Mesh(
         new THREE.PlaneGeometry(gap, WIN_TOP - WIN_SILL),
