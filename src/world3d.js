@@ -143,183 +143,175 @@ function insideSign(s) {                    // which way the door swings (toward
 }
 
 function buildWalls(group) {
+  /* Solid-first approach (Sweet Home 3D style): every wall segment adds a
+     full footprint rect; every door/window declares an aperture rect with a
+     height band; apertures are subtracted from whatever wall rect they
+     overlap. Jambs, lintels, sills, headers and corner posts all emerge
+     from the subtraction — no per-neighbour patching. */
   const walls = HP.cur().walls, batch = new GeoBatch(), trim = new GeoBatch();
   const wallMat = std('#f2efe8', 0.95);
   let hasTrim = false;
   const isDoor = (d, x, y) => { const w = walls[d + ',' + x + ',' + y]; return w && w.f === 'door'; };
-  /* emit a wall-material box for segment s spanning along-axis a0..a1 and
-     vertically yLo..yHi. If a perpendicular DOOR meets either end vertex,
-     that end's stub is clipped on the door side so the junction wall never
-     pokes into the doorway — wall loses, door wins. */
-  const STUB = 16;
-  const segBox = (s, a0, a1, yLo, yHi) => {
-    const ht = segThick(s) / 2;
-    let cL = 0, cH = 0, loT0 = true, loT1 = true, hiT0 = true, hiT1 = true;
-    if (s.d === 'v') {
-      if (isDoor('h', s.x - 1, s.y)) { cL = STUB; loT0 = false; }
-      if (isDoor('h', s.x, s.y)) { cL = STUB; loT1 = false; }
-      if (isDoor('h', s.x - 1, s.y + 1)) { cH = STUB; hiT0 = false; }
-      if (isDoor('h', s.x, s.y + 1)) { cH = STUB; hiT1 = false; }
-      const ex = s.x * C(), m0 = a0 + cL, m1 = a1 - cH;
-      if (m1 > m0) batch.box(ex - ht, yLo, m0, ex + ht, yHi, m1);
-      if (cL && (loT0 || loT1)) batch.box(loT0 ? ex - ht : ex, yLo, a0, loT1 ? ex + ht : ex, yHi, a0 + cL);
-      if (cH && (hiT0 || hiT1)) batch.box(hiT0 ? ex - ht : ex, yLo, a1 - cH, hiT1 ? ex + ht : ex, yHi, a1);
-    } else {
-      if (isDoor('v', s.x, s.y - 1)) { cL = STUB; loT0 = false; }
-      if (isDoor('v', s.x, s.y)) { cL = STUB; loT1 = false; }
-      if (isDoor('v', s.x + 1, s.y - 1)) { cH = STUB; hiT0 = false; }
-      if (isDoor('v', s.x + 1, s.y)) { cH = STUB; hiT1 = false; }
-      const ey = s.y * C(), m0 = a0 + cL, m1 = a1 - cH;
-      if (m1 > m0) batch.box(m0, yLo, ey - ht, m1, yHi, ey + ht);
-      if (cL && (loT0 || loT1)) batch.box(a0, yLo, loT0 ? ey - ht : ey, a0 + cL, yHi, loT1 ? ey + ht : ey);
-      if (cH && (hiT0 || hiT1)) batch.box(a1 - cH, yLo, hiT0 ? ey - ht : ey, a1, yHi, hiT1 ? ey + ht : ey);
-    }
+  /* how much of a neighbouring same-axis segment a door opening may take —
+     every non-door neighbour grants ~0.45 cell so singles come out uniform;
+     pinched segments grant less so a post survives. */
+  const eat = (d, x, y) => {
+    const w = walls[d + ',' + x + ',' + y];
+    if (!w || w.f === 'door') return 0;
+    const doors = (isDoor(d, x - (d === 'h'), y - (d === 'v')) ? 1 : 0)
+                + (isDoor(d, x + (d === 'h'), y + (d === 'v')) ? 1 : 0);
+    return (doors > 1 ? 0.28 : 0.45) * C();
   };
+  const rects = [];                    // {x0,x1,z0,z1} solid wall footprints
+  const aps = [];                      // {x0,x1,z0,z1,y0,y1} subtracted apertures
+  const wins = [];                     // window segs — glass span set in pass 2
+
   for (const k in walls) {
     const s = HP.parseWallKey(k), feat = walls[k].f, t = segThick(s), ht = t / 2;
-    const x0 = s.x * C(), y0 = s.y * C(), x1 = x0 + (s.d === 'h' ? C() : 0), y1 = y0 + (s.d === 'v' ? C() : 0);
-    /* how much of a neighbouring segment a door opening may take.
-       every non-door neighbour grants ~0.45 cell (windows shrink too)
-       so ALL singles come out the same width; pinched segments grant
-       less so a post survives. doors and open edges grant nothing. */
-    const eat = (d, x, y) => {
-      const w = walls[d + ',' + x + ',' + y];
-      if (!w || w.f === 'door') return 0;
-      const doors = (isDoor(d, x - (d === 'h'), y - (d === 'v')) ? 1 : 0)
-                  + (isDoor(d, x + (d === 'h'), y + (d === 'v')) ? 1 : 0);
-      return (doors > 1 ? 0.28 : 0.45) * C();
-    };
-    if (!feat) {                                            // solid segment
+    const x0 = s.x * C(), y0 = s.y * C();
+    rects.push(s.d === 'h'
+      ? { x0, x1: x0 + C(), z0: y0 - ht, z1: y0 + ht }
+      : { x0: x0 - ht, x1: x0 + ht, z0: y0, z1: y0 + C() });
+    if (feat === 'window') { wins.push({ s, x0, y0, ht }); continue; }
+    if (feat !== 'door') continue;
+    // pair check like drawDoors: even offset leads a double door
+    let off = 0;
+    if (s.d === 'h') { for (let x = s.x - 1; isDoor('h', x, s.y); x--) off++; }
+    else { for (let y = s.y - 1; isDoor('v', s.x, y); y--) off++; }
+    if (off % 2 === 1) continue;                            // handled by pair leader
+    const dbl = s.d === 'h' ? isDoor('h', s.x + 1, s.y) : isDoor('v', s.x, s.y + 1);
+    const n = dbl ? 2 : 1, span = n * C();
+    const p0 = s.d === 'h' ? x0 : y0, pEnd = p0 + span;
+    const nbL = walls[s.d + ',' + (s.d === 'h' ? s.x - 1 : s.x) + ',' + (s.d === 'h' ? s.y : s.y - 1)];
+    const nbR = walls[s.d + ',' + (s.d === 'h' ? s.x + n : s.x) + ',' + (s.d === 'h' ? s.y : s.y + n)];
+    const extL = eat(s.d, s.d === 'h' ? s.x - 1 : s.x, s.d === 'h' ? s.y : s.y - 1);
+    const extR = eat(s.d, s.d === 'h' ? s.x + n : s.x, s.d === 'h' ? s.y : s.y + n);
+    const ox0 = p0 - extL + 1, ox1 = pEnd + extR - 1;
+    const gw = ox1 - ox0;
+    // extend cut to WIN_TOP when it eats into a window so no band sliver remains
+    const apTop = (nbL && nbL.f === 'window') || (nbR && nbR.f === 'window') ? WIN_TOP : DOOR_H;
+    aps.push(s.d === 'h'
+      ? { x0: ox0, x1: ox1, z0: y0 - ht - 1, z1: y0 + ht + 1, y0: 0, y1: apTop }
+      : { x0: x0 - ht - 1, x1: x0 + ht + 1, z0: ox0, z1: ox1, y0: 0, y1: apTop });
+    /* casing frame — flat boxes, 1.5 px proud of each face, nothing
+       overlaps so no z-fighting: posts below header, header between */
+    const fw = 5, fo = ht + 1.5;
+    for (const sgn of [-1, 1]) {
+      const f0 = sgn < 0 ? -fo - 1.2 : fo, f1 = sgn < 0 ? -fo : fo + 1.2;
       if (s.d === 'h') {
-        let ax0 = x0, ax1 = x1;
-        if (isDoor('h', s.x - 1, s.y)) ax0 += eat('h', s.x, s.y);
-        if (isDoor('h', s.x + 1, s.y)) ax1 -= eat('h', s.x, s.y);
-        if (ax1 > ax0) segBox(s, ax0, ax1, 0, WALL_H);
+        trim.box(ox0 - fw, 0, y0 + f0, ox0, DOOR_H, y0 + f1);
+        trim.box(ox1, 0, y0 + f0, ox1 + fw, DOOR_H, y0 + f1);
+        trim.box(ox0 - fw, DOOR_H, y0 + f0, ox1 + fw, DOOR_H + 4, y0 + f1);
       } else {
-        let ay0 = y0, ay1 = y1;
-        if (isDoor('v', s.x, s.y - 1)) ay0 += eat('v', s.x, s.y);
-        if (isDoor('v', s.x, s.y + 1)) ay1 -= eat('v', s.x, s.y);
-        if (ay1 > ay0) segBox(s, ay0, ay1, 0, WALL_H);
+        trim.box(x0 + f0, 0, ox0 - fw, x0 + f1, DOOR_H, ox0);
+        trim.box(x0 + f0, 0, ox1, x0 + f1, DOOR_H, ox1 + fw);
+        trim.box(x0 + f0, DOOR_H, ox0 - fw, x0 + f1, DOOR_H + 4, ox1 + fw);
       }
-      continue;
     }
-    const gap = Math.min(0.82 * C(), C() - 6);              // opening width (windows)
-    const jw = (C() - gap) / 2;                             // jamb width
-    if (feat === 'door') {
-      // pair check like drawDoors: even offset leads a double door
-      let off = 0;
-      if (s.d === 'h') { for (let x = s.x - 1; isDoor('h', x, s.y); x--) off++; }
-      else { for (let y = s.y - 1; isDoor('v', s.x, y); y--) off++; }
-      if (off % 2 === 1) continue;                          // handled by pair leader
-      const dbl = s.d === 'h' ? isDoor('h', s.x + 1, s.y) : isDoor('v', s.x, s.y + 1);
-      const n = dbl ? 2 : 1, span = n * C();
-      const p0 = s.d === 'h' ? x0 : y0, pEnd = p0 + span;
-      // uniform opening: ~0.9 m single, ~1.6 m double — every non-door
-      // neighbour grants ~0.45 cell, BUT the opening may never cross a
-      // vertex where a perpendicular wall stands: its stub sits inside
-      // the extended part. junction vertex = hard stop (corner post).
-      const perpAt = (vx, vy) => s.d === 'h'
-        ? !!(walls['v,' + vx + ',' + vy] || walls['v,' + vx + ',' + (vy - 1)])
-        : !!(walls['h,' + vx + ',' + vy] || walls['h,' + (vx - 1) + ',' + vy]);
-      const extL = perpAt(s.x, s.y) ? 0
-        : eat(s.d, s.d === 'h' ? s.x - 1 : s.x, s.d === 'h' ? s.y : s.y - 1);
-      const extR = perpAt(s.d === 'h' ? s.x + n : s.x, s.d === 'h' ? s.y : s.y + n) ? 0
-        : eat(s.d, s.d === 'h' ? s.x + n : s.x, s.d === 'h' ? s.y : s.y + n);
-      const ox0 = p0 - extL + 2, ox1 = pEnd + extR - 2;
-      const gw = ox1 - ox0;
-      /* structural opening: jambs + header in wall material */
-      if (s.d === 'h') {
-        batch.box(p0 - extL, 0, y0 - ht, ox0, WALL_H, y0 + ht);                // left jamb
-        batch.box(ox1, 0, y0 - ht, p0 + span + extR, WALL_H, y0 + ht);         // right jamb
-        batch.box(ox0, DOOR_H, y0 - ht, ox1, WALL_H, y0 + ht);                 // lintel
-      } else {
-        batch.box(x0 - ht, 0, p0 - extL, x0 + ht, WALL_H, ox0);
-        batch.box(x0 - ht, 0, ox1, x0 + ht, WALL_H, p0 + span + extR);
-        batch.box(x0 - ht, DOOR_H, ox0, x0 + ht, WALL_H, ox1);
+    hasTrim = true;
+    /* leaf — solid slab filling the opening, raised panels, knobs */
+    const dir = insideSign(s);
+    const lw = gw / (dbl ? 2 : 1) - 1;
+    const leafMat = std('#8f6d45', 0.62), panelMat = std('#7a5c38', 0.7);
+    const mk = (hx, hz, alongX, extend) => {
+      const lg = new THREE.Group();
+      lg.position.set(hx, 0, hz);
+      const lx = alongX ? extend * (lw / 2 + 0.5) : 0;
+      const lz = alongX ? 0 : extend * (lw / 2 + 0.5);
+      const leaf = new THREE.Mesh(new THREE.BoxGeometry(alongX ? lw : 6, DOOR_H - 1, alongX ? 6 : lw), leafMat);
+      leaf.castShadow = true;
+      leaf.position.set(lx, DOOR_H / 2, lz);
+      lg.add(leaf);
+      for (const [py, ph] of [[DOOR_H * 0.7, DOOR_H * 0.34], [DOOR_H * 0.26, DOOR_H * 0.34]]) {
+        const pn = new THREE.Mesh(new THREE.BoxGeometry(alongX ? lw * 0.55 : 6.8, ph, alongX ? 6.8 : lw * 0.55), panelMat);
+        pn.position.set(lx, py, lz);
+        lg.add(pn);
       }
-      /* casing frame — flat boxes, 1.5 px proud of each face, nothing
-         overlaps so no z-fighting: posts below header, header between */
-      const fw = 5, fo = ht + 1.5;
-      for (const sgn of [-1, 1]) {
-        const f0 = sgn < 0 ? -fo - 1.2 : fo, f1 = sgn < 0 ? -fo : fo + 1.2;
-        if (s.d === 'h') {
-          trim.box(ox0 - fw, 0, y0 + f0, ox0, DOOR_H, y0 + f1);
-          trim.box(ox1, 0, y0 + f0, ox1 + fw, DOOR_H, y0 + f1);
-          trim.box(ox0 - fw, DOOR_H, y0 + f0, ox1 + fw, DOOR_H + 4, y0 + f1);
-        } else {
-          trim.box(x0 + f0, 0, ox0 - fw, x0 + f1, DOOR_H, ox0);
-          trim.box(x0 + f0, 0, ox1, x0 + f1, DOOR_H, ox1 + fw);
-          trim.box(x0 + f0, DOOR_H, ox0 - fw, x0 + f1, DOOR_H + 4, ox1 + fw);
+      const km = std('#2f333a', 0.3, 0.85);
+      for (const zz of [-4, 4]) {
+        const knob = new THREE.Mesh(new THREE.SphereGeometry(2.8, 10, 8), km);
+        knob.position.set(alongX ? extend * (lw - 7) : zz, DOOR_H * 0.5, alongX ? zz : extend * (lw - 7));
+        lg.add(knob);
+      }
+      group.add(lg);
+      // 'h': rot.y=-dir*extend swings tip into room; 'v': +dir*extend (mirrored axis)
+      doorLeaves.push({ grp: lg, key: k, open: (alongX ? -dir : dir) * extend * 1.62 });
+    };
+    if (s.d === 'h') {
+      mk(ox0, y0, true, 1);
+      if (dbl) mk(ox1, y0, true, -1);
+    } else {
+      mk(x0, ox0, false, 1);
+      if (dbl) mk(x0, ox1, false, -1);
+    }
+    // aim hitbox over the whole doorway (leader covers the pair)
+    const hb = new THREE.Mesh(new THREE.BoxGeometry(
+      s.d === 'h' ? gw + 10 : t + 14, DOOR_H, s.d === 'h' ? t + 14 : gw + 10));
+    hb.position.set(s.d === 'h' ? (ox0 + ox1) / 2 : x0, DOOR_H / 2,
+      s.d === 'h' ? y0 : (ox0 + ox1) / 2);
+    hb.visible = false;
+    group.add(hb);
+    hitTargets.push({ mesh: hb, use: { kind: 'door', key: k } });
+  }
+
+  /* windows — glass span clipped against door apertures, then their own
+     sill..top aperture is emitted; sill + header emerge from subtraction */
+  const gap = Math.min(0.82 * C(), C() - 6), jw = (C() - gap) / 2;
+  for (const w of wins) {
+    const b = w.s.d === 'h' ? w.y0 : w.x0;                    // edge coord
+    let a0 = (w.s.d === 'h' ? w.x0 : w.y0) + jw;
+    let a1 = (w.s.d === 'h' ? w.x0 : w.y0) + C() - jw;
+    const bz0 = b - w.ht - 1, bz1 = b + w.ht + 1;             // window's plan band
+    for (const a of aps) {
+      const inBand = w.s.d === 'h' ? (a.z0 < bz1 && a.z1 > bz0) : (a.x0 < bz1 && a.x1 > bz0);
+      if (!inBand) continue;
+      const lo = w.s.d === 'h' ? a.x0 : a.z0, hi = w.s.d === 'h' ? a.x1 : a.z1;
+      if (hi <= a0 || lo >= a1) continue;
+      if (lo <= a0) a0 = hi;
+      else if (hi >= a1) a1 = lo;
+      else if (lo - a0 >= a1 - hi) a1 = lo; else a0 = hi;     // keep bigger side
+    }
+    if (a1 - a0 < 8) continue;                                // fully eaten — solid
+    aps.push(w.s.d === 'h'
+      ? { x0: a0, x1: a1, z0: bz0, z1: bz1, y0: WIN_SILL, y1: WIN_TOP }
+      : { x0: bz0, x1: bz1, z0: a0, z1: a1, y0: WIN_SILL, y1: WIN_TOP });
+    const gl = new THREE.Mesh(
+      new THREE.PlaneGeometry(a1 - a0, WIN_TOP - WIN_SILL),
+      new THREE.MeshStandardMaterial({ color: '#bcd8e8', transparent: true, opacity: 0.25, roughness: 0.1, side: THREE.DoubleSide }));
+    if (w.s.d === 'h') gl.position.set((a0 + a1) / 2, (WIN_SILL + WIN_TOP) / 2, b);
+    else { gl.rotation.y = Math.PI / 2; gl.position.set(b, (WIN_SILL + WIN_TOP) / 2, (a0 + a1) / 2); }
+    group.add(gl);
+  }
+
+  /* subtract apertures: split each wall rect at aperture edges, drop the
+     covered height bands */
+  for (const r of rects) {
+    const hits = [];
+    for (const a of aps) if (a.x0 < r.x1 && a.x1 > r.x0 && a.z0 < r.z1 && a.z1 > r.z0) hits.push(a);
+    if (!hits.length) { batch.box(r.x0, 0, r.z0, r.x1, WALL_H, r.z1); continue; }
+    const xs = [r.x0, r.x1], zs = [r.z0, r.z1];
+    for (const a of hits) {
+      if (a.x0 > r.x0 && a.x0 < r.x1) xs.push(a.x0);
+      if (a.x1 > r.x0 && a.x1 < r.x1) xs.push(a.x1);
+      if (a.z0 > r.z0 && a.z0 < r.z1) zs.push(a.z0);
+      if (a.z1 > r.z0 && a.z1 < r.z1) zs.push(a.z1);
+    }
+    xs.sort((p, q) => p - q); zs.sort((p, q) => p - q);
+    for (let i = 0; i + 1 < xs.length; i++) for (let j = 0; j + 1 < zs.length; j++) {
+      const cx0 = xs[i], cx1 = xs[i + 1], cz0 = zs[j], cz1 = zs[j + 1];
+      let bands = [[0, WALL_H]];
+      for (const a of hits)
+        if (a.x0 <= cx0 + 0.01 && a.x1 >= cx1 - 0.01 && a.z0 <= cz0 + 0.01 && a.z1 >= cz1 - 0.01) {
+          const nb = [];
+          for (const bnd of bands) {
+            if (a.y1 <= bnd[0] + 0.01 || a.y0 >= bnd[1] - 0.01) { nb.push(bnd); continue; }
+            if (bnd[0] < a.y0 - 0.01) nb.push([bnd[0], a.y0]);
+            if (bnd[1] > a.y1 + 0.01) nb.push([a.y1, bnd[1]]);
+          }
+          bands = nb;
         }
-      }
-      hasTrim = true;
-      /* leaf — solid slab filling the opening, raised panels, knobs */
-      const dir = insideSign(s);
-      const lw = gw / (dbl ? 2 : 1) - 1;
-      const leafMat = std('#8f6d45', 0.62), panelMat = std('#7a5c38', 0.7);
-      const mk = (hx, hz, alongX, extend) => {
-        const lg = new THREE.Group();
-        lg.position.set(hx, 0, hz);
-        const lx = alongX ? extend * (lw / 2 + 0.5) : 0;
-        const lz = alongX ? 0 : extend * (lw / 2 + 0.5);
-        const leaf = new THREE.Mesh(new THREE.BoxGeometry(alongX ? lw : 6, DOOR_H - 1, alongX ? 6 : lw), leafMat);
-        leaf.castShadow = true;
-        leaf.position.set(lx, DOOR_H / 2, lz);
-        lg.add(leaf);
-        for (const [py, ph] of [[DOOR_H * 0.7, DOOR_H * 0.34], [DOOR_H * 0.26, DOOR_H * 0.34]]) {
-          const pn = new THREE.Mesh(new THREE.BoxGeometry(alongX ? lw * 0.55 : 6.8, ph, alongX ? 6.8 : lw * 0.55), panelMat);
-          pn.position.set(lx, py, lz);
-          lg.add(pn);
-        }
-        const km = std('#2f333a', 0.3, 0.85);
-        for (const zz of [-4, 4]) {
-          const knob = new THREE.Mesh(new THREE.SphereGeometry(2.8, 10, 8), km);
-          knob.position.set(alongX ? extend * (lw - 7) : zz, DOOR_H * 0.5, alongX ? zz : extend * (lw - 7));
-          lg.add(knob);
-        }
-        group.add(lg);
-        // 'h': rot.y=-dir*extend swings tip into room; 'v': +dir*extend (mirrored axis)
-        doorLeaves.push({ grp: lg, key: k, open: (alongX ? -dir : dir) * extend * 1.62 });
-      };
-      if (s.d === 'h') {
-        mk(ox0, y0, true, 1);
-        if (dbl) mk(ox1, y0, true, -1);
-      } else {
-        mk(x0, ox0, false, 1);
-        if (dbl) mk(x0, ox1, false, -1);
-      }
-      // aim hitbox over the whole doorway (leader covers the pair)
-      const hb = new THREE.Mesh(new THREE.BoxGeometry(
-        s.d === 'h' ? gw + 10 : t + 14, DOOR_H, s.d === 'h' ? t + 14 : gw + 10));
-      hb.position.set(s.d === 'h' ? (ox0 + ox1) / 2 : x0, DOOR_H / 2,
-        s.d === 'h' ? y0 : (ox0 + ox1) / 2);
-      hb.visible = false;
-      group.add(hb);
-      hitTargets.push({ mesh: hb, use: { kind: 'door', key: k } });
-    } else if (feat === 'window') {
-      if (s.d === 'h') {
-        let ax0 = x0, ax1 = x1;
-        if (isDoor('h', s.x - 1, s.y)) ax0 += eat('h', s.x, s.y);
-        if (isDoor('h', s.x + 1, s.y)) ax1 -= eat('h', s.x, s.y);
-        segBox(s, ax0, ax0 + jw, 0, WALL_H);
-        segBox(s, ax1 - jw, ax1, 0, WALL_H);
-        segBox(s, ax0 + jw, ax1 - jw, 0, WIN_SILL);                          // sill
-        segBox(s, ax0 + jw, ax1 - jw, WIN_TOP, WALL_H);                      // header
-      } else {
-        let ay0 = y0, ay1 = y1;
-        if (isDoor('v', s.x, s.y - 1)) ay0 += eat('v', s.x, s.y);
-        if (isDoor('v', s.x, s.y + 1)) ay1 -= eat('v', s.x, s.y);
-        segBox(s, ay0, ay0 + jw, 0, WALL_H);
-        segBox(s, ay1 - jw, ay1, 0, WALL_H);
-        segBox(s, ay0 + jw, ay1 - jw, 0, WIN_SILL);
-        segBox(s, ay0 + jw, ay1 - jw, WIN_TOP, WALL_H);
-      }
-      const gl = new THREE.Mesh(
-        new THREE.PlaneGeometry(gap, WIN_TOP - WIN_SILL),
-        new THREE.MeshStandardMaterial({ color: '#bcd8e8', transparent: true, opacity: 0.25, roughness: 0.1, side: THREE.DoubleSide }));
-      if (s.d === 'h') gl.position.set(x0 + C() / 2, (WIN_SILL + WIN_TOP) / 2, y0);
-      else { gl.rotation.y = Math.PI / 2; gl.position.set(x0, (WIN_SILL + WIN_TOP) / 2, y0 + C() / 2); }
-      group.add(gl);
+      for (const bnd of bands) if (bnd[1] - bnd[0] > 0.01)
+        batch.box(cx0, bnd[0], cz0, cx1, bnd[1], cz1);
     }
   }
   const wm = batch.mesh(wallMat);
