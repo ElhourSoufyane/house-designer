@@ -177,8 +177,10 @@ function buildWalls(group) {
     return (rsz[a] || 1) >= (rsz[b] || 1) ? -1 : 1;   // into the bigger region
   };
   const rects = [], aps = [], wins = [];
-  const vt = {};                                 // vertex -> max half-thickness (caps)
-  const touch = (vx, vy, t) => { const k = vx + ',' + vy; vt[k] = Math.max(vt[k] || 0, t / 2); };
+  /* vertex bookkeeping for corner fills: which rays have walls + per-axis
+     half-thickness (x-size from 'v' walls, z-size from 'h' walls) */
+  const vtx = {};
+  const vrec = (x, y) => vtx[x + ',' + y] || (vtx[x + ',' + y] = { xp: 0, xm: 0, zp: 0, zm: 0, hx: 0, hz: 0 });
 
   for (const k in walls) {
     const s = HP.parseWallKey(k), feat = walls[k].f, t = segThick(s), sd = segSide(s);
@@ -189,8 +191,9 @@ function buildWalls(group) {
     rects.push(s.d === 'h'
       ? { x0, x1: x0 + C(), z0: y0 + w0, z1: y0 + w1 }
       : { x0: x0 + w0, x1: x0 + w1, z0: y0, z1: y0 + C() });
-    if (s.d === 'h') { touch(s.x, s.y, t); touch(s.x + 1, s.y, t); }
-    else { touch(s.x, s.y, t); touch(s.x, s.y + 1, t); }
+    const V1 = vrec(s.x, s.y), V2 = s.d === 'h' ? vrec(s.x + 1, s.y) : vrec(s.x, s.y + 1);
+    if (s.d === 'h') { V1.xp = 1; V2.xm = 1; V1.hz = V2.hz = Math.max(V1.hz, V2.hz, t); }
+    else { V1.zp = 1; V2.zm = 1; V1.hx = V2.hx = Math.max(V1.hx, V2.hx, t); }
     if (feat === 'window') { wins.push({ s, x0, y0, w0, w1, wc }); continue; }
     if (feat !== 'door') continue;
     // pair check like drawDoors: even offset leads a double door
@@ -314,11 +317,24 @@ function buildWalls(group) {
     hitTargets.push({ mesh: hb, use: { kind: 'door', key: k } });
   }
 
-  /* junction caps — square posts where ≥2 wall ends meet (or one ends);
-     closes L/T corner notches left by one-sided thickness */
-  for (const vk in vt) {
-    const [vx, vy] = vk.split(',').map(Number), tm = vt[vk];
-    rects.push({ x0: vx * C() - tm, x1: vx * C() + tm, z0: vy * C() - tm, z1: vy * C() + tm });
+  /* corner fills — only the genuinely uncovered quadrant(s) at real
+     junctions (an L corner's outside diagonal). Never a centered block:
+     each quadrant is sized by the perpendicular walls' thickness, skipped
+     when already covered or when both bounding rays have walls (that's
+     open through-space at a T/X — filling it would make a post). */
+  const cov = (x, z) => rects.some(r => x > r.x0 + 0.01 && x < r.x1 - 0.01 && z > r.z0 + 0.01 && z < r.z1 - 0.01);
+  for (const vk in vtx) {
+    const [vx, vy] = vk.split(',').map(Number), V = vtx[vk];
+    if (!(V.xp || V.xm) || !(V.zp || V.zm)) continue;       // needs both axes
+    for (const sx of [-1, 1]) for (const sz of [-1, 1]) {
+      const rays = (sx < 0 ? V.xm : V.xp) + (sz < 0 ? V.zm : V.zp);
+      if (rays >= 2) continue;                            // through-space
+      const qx0 = vx * C() + (sx < 0 ? -V.hx : 0), qx1 = vx * C() + (sx < 0 ? 0 : V.hx);
+      const qz0 = vy * C() + (sz < 0 ? -V.hz : 0), qz1 = vy * C() + (sz < 0 ? 0 : V.hz);
+      if (qx1 - qx0 < 0.5 || qz1 - qz0 < 0.5) continue;
+      if (cov((qx0 + qx1) / 2, (qz0 + qz1) / 2)) continue;
+      rects.push({ x0: qx0, x1: qx1, z0: qz0, z1: qz1 });
+    }
   }
 
   /* windows — glass span clipped against door apertures, then their own
