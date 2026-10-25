@@ -230,45 +230,49 @@ function buildWalls(group) {
         batch.box(x0 - ht, 0, ox1, x0 + ht, WALL_H, p0 + span + extR);
         batch.box(x0 - ht, DOOR_H, ox0, x0 + ht, WALL_H, ox1);
       }
-      /* casing frame — stands proud of both faces, reads as a real frame */
-      const tw = 4, pr = 2;
-      if (s.d === 'h') {
-        trim.box(ox0 - tw, 0, y0 - ht - pr, ox0, DOOR_H + 2, y0 + ht + pr);
-        trim.box(ox1, 0, y0 - ht - pr, ox1 + tw, DOOR_H + 2, y0 + ht + pr);
-        trim.box(ox0 - tw, DOOR_H, y0 - ht - pr, ox1 + tw, DOOR_H + tw, y0 + ht + pr);
-      } else {
-        trim.box(x0 - ht - pr, 0, ox0 - tw, x0 + ht + pr, DOOR_H + 2, ox0);
-        trim.box(x0 - ht - pr, 0, ox1, x0 + ht + pr, DOOR_H + 2, ox1 + tw);
-        trim.box(x0 - ht - pr, DOOR_H, ox0 - tw, x0 + ht + pr, DOOR_H + tw, ox1 + tw);
+      /* casing frame — flat boxes, 1.5 px proud of each face, nothing
+         overlaps so no z-fighting: posts below header, header between */
+      const fw = 5, fo = ht + 1.5;
+      for (const sgn of [-1, 1]) {
+        const f0 = sgn < 0 ? -fo - 1.2 : fo, f1 = sgn < 0 ? -fo : fo + 1.2;
+        if (s.d === 'h') {
+          trim.box(ox0 - fw, 0, y0 + f0, ox0, DOOR_H, y0 + f1);
+          trim.box(ox1, 0, y0 + f0, ox1 + fw, DOOR_H, y0 + f1);
+          trim.box(ox0 - fw, DOOR_H, y0 + f0, ox1 + fw, DOOR_H + 4, y0 + f1);
+        } else {
+          trim.box(x0 + f0, 0, ox0 - fw, x0 + f1, DOOR_H, ox0);
+          trim.box(x0 + f0, 0, ox1, x0 + f1, DOOR_H, ox1 + fw);
+          trim.box(x0 + f0, DOOR_H, ox0 - fw, x0 + f1, DOOR_H + 4, ox1 + fw);
+        }
       }
       hasTrim = true;
-      /* leaf — two raised panels, knobs both sides */
+      /* leaf — solid slab filling the opening, raised panels, knobs */
       const dir = insideSign(s);
-      const lw = gw / (dbl ? 2 : 1) - 1.5;
+      const lw = gw / (dbl ? 2 : 1) - 1;
       const leafMat = std('#8f6d45', 0.62), panelMat = std('#7a5c38', 0.7);
       const mk = (hx, hz, alongX, extend) => {
         const lg = new THREE.Group();
         lg.position.set(hx, 0, hz);
-        const lx = alongX ? extend * (lw / 2 + 0.75) : 0;
-        const lz = alongX ? 0 : extend * (lw / 2 + 0.75);
-        const leaf = new THREE.Mesh(new THREE.BoxGeometry(alongX ? lw : 5, DOOR_H - 1, alongX ? 5 : lw), leafMat);
+        const lx = alongX ? extend * (lw / 2 + 0.5) : 0;
+        const lz = alongX ? 0 : extend * (lw / 2 + 0.5);
+        const leaf = new THREE.Mesh(new THREE.BoxGeometry(alongX ? lw : 6, DOOR_H - 1, alongX ? 6 : lw), leafMat);
         leaf.castShadow = true;
         leaf.position.set(lx, DOOR_H / 2, lz);
         lg.add(leaf);
-        for (const [py, ph] of [[DOOR_H * 0.68, DOOR_H * 0.36], [DOOR_H * 0.24, DOOR_H * 0.36]]) {
-          const pn = new THREE.Mesh(new THREE.BoxGeometry(alongX ? lw * 0.58 : 6, ph, alongX ? 6 : lw * 0.58), panelMat);
+        for (const [py, ph] of [[DOOR_H * 0.7, DOOR_H * 0.34], [DOOR_H * 0.26, DOOR_H * 0.34]]) {
+          const pn = new THREE.Mesh(new THREE.BoxGeometry(alongX ? lw * 0.55 : 6.8, ph, alongX ? 6.8 : lw * 0.55), panelMat);
           pn.position.set(lx, py, lz);
           lg.add(pn);
         }
         const km = std('#2f333a', 0.3, 0.85);
-        for (const zz of [-4.2, 4.2]) {
-          const knob = new THREE.Mesh(new THREE.SphereGeometry(3, 10, 8), km);
-          knob.position.set(alongX ? extend * (lw - 8) : zz, DOOR_H * 0.52, alongX ? zz : extend * (lw - 8));
+        for (const zz of [-4, 4]) {
+          const knob = new THREE.Mesh(new THREE.SphereGeometry(2.8, 10, 8), km);
+          knob.position.set(alongX ? extend * (lw - 7) : zz, DOOR_H * 0.5, alongX ? zz : extend * (lw - 7));
           lg.add(knob);
         }
         group.add(lg);
         // 'h': rot.y=-dir*extend swings tip into room; 'v': +dir*extend (mirrored axis)
-        doorLeaves.push({ grp: lg, key: k, open: (alongX ? -dir : dir) * extend * 1.85 });
+        doorLeaves.push({ grp: lg, key: k, open: (alongX ? -dir : dir) * extend * 1.62 });
       };
       if (s.d === 'h') {
         mk(ox0, y0, true, 1);
