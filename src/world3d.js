@@ -143,8 +143,9 @@ function insideSign(s) {                    // which way the door swings (toward
 }
 
 function buildWalls(group) {
-  const walls = HP.cur().walls, batch = new GeoBatch(), t0 = C();
+  const walls = HP.cur().walls, batch = new GeoBatch(), trim = new GeoBatch();
   const wallMat = std('#f2efe8', 0.95);
+  let hasTrim = false;
   const isDoor = (d, x, y) => { const w = walls[d + ',' + x + ',' + y]; return w && w.f === 'door'; };
   for (const k in walls) {
     const s = HP.parseWallKey(k), feat = walls[k].f, t = segThick(s), ht = t / 2;
@@ -183,40 +184,60 @@ function buildWalls(group) {
       else { for (let y = s.y - 1; isDoor('v', s.x, y); y--) off++; }
       if (off % 2 === 1) continue;                          // handled by pair leader
       const dbl = s.d === 'h' ? isDoor('h', s.x + 1, s.y) : isDoor('v', s.x, s.y + 1);
-      const n = dbl ? 2 : 1, wAll = n * C(), span = n * C();
-      // opening grows up to ~0.38 cell into each adjacent PLAIN segment
+      const n = dbl ? 2 : 1, span = n * C();
+      const p0 = s.d === 'h' ? x0 : y0;
+      // uniform opening: ~0.9 m single, ~1.6 m double — every non-door
+      // neighbour grants ~0.45 cell; corners grant what physically exists
       const extL = eat(s.d, s.d === 'h' ? s.x - 1 : s.x, s.d === 'h' ? s.y : s.y - 1);
       const extR = eat(s.d, s.d === 'h' ? s.x + n : s.x, s.d === 'h' ? s.y : s.y + n);
-      const ox0 = (s.d === 'h' ? x0 : y0) - extL + 2;
-      const ox1 = (s.d === 'h' ? x0 : y0) + span + extR - 2;
-      const gAll = ox1 - ox0;
+      const ox0 = p0 - extL + 2, ox1 = p0 + span + extR - 2;
+      const gw = ox1 - ox0;
+      /* structural opening: jambs + header in wall material */
       if (s.d === 'h') {
-        batch.box(x0 - extL, 0, y0 - ht, ox0, WALL_H, y0 + ht);                // left jamb
-        batch.box(ox1, 0, y0 - ht, x0 + span + extR, WALL_H, y0 + ht);         // right jamb
+        batch.box(p0 - extL, 0, y0 - ht, ox0, WALL_H, y0 + ht);                // left jamb
+        batch.box(ox1, 0, y0 - ht, p0 + span + extR, WALL_H, y0 + ht);         // right jamb
         batch.box(ox0, DOOR_H, y0 - ht, ox1, WALL_H, y0 + ht);                 // lintel
       } else {
-        batch.box(x0 - ht, 0, y0 - extL, x0 + ht, WALL_H, ox0);
-        batch.box(x0 - ht, 0, ox1, x0 + ht, WALL_H, y0 + span + extR);
+        batch.box(x0 - ht, 0, p0 - extL, x0 + ht, WALL_H, ox0);
+        batch.box(x0 - ht, 0, ox1, x0 + ht, WALL_H, p0 + span + extR);
         batch.box(x0 - ht, DOOR_H, ox0, x0 + ht, WALL_H, ox1);
       }
-      const dir = insideSign(s);                            // leaf per side on doubles
-      const leafMat = std('#8f6d45', 0.65);
-      const panelMat = std('#7d5e3a', 0.7);
+      /* casing frame — stands proud of both faces, reads as a real frame */
+      const tw = 4, pr = 2;
+      if (s.d === 'h') {
+        trim.box(ox0 - tw, 0, y0 - ht - pr, ox0, DOOR_H + 2, y0 + ht + pr);
+        trim.box(ox1, 0, y0 - ht - pr, ox1 + tw, DOOR_H + 2, y0 + ht + pr);
+        trim.box(ox0 - tw, DOOR_H, y0 - ht - pr, ox1 + tw, DOOR_H + tw, y0 + ht + pr);
+      } else {
+        trim.box(x0 - ht - pr, 0, ox0 - tw, x0 + ht + pr, DOOR_H + 2, ox0);
+        trim.box(x0 - ht - pr, 0, ox1, x0 + ht + pr, DOOR_H + 2, ox1 + tw);
+        trim.box(x0 - ht - pr, DOOR_H, ox0 - tw, x0 + ht + pr, DOOR_H + tw, ox1 + tw);
+      }
+      hasTrim = true;
+      /* leaf — two raised panels, knobs both sides */
+      const dir = insideSign(s);
+      const lw = gw / (dbl ? 2 : 1) - 1.5;
+      const leafMat = std('#8f6d45', 0.62), panelMat = std('#7a5c38', 0.7);
       const mk = (hx, hz, alongX, extend) => {
         const lg = new THREE.Group();
         lg.position.set(hx, 0, hz);
-        const lw = gAll / (dbl ? 2 : 1);
-        const leaf = new THREE.Mesh(new THREE.BoxGeometry(alongX ? lw : 6, DOOR_H, alongX ? 6 : lw), leafMat);
+        const lx = alongX ? extend * (lw / 2 + 0.75) : 0;
+        const lz = alongX ? 0 : extend * (lw / 2 + 0.75);
+        const leaf = new THREE.Mesh(new THREE.BoxGeometry(alongX ? lw : 5, DOOR_H - 1, alongX ? 5 : lw), leafMat);
         leaf.castShadow = true;
-        leaf.position.set(alongX ? extend * lw / 2 : 0, DOOR_H / 2, alongX ? 0 : extend * lw / 2);
+        leaf.position.set(lx, DOOR_H / 2, lz);
         lg.add(leaf);
-        // recessed panel — reads as a real door, not a plank
-        const pn = new THREE.Mesh(new THREE.BoxGeometry(alongX ? lw * 0.62 : 7, DOOR_H * 0.68, alongX ? 7 : lw * 0.62), panelMat);
-        pn.position.set(alongX ? extend * lw / 2 : 0, DOOR_H * 0.48, alongX ? 0 : extend * lw / 2);
-        lg.add(pn);
-        const knob = new THREE.Mesh(new THREE.SphereGeometry(3.4, 10, 8), std('#2f333a', 0.3, 0.85));
-        knob.position.set(alongX ? extend * (lw - 9) : 6, DOOR_H / 2, alongX ? 6 : extend * (lw - 9));
-        lg.add(knob);
+        for (const [py, ph] of [[DOOR_H * 0.68, DOOR_H * 0.36], [DOOR_H * 0.24, DOOR_H * 0.36]]) {
+          const pn = new THREE.Mesh(new THREE.BoxGeometry(alongX ? lw * 0.58 : 6, ph, alongX ? 6 : lw * 0.58), panelMat);
+          pn.position.set(lx, py, lz);
+          lg.add(pn);
+        }
+        const km = std('#2f333a', 0.3, 0.85);
+        for (const zz of [-4.2, 4.2]) {
+          const knob = new THREE.Mesh(new THREE.SphereGeometry(3, 10, 8), km);
+          knob.position.set(alongX ? extend * (lw - 8) : zz, DOOR_H * 0.52, alongX ? zz : extend * (lw - 8));
+          lg.add(knob);
+        }
         group.add(lg);
         // 'h': rot.y=-dir*extend swings tip into room; 'v': +dir*extend (mirrored axis)
         doorLeaves.push({ grp: lg, key: k, open: (alongX ? -dir : dir) * extend * 1.85 });
@@ -230,7 +251,7 @@ function buildWalls(group) {
       }
       // aim hitbox over the whole doorway (leader covers the pair)
       const hb = new THREE.Mesh(new THREE.BoxGeometry(
-        s.d === 'h' ? gAll + 8 : t + 12, DOOR_H, s.d === 'h' ? t + 12 : gAll + 8));
+        s.d === 'h' ? gw + 10 : t + 14, DOOR_H, s.d === 'h' ? t + 14 : gw + 10));
       hb.position.set(s.d === 'h' ? (ox0 + ox1) / 2 : x0, DOOR_H / 2,
         s.d === 'h' ? y0 : (ox0 + ox1) / 2);
       hb.visible = false;
@@ -265,6 +286,10 @@ function buildWalls(group) {
   const wm = batch.mesh(wallMat);
   group.add(wm);
   solidMeshes.push(wm);
+  if (hasTrim) {
+    const tm = trim.mesh(std('#cbb691', 0.7));        // door casings, warmer wood tone
+    group.add(tm);
+  }
 }
 
 function buildFences(group) {
