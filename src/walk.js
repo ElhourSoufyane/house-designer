@@ -151,6 +151,11 @@ HP.tickPlayer = function (dt) {
     if (len > 0.01) standUp();
   } else if (len > 0.01) {
     dx /= Math.max(1, len); dy /= Math.max(1, len);
+    if (HP._rot3 !== undefined) {              // 3D play: input is look-relative
+      const c = Math.cos(HP._rot3), s = Math.sin(HP._rot3);
+      const tx = dx * c + dy * s, ty = -dx * s + dy * c;
+      dx = tx; dy = ty;
+    }
     const step = SPEED * HP.CELL * dt;
     const nx = HP.player.x + dx * step, ny = HP.player.y + dy * step;
     if (free(nx, HP.player.y)) HP.player.x = nx;

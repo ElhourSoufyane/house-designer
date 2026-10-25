@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>3D TEST — HouseDesigner — 2D Home Planner</title>
+<meta name="theme-color" content="#e8e4d8">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🏠</text></svg>">
+<link rel="stylesheet" href="style.css?v=58">
+</head>
+<body>
+
+<!-- ICON SPRITE (stroke icons inherit currentColor from .ic) -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <symbol id="i-logo" viewBox="0 0 20 20">
+      <rect x="3.5" y="3.5" width="13" height="13"/>
+      <path d="M9.5 3.5v5M9.5 12.5v4M3.5 9.5h4M12.5 9.5h4"/>
+    </symbol>
+    <symbol id="i-select" viewBox="0 0 20 20">
+      <path d="M5.4 3.4v12.2l3.4-3.4 1.7 4.7 1.8-.8-1.7-4.6 4.6-.5z"/>
+    </symbol>
+    <symbol id="i-wall" viewBox="0 0 20 20">
+      <rect x="3" y="8" width="14" height="4"/>
+    </symbol>
+    <symbol id="i-door" viewBox="0 0 20 20">
+      <path d="M6.6 16.6V5.4"/>
+      <path d="M6.6 5.4a11.2 11.2 0 0111.2 11.2"/>
+      <path d="M3.4 16.6h3.2"/>
+    </symbol>
+    <symbol id="i-window" viewBox="0 0 20 20">
+      <rect x="4" y="4" width="12" height="12"/>
+      <path d="M10 4v12"/>
+    </symbol>
+    <symbol id="i-fence" viewBox="0 0 20 20">
+      <path d="M5 4v13M10 4v13M15 4v13"/>
+      <path d="M3 8h14M3 12h14"/>
+    </symbol>
+    <symbol id="i-floor" viewBox="0 0 20 20">
+      <rect x="4" y="4" width="12" height="12"/>
+      <path d="M4 8h12M4 12h12M8 4v4M12 8v4M8 12v4"/>
+    </symbol>
+    <symbol id="i-furniture" viewBox="0 0 20 20">
+      <path d="M6 9.8V7.4a2 2 0 012-2h4a2 2 0 012 2v2.4"/>
+      <path d="M3.6 11.6a1.8 1.8 0 013.6 0v1.4h5.6v-1.4a1.8 1.8 0 013.6 0V15H3.6z"/>
+      <path d="M5.2 15v1.2M14.8 15v1.2"/>
+    </symbol>
+    <symbol id="i-label" viewBox="0 0 20 20">
+      <path d="M4 4h6.3l6 6-6.3 6.3-6-6z"/>
+      <circle cx="7.5" cy="7.5" r="1.2"/>
+    </symbol>
+    <symbol id="i-measure" viewBox="0 0 20 20">
+      <path d="M4.2 15.8 15.8 4.2"/>
+      <path d="M6.5 13.5l1.8 1.8M9.5 10.5l1.8 1.8M12.5 7.5l1.8 1.8"/>
+    </symbol>
+    <symbol id="i-trash" viewBox="0 0 20 20">
+      <path d="M4.5 6h11"/>
+      <path d="M8 6V4.8a1 1 0 011-1h2a1 1 0 011 1V6"/>
+      <path d="M6.3 6l.7 9a1.2 1.2 0 001.2 1.1h3.6a1.2 1.2 0 001.2-1.1l.7-9"/>
+      <path d="M8.7 9v4.4M11.3 9v4.4"/>
+    </symbol>
+    <symbol id="i-settings" viewBox="0 0 20 20">
+      <path d="M4 7h12M4 13h12"/>
+      <circle cx="8" cy="7" r="1.7"/>
+      <circle cx="12.5" cy="13" r="1.7"/>
+    </symbol>
+    <symbol id="i-undo" viewBox="0 0 20 20">
+      <path d="M8 4.8 4.4 8.4 8 12"/>
+      <path d="M4.4 8.4H12a4.8 4.8 0 014.8 4.8 4.8 4.8 0 01-4.8 4.8H8"/>
+    </symbol>
+    <symbol id="i-redo" viewBox="0 0 20 20">
+      <path d="M12 4.8l3.6 3.6L12 12"/>
+      <path d="M15.6 8.4H8a4.8 4.8 0 00-4.8 4.8A4.8 4.8 0 008 18h4"/>
+    </symbol>
+    <symbol id="i-chev-l" viewBox="0 0 20 20">
+      <path d="M11.5 4.5 6.5 10l5 5.5"/>
+    </symbol>
+    <symbol id="i-chev-r" viewBox="0 0 20 20">
+      <path d="M8.5 4.5l5 5.5-5 5.5"/>
+    </symbol>
+    <symbol id="i-plus" viewBox="0 0 20 20">
+      <path d="M10 4.5v11M4.5 10h11"/>
+    </symbol>
+    <symbol id="i-minus" viewBox="0 0 20 20">
+      <path d="M4.5 10h11"/>
+    </symbol>
+    <symbol id="i-play" viewBox="0 0 20 20">
+      <path d="M6.8 4.8 15 10l-8.2 5.2z" fill="currentColor" stroke="none"/>
+    </symbol>
+    <symbol id="i-stop" viewBox="0 0 20 20">
+      <rect x="5.8" y="5.8" width="8.4" height="8.4" rx="1.4" fill="currentColor" stroke="none"/>
+    </symbol>
+    <symbol id="i-up" viewBox="0 0 20 20">
+      <path d="M5 12.5l5-5 5 5"/>
+    </symbol>
+    <symbol id="i-down" viewBox="0 0 20 20">
+      <path d="M5 7.5l5 5 5-5"/>
+    </symbol>
+    <symbol id="i-reset" viewBox="0 0 20 20">
+      <path d="M15.7 8.6A5.7 5.7 0 105.9 13.4"/>
+      <path d="M15.7 4.2v4.4h-4.4"/>
+    </symbol>
+    <symbol id="i-grid" viewBox="0 0 20 20">
+      <rect x="4" y="4" width="4.8" height="4.8" rx="1"/>
+      <rect x="11.2" y="4" width="4.8" height="4.8" rx="1"/>
+      <rect x="4" y="11.2" width="4.8" height="4.8" rx="1"/>
+      <rect x="11.2" y="11.2" width="4.8" height="4.8" rx="1"/>
+    </symbol>
+  </defs>
+</svg>
+
+<!-- TOP BAR -->
+<header class="topbar">
+  <div class="logo"><svg class="ic"><use href="#i-logo"/></svg>House<span>Designer</span></div>
+  <button class="tbtn" id="btn-new">New</button>
+  <button class="tbtn" id="btn-save" title="Download house as a backup file">Save</button>
+  <button class="tbtn" id="btn-export">Export</button>
+  <button class="tbtn" id="btn-coop" title="Build together live">Co-op</button>
+  <div class="tb-sep"></div>
+  <button class="tbtn" id="btn-undo" title="Undo (Ctrl+Z)"><svg class="ic"><use href="#i-undo"/></svg>Undo</button>
+  <button class="tbtn" id="btn-redo" title="Redo (Ctrl+Y)"><svg class="ic"><use href="#i-redo"/></svg>Redo</button>
+  <div class="spacer"></div>
+  <div class="floor-ctrl" id="floor-ctrl">
+    <button id="floor-down" title="Previous floor" aria-label="Previous floor"><svg class="ic"><use href="#i-chev-l"/></svg></button>
+    <div class="fval" id="floor-val">Floor 1/1</div>
+    <button id="floor-up" title="Next floor" aria-label="Next floor"><svg class="ic"><use href="#i-chev-r"/></svg></button>
+    <button id="floor-add" title="Add floor (needs stairs on this floor)" aria-label="Add floor"><svg class="ic"><use href="#i-plus"/></svg></button>
+    <button id="floor-del" title="Delete this floor" aria-label="Delete this floor"><svg class="ic"><use href="#i-trash"/></svg></button>
+  </div>
+  <div class="zoom-ctrl">
+    <button id="btn-zoomout" aria-label="Zoom out"><svg class="ic"><use href="#i-minus"/></svg></button>
+    <div class="zval" id="zoom-val">100%</div>
+    <button id="btn-zoomin" aria-label="Zoom in"><svg class="ic"><use href="#i-plus"/></svg></button>
+  </div>
+  <button class="tbtn primary" id="btn-play"><svg class="ic"><use href="#i-play"/></svg>Play</button>
+</header>
+
+<div class="main">
+
+  <!-- LEFT TOOL RAIL -->
+  <nav class="toolbar" id="toolrail">
+    <button class="tool active" data-tool="select" aria-label="Select"><svg class="ic"><use href="#i-select"/></svg><span class="lbl">Select</span><div class="tip">Select / Move (V)</div></button>
+    <button class="tool" data-tool="wall" aria-label="Wall"><svg class="ic"><use href="#i-wall"/></svg><span class="lbl">Wall</span><div class="tip">Draw Wall (W)</div></button>
+    <button class="tool" data-tool="door" aria-label="Door"><svg class="ic"><use href="#i-door"/></svg><span class="lbl">Door</span><div class="tip">Place Door (D)</div></button>
+    <button class="tool" data-tool="window" aria-label="Window"><svg class="ic"><use href="#i-window"/></svg><span class="lbl">Window</span><div class="tip">Place Window (N)</div></button>
+    <button class="tool" data-tool="fence" aria-label="Fence"><svg class="ic"><use href="#i-fence"/></svg><span class="lbl">Fence</span><div class="tip">Draw Fence (B)</div></button>
+    <div class="sep"></div>
+    <button class="tool" data-tool="floor" aria-label="Floor"><svg class="ic"><use href="#i-floor"/></svg><span class="lbl">Floor</span><div class="tip">Flooring (F)</div></button>
+    <button class="tool" data-tool="furniture" aria-label="Furniture"><svg class="ic"><use href="#i-furniture"/></svg><span class="lbl">Items</span><div class="tip">Furniture (E)</div></button>
+    <button class="tool" data-tool="label" aria-label="Label"><svg class="ic"><use href="#i-label"/></svg><span class="lbl">Label</span><div class="tip">Room Label (T)</div></button>
+    <div class="sep"></div>
+    <button class="tool" data-tool="measure" aria-label="Measure"><svg class="ic"><use href="#i-measure"/></svg><span class="lbl">Ruler</span><div class="tip">Measure (M)</div></button>
+    <button class="tool" data-tool="erase" aria-label="Delete"><svg class="ic"><use href="#i-trash"/></svg><span class="lbl">Delete</span><div class="tip">Delete (Del)</div></button>
+    <div class="grow"></div>
+    <button class="tool" data-tool="settings" aria-label="Settings"><svg class="ic"><use href="#i-settings"/></svg><span class="lbl">Setup</span><div class="tip">Settings</div></button>
+  </nav>
+
+  <!-- CANVAS -->
+  <div class="canvas-wrap">
+    <canvas id="view"></canvas>
+    <div id="edit-panel" class="hidden">
+      <div id="edit-head"><span id="edit-title">Edit</span><button id="edit-close" aria-label="Close panel">&#10005;</button></div>
+      <div id="insp-top"></div>
+    </div>
+    <div id="coop-panel" class="hidden">
+      <div class="coop-head"><span>Play together</span><button id="coop-x" aria-label="Close">&#10005;</button></div>
+      <div id="coop-body"></div>
+    </div>
+    <button id="catalog-fab"><svg class="ic"><use href="#i-grid"/></svg>Catalog</button>
+    <div id="play-hint" class="hidden">WASD / arrows to walk &nbsp;·&nbsp; Esc to exit</div>
+    <div id="stairs-ui" class="hidden"></div>
+    <div id="use-ui" class="hidden"></div>
+    <div id="joy"><div class="knob"></div></div>
+  </div>
+
+  <!-- RIGHT INSPECTOR — tool-scoped sections -->
+  <aside class="inspector" id="inspector" data-sec="generic">
+    <div class="insp-grabber" id="insp-grabber" role="button" aria-label="Close panel"><i></i><span class="gx">&#10005;</span></div>
+    <div class="insp-section tool-sec" data-sec="floor">
+      <div class="insp-title">Flooring</div>
+      <div id="floor-panel"></div>
+    </div>
+    <div class="insp-section tool-sec" data-sec="fence">
+      <div class="insp-title">Fence</div>
+      <div id="fence-panel"></div>
+    </div>
+    <div class="insp-section tool-sec" data-sec="settings">
+      <div class="insp-title">Settings</div>
+      <div id="settings-panel"></div>
+    </div>
+    <div class="insp-section tool-sec" data-sec="generic">
+      <div class="insp-title">Tip</div>
+      <div class="hint" id="tool-hint" style="margin-top:0"></div>
+    </div>
+    <div class="insp-section tool-sec" id="insp-catalog-sec" data-sec="furniture">
+      <div class="insp-title">Furniture</div>
+      <input id="cat-search" class="cat-search" type="search" placeholder="Search furniture…" autocomplete="off">
+      <div id="catalog-items"></div>
+    </div>
+    <div class="insp-section">
+      <div class="insp-title">Project</div>
+      <div id="insp-project"></div>
+    </div>
+  </aside>
+</div>
+
+<!-- STATUS BAR -->
+<footer class="statusbar">
+  <span><span class="dot"></span> <span id="st-msg">Ready</span></span>
+  <span id="st-cursor">Cursor: —</span>
+  <span class="snap">Snap: 0.5m</span>
+  <div class="right">
+    <span id="st-grid">Grid: ON</span>
+    <span id="st-floor">Floor 1/1</span>
+    <span id="st-save">Autosaved</span>
+    <span id="st-coop">Solo</span>
+  </div>
+</footer>
+
+<!-- Preset picker overlay -->
+<div id="preset-overlay" class="hidden">
+  <div id="preset-panel">
+    <h2>New House</h2>
+    <p class="dim">Pick a starting layout — you can edit everything after.</p>
+    <button id="preset-open" class="panel-btn" style="margin-bottom:10px">📂 Open saved house file…</button>
+    <div id="preset-list"></div>
+    <button id="preset-cancel" class="panel-btn">Cancel</button>
+  </div>
+</div>
+
+<!-- Choice dialog (delete room etc.) -->
+<div id="dialog-overlay" class="hidden">
+  <div id="dialog-panel">
+    <h2 id="dialog-title"></h2>
+    <p class="dim" id="dialog-desc"></p>
+    <div id="dialog-buttons"></div>
+  </div>
+</div>
+
+<script src="lib/peerjs.min.js"></script>
+<script src="src/grid.js?v=58"></script>
+<script src="src/catalog.js?v=58"></script>
+<script src="src/sprites.js?v=58"></script>
+<script src="src/rooms.js?v=58"></script>
+<script src="src/tools.js?v=58"></script>
+<script src="src/presets.js?v=58"></script>
+<script src="src/save.js?v=58"></script>
+<script src="src/walk.js?v=58"></script>
+<script src="src/input.js?v=58"></script>
+<script src="src/ui.js?v=58"></script>
+<script src="src/main.js?v=58"></script>
+<script src="src/sync.js?v=58"></script>
+  <script src="lib/three.min.js"></script>
+  <script src="src/models3d.js?v=59"></script>
+  <script src="src/world3d.js?v=59"></script>
+  <script src="src/walk3d.js?v=59"></script>
+</body>
+</html>
