@@ -3,9 +3,9 @@
 (function () {
 if (typeof THREE === 'undefined') return;
 
-const WALL_H = 154;                       // ~2.75 m
-const DOOR_H = 112, WIN_SILL = 60, WIN_TOP = 122;
-const EYE = 82, EYE_SIT = 50;
+const WALL_H = 140;                       // ~2.5 m — chunky enough to read as walls
+const DOOR_H = 104, WIN_SILL = 54, WIN_TOP = 112;
+const EYE = 78, EYE_SIT = 48;
 const MAX_LAMP_LIGHTS = 6;
 
 let renderer = null, scene = null, camera = null, sun = null;
@@ -23,14 +23,16 @@ const std = (c, r = 0.85, m = 0, ex) =>
 HP.init3D = function () {
   if (renderer) return true;
   try {
-    renderer = new THREE.WebGLRenderer({ canvas: HP.canvas3d, antialias: false, powerPreference: 'low-power' });
+    renderer = new THREE.WebGLRenderer({ canvas: HP.canvas3d, antialias: false });
   } catch (e) { return false; }
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.75));
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.5));
   renderer.outputEncoding = THREE.sRGBEncoding;
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
   renderer.toneMappingExposure = 1.08;
   renderer.shadowMap.enabled = true;
   renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+  renderer.shadowMap.autoUpdate = false;               // static sun → bake once per build
+  renderer.shadowMap.needsUpdate = true;
   camera = new THREE.PerspectiveCamera(70, 1, 4, 5000);
   scene = new THREE.Scene();
   scene.background = new THREE.Color(0x9cc4e4);
@@ -64,10 +66,10 @@ function GeoBatch() {
     const quads = [
       [[x1, y0, z0], [x1, y1, z0], [x1, y1, z1], [x1, y0, z1], 1, 0, 0],
       [[x0, y0, z1], [x0, y1, z1], [x0, y1, z0], [x0, y0, z0], -1, 0, 0],
-      [[x0, y1, z0], [x1, y1, z0], [x1, y1, z1], [x0, y1, z1], 0, 1, 0],
-      [[x0, y0, z0], [x0, y0, z1], [x1, y0, z1], [x1, y0, z0], 0, -1, 0],
-      [[x0, y0, z1], [x0, y1, z1], [x1, y1, z1], [x1, y0, z1], 0, 0, 1],
-      [[x1, y0, z0], [x1, y1, z0], [x0, y1, z0], [x0, y0, z0], 0, 0, -1],
+      [[x0, y1, z0], [x0, y1, z1], [x1, y1, z1], [x1, y1, z0], 0, 1, 0],
+      [[x0, y0, z0], [x1, y0, z0], [x1, y0, z1], [x0, y0, z1], 0, -1, 0],
+      [[x0, y0, z1], [x1, y0, z1], [x1, y1, z1], [x0, y1, z1], 0, 0, 1],
+      [[x1, y0, z0], [x0, y0, z0], [x0, y1, z0], [x1, y1, z0], 0, 0, -1],
     ];
     for (const [a, b, c, d, nx, ny, nz] of quads) {
       pos.push(a[0], a[1], a[2], b[0], b[1], b[2], c[0], c[1], c[2],
@@ -93,6 +95,7 @@ function groundPlane() {
   m.rotation.x = -Math.PI / 2;
   m.position.set(HP.GRID_W * C() / 2, -1.5, HP.GRID_H * C() / 2);
   m.receiveShadow = true;
+  m.updateMatrix(); m.matrixAutoUpdate = false;
   return m;
 }
 
@@ -117,6 +120,7 @@ function floorMesh() {
   mesh.rotation.x = -Math.PI / 2;                     // flipY texture aligns cell (x,y)→world (x*C, y*C)
   mesh.position.set(HP.GRID_W * C() / 2, 0, HP.GRID_H * C() / 2);
   mesh.receiveShadow = true;
+  mesh.updateMatrix(); mesh.matrixAutoUpdate = false;
   return mesh;
 }
 
@@ -124,8 +128,8 @@ function floorMesh() {
 function segThick(s) {
   const { regionOf } = HP.computeRegions();
   const out = (x, y) => !HP.cellIn(x, y) || regionOf[y * HP.GRID_W + x] < 0;
-  if (s.d === 'h') return (out(s.x, s.y - 1) || out(s.x, s.y)) ? 0.44 * C() : 0.3 * C();
-  return (out(s.x - 1, s.y) || out(s.x, s.y)) ? 0.44 * C() : 0.3 * C();
+  if (s.d === 'h') return (out(s.x, s.y - 1) || out(s.x, s.y)) ? 0.55 * C() : 0.42 * C();
+  return (out(s.x - 1, s.y) || out(s.x, s.y)) ? 0.55 * C() : 0.42 * C();
 }
 function insideSign(s) {                    // which way the door swings (toward room)
   const { regionOf } = HP.computeRegions();
@@ -295,6 +299,7 @@ HP.buildScene = function () {
     m.position.set((f.x + f.w / 2) * C(), 0, (f.y + f.h / 2) * C());
     m.rotation.y = -it.rot * Math.PI / 2;
     m.userData.item = it;
+    m.updateMatrix(); m.matrixAutoUpdate = false;     // static until edited
     levelGroup.add(m);
     itemMeshes.set(it, m);
     if (HP.isLamp && HP.isLamp(it.type)) addLampLight(it, f);
@@ -302,6 +307,7 @@ HP.buildScene = function () {
   scene.add(levelGroup);
   builtLevel = HP.state.level;
   lastBuild = performance.now();
+  renderer.shadowMap.needsUpdate = true;               // rebake static shadows
   // sun target follows the lot centre so shadows stay tight
   if (sun) sun.target.position.set(HP.GRID_W * C() / 2, 0, HP.GRID_H * C() / 2);
 };
@@ -324,7 +330,11 @@ HP.render3D = function (dt) {
   for (const d of doorLeaves) {
     const s = HP.cur().walls[d.key];
     const target = (s && !s.c) ? d.open : 0;
-    d.grp.rotation.y += (target - d.grp.rotation.y) * Math.min(1, dt * 9);
+    const diff = target - d.grp.rotation.y;
+    if (Math.abs(diff) > 0.002) {
+      d.grp.rotation.y += diff * Math.min(1, dt * 9);
+      renderer.shadowMap.needsUpdate = true;           // moving leaf → moving shadow
+    }
   }
   lampLights.forEach(l => { l.light.visible = false; });
   if (p) {
