@@ -149,12 +149,13 @@ function buildWalls(group) {
   for (const k in walls) {
     const s = HP.parseWallKey(k), feat = walls[k].f, t = segThick(s), ht = t / 2;
     const x0 = s.x * C(), y0 = s.y * C(), x1 = x0 + (s.d === 'h' ? C() : 0), y1 = y0 + (s.d === 'v' ? C() : 0);
-    const isPlain = (d, x, y) => { const w = walls[d + ',' + x + ',' + y]; return w && !w.f; };
-    /* how much of a plain segment an adjacent door opening may take —
-       a real doorway is ~0.8-0.9 m (~1.7 cells); a segment pinched
-       between two doors grants less so a post survives */
+    /* how much of a neighbouring segment a door opening may take.
+       every non-door neighbour grants ~0.45 cell (windows shrink too)
+       so ALL singles come out the same width; pinched segments grant
+       less so a post survives. doors and open edges grant nothing. */
     const eat = (d, x, y) => {
-      if (!isPlain(d, x, y)) return 0;
+      const w = walls[d + ',' + x + ',' + y];
+      if (!w || w.f === 'door') return 0;
       const doors = (isDoor(d, x - (d === 'h'), y - (d === 'v')) ? 1 : 0)
                   + (isDoor(d, x + (d === 'h'), y + (d === 'v')) ? 1 : 0);
       return (doors > 1 ? 0.28 : 0.45) * C();
@@ -237,15 +238,21 @@ function buildWalls(group) {
       hitTargets.push({ mesh: hb, use: { kind: 'door', key: k } });
     } else if (feat === 'window') {
       if (s.d === 'h') {
-        batch.box(x0, 0, y0 - ht, x0 + jw, WALL_H, y0 + ht);
-        batch.box(x0 + C() - jw, 0, y0 - ht, x1, WALL_H, y0 + ht);
-        batch.box(x0 + jw, 0, y0 - ht, x1 - jw, WIN_SILL, y0 + ht);           // sill
-        batch.box(x0 + jw, WIN_TOP, y0 - ht, x1 - jw, WALL_H, y0 + ht);       // header
+        let ax0 = x0, ax1 = x1;
+        if (isDoor('h', s.x - 1, s.y)) ax0 += eat('h', s.x, s.y);
+        if (isDoor('h', s.x + 1, s.y)) ax1 -= eat('h', s.x, s.y);
+        batch.box(ax0, 0, y0 - ht, ax0 + jw, WALL_H, y0 + ht);
+        batch.box(ax1 - jw, 0, y0 - ht, ax1, WALL_H, y0 + ht);
+        batch.box(ax0 + jw, 0, y0 - ht, ax1 - jw, WIN_SILL, y0 + ht);         // sill
+        batch.box(ax0 + jw, WIN_TOP, y0 - ht, ax1 - jw, WALL_H, y0 + ht);     // header
       } else {
-        batch.box(x0 - ht, 0, y0, x0 + ht, WALL_H, y0 + jw);
-        batch.box(x0 - ht, 0, y0 + C() - jw, x0 + ht, WALL_H, y1);
-        batch.box(x0 - ht, 0, y0 + jw, x0 + ht, WIN_SILL, y0 + C() - jw);
-        batch.box(x0 - ht, WIN_TOP, y0 + jw, x0 + ht, WALL_H, y0 + C() - jw);
+        let ay0 = y0, ay1 = y1;
+        if (isDoor('v', s.x, s.y - 1)) ay0 += eat('v', s.x, s.y);
+        if (isDoor('v', s.x, s.y + 1)) ay1 -= eat('v', s.x, s.y);
+        batch.box(x0 - ht, 0, ay0, x0 + ht, WALL_H, ay0 + jw);
+        batch.box(x0 - ht, 0, ay1 - jw, x0 + ht, WALL_H, ay1);
+        batch.box(x0 - ht, 0, ay0 + jw, x0 + ht, WIN_SILL, ay1 - jw);
+        batch.box(x0 - ht, WIN_TOP, ay0 + jw, x0 + ht, WALL_H, ay1 - jw);
       }
       const gl = new THREE.Mesh(
         new THREE.PlaneGeometry(gap, WIN_TOP - WIN_SILL),
