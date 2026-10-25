@@ -186,11 +186,29 @@ function buildWalls(group) {
       const dbl = s.d === 'h' ? isDoor('h', s.x + 1, s.y) : isDoor('v', s.x, s.y + 1);
       const n = dbl ? 2 : 1, span = n * C();
       const p0 = s.d === 'h' ? x0 : y0;
+      const pEnd = p0 + span;
       // uniform opening: ~0.9 m single, ~1.6 m double — every non-door
       // neighbour grants ~0.45 cell; corners grant what physically exists
       const extL = eat(s.d, s.d === 'h' ? s.x - 1 : s.x, s.d === 'h' ? s.y : s.y - 1);
       const extR = eat(s.d, s.d === 'h' ? s.x + n : s.x, s.d === 'h' ? s.y : s.y + n);
-      const ox0 = p0 - extL + 2, ox1 = p0 + span + extR - 2;
+      /* perpendicular walls at the opening's vertices bound it — the
+         opening stops at their inner face so no post pokes through */
+      const perpFace = (vx, vy) => {
+        let mx = 0;
+        if (s.d === 'h') {
+          for (const vy2 of [vy, vy - 1])
+            if (walls['v,' + vx + ',' + vy2]) mx = Math.max(mx, segThick({ d: 'v', x: vx, y: vy2 }) / 2);
+        } else {
+          for (const vx2 of [vx, vx - 1])
+            if (walls['h,' + vx2 + ',' + vy]) mx = Math.max(mx, segThick({ d: 'h', x: vx2, y: vy }) / 2);
+        }
+        return mx;
+      };
+      const faceL = perpFace(s.x, s.y);
+      const faceR = perpFace(s.d === 'h' ? s.x + n : s.x, s.d === 'h' ? s.y : s.y + n);
+      let ox0 = Math.max(p0 - extL + 2, p0 + faceL);
+      let ox1 = Math.min(pEnd + extR - 2, pEnd - faceR);
+      if (ox1 - ox0 < 8) { const m = (p0 + pEnd) / 2; ox0 = m - 4; ox1 = m + 4; }
       const gw = ox1 - ox0;
       /* structural opening: jambs + header in wall material */
       if (s.d === 'h') {
