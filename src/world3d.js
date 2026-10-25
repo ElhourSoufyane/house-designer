@@ -150,17 +150,24 @@ function buildWalls(group) {
     const s = HP.parseWallKey(k), feat = walls[k].f, t = segThick(s), ht = t / 2;
     const x0 = s.x * C(), y0 = s.y * C(), x1 = x0 + (s.d === 'h' ? C() : 0), y1 = y0 + (s.d === 'v' ? C() : 0);
     const isPlain = (d, x, y) => { const w = walls[d + ',' + x + ',' + y]; return w && !w.f; };
-    const EXT = 0.24 * C();                    // door openings bleed into plain neighbours
+    /* how much of a plain segment an adjacent door opening may take —
+       less when the segment is pinched between two doors (keeps a post) */
+    const eat = (d, x, y) => {
+      if (!isPlain(d, x, y)) return 0;
+      const doors = (isDoor(d, x - (d === 'h'), y - (d === 'v')) ? 1 : 0)
+                  + (isDoor(d, x + (d === 'h'), y + (d === 'v')) ? 1 : 0);
+      return (doors > 1 ? 0.3 : 0.38) * C();
+    };
     if (!feat) {                                            // solid segment
       if (s.d === 'h') {
         let ax0 = x0, ax1 = x1;
-        if (isDoor('h', s.x - 1, s.y)) ax0 += EXT;           // neighbour door eats into me
-        if (isDoor('h', s.x + 1, s.y)) ax1 -= EXT;
+        if (isDoor('h', s.x - 1, s.y)) ax0 += eat('h', s.x, s.y);
+        if (isDoor('h', s.x + 1, s.y)) ax1 -= eat('h', s.x, s.y);
         if (ax1 > ax0) batch.box(ax0, 0, y0 - ht, ax1, WALL_H, y0 + ht);
       } else {
         let ay0 = y0, ay1 = y1;
-        if (isDoor('v', s.x, s.y - 1)) ay0 += EXT;
-        if (isDoor('v', s.x, s.y + 1)) ay1 -= EXT;
+        if (isDoor('v', s.x, s.y - 1)) ay0 += eat('v', s.x, s.y);
+        if (isDoor('v', s.x, s.y + 1)) ay1 -= eat('v', s.x, s.y);
         if (ay1 > ay0) batch.box(x0 - ht, 0, ay0, x0 + ht, WALL_H, ay1);
       }
       continue;
@@ -175,9 +182,9 @@ function buildWalls(group) {
       if (off % 2 === 1) continue;                          // handled by pair leader
       const dbl = s.d === 'h' ? isDoor('h', s.x + 1, s.y) : isDoor('v', s.x, s.y + 1);
       const n = dbl ? 2 : 1, wAll = n * C(), span = n * C();
-      // opening grows up to EXT into each adjacent PLAIN segment
-      const extL = isPlain(s.d, s.d === 'h' ? s.x - 1 : s.x, s.d === 'h' ? s.y : s.y - 1) ? EXT : 0;
-      const extR = isPlain(s.d, s.d === 'h' ? s.x + n : s.x, s.d === 'h' ? s.y : s.y + n) ? EXT : 0;
+      // opening grows up to ~0.38 cell into each adjacent PLAIN segment
+      const extL = eat(s.d, s.d === 'h' ? s.x - 1 : s.x, s.d === 'h' ? s.y : s.y - 1);
+      const extR = eat(s.d, s.d === 'h' ? s.x + n : s.x, s.d === 'h' ? s.y : s.y + n);
       const ox0 = (s.d === 'h' ? x0 : y0) - extL + 3;
       const ox1 = (s.d === 'h' ? x0 : y0) + span + extR - 3;
       const gAll = ox1 - ox0;
