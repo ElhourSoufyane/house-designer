@@ -328,6 +328,9 @@ function doUse() {
   useShown = '';                                     // refresh the prompt label
   HP.markDirty(); HP.saveState();                    // saveState broadcasts to co-op peers
 }
+/* walk3d aim-at interaction reuses this: caller supplies a
+   nearestUse-shaped {kind, it|key, label} instead of proximity picking */
+HP.walkUseAt = function (u) { if (u) { curUse = u; doUse(); } };
 
 /* ---------- stairs: travel between floors ---------- */
 function stairsAt(cx, cy) {

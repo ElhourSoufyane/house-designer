@@ -24,12 +24,32 @@ function inject() {
     '#view3d{position:absolute;inset:0;width:100%;height:100%;display:none;' +
     'touch-action:none;z-index:1;cursor:crosshair}\n' +
     'body.playing3d #view{display:none}\n' +
-    'body.playing3d #view3d{display:block}\n';
+    'body.playing3d #view3d{display:block}\n' +
+    '#xh{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);' +
+    'width:8px;height:8px;border-radius:50%;background:rgba(255,255,255,.9);' +
+    'box-shadow:0 0 0 2px rgba(0,0,0,.35);display:none;z-index:21;pointer-events:none}\n' +
+    'body.playing3d #xh{display:block}\n' +
+    'body.playing3d #xh.on{background:#5dd8a0;transform:translate(-50%,-50%) scale(1.35)}\n' +
+    '#xh-lbl{position:absolute;left:50%;top:calc(50% + 18px);transform:translateX(-50%);' +
+    'background:rgba(20,23,28,.8);color:#fff;font:600 12px/1.4 system-ui;padding:4px 10px;' +
+    'border-radius:8px;display:none;z-index:21;pointer-events:none;white-space:nowrap}\n' +
+    'body.playing3d #xh-lbl.on{display:block}\n' +
+    'body.playing3d #use-ui{display:none!important}\n';   // crosshair replaces proximity prompts
   document.head.appendChild(st);
   const cv = document.createElement('canvas');
   cv.id = 'view3d';
   v.parentNode.insertBefore(cv, v.nextSibling);
   HP.canvas3d = cv;
+  const xh = document.createElement('div'); xh.id = 'xh';
+  const xl = document.createElement('div'); xl.id = 'xh-lbl';
+  v.parentNode.appendChild(xh); v.parentNode.appendChild(xl);
+  if (isTouch) {                                        // no E key — tap the label to use
+    xl.style.pointerEvents = 'auto';
+    xl.addEventListener('pointerdown', e => {
+      e.stopPropagation();
+      if (HP.aimUse && HP.walkUseAt) HP.walkUseAt(HP.aimUse);
+    });
+  }
   const pb = document.getElementById('btn-play');
   if (pb) {
     btn = document.createElement('button');
@@ -48,6 +68,16 @@ function inject() {
   document.addEventListener('keydown', e => {
     if (HP.playing3 && e.key === 'Escape') HP.togglePlay3();
   });
+  // aim-at use: capture on window so we beat walk.js's proximity E handler
+  window.addEventListener('keydown', e => {
+    if (!HP.playing3 || (e.key !== 'e' && e.key !== 'E' && e.key !== 'Enter')) return;
+    const su = document.getElementById('stairs-ui');
+    if (su && !su.classList.contains('hidden')) return;   // stairs keep priority
+    if (HP.aimUse && HP.walkUseAt) {
+      e.stopPropagation(); e.preventDefault();
+      HP.walkUseAt(HP.aimUse);
+    }
+  }, true);
   document.addEventListener('pointerlockchange', () => {
     // Esc while locked drops the lock without a keydown — treat as exit
     if (HP.playing3 && !isTouch && document.pointerLockElement !== HP.canvas3d
@@ -183,6 +213,13 @@ function loop3(t) {
   const dt = Math.min(0.05, (t - last) / 1000 || 0.016);
   last = t;
   HP.render3D(dt);
+  const xh = document.getElementById('xh'), xl = document.getElementById('xh-lbl');
+  if (xh) xh.classList.toggle('on', !!HP.aimUse);
+  if (xl) {
+    const lbl = HP.aimUse ? HP.aimUse.label : '';
+    if (lbl !== xl._lbl) { xl._lbl = lbl; xl.textContent = lbl ? (isTouch ? 'Tap · ' : 'E · ') + lbl : ''; }
+    xl.classList.toggle('on', !!lbl);
+  }
   raf = requestAnimationFrame(loop3);
 }
 

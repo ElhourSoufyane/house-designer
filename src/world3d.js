@@ -14,6 +14,10 @@ let doorLeaves = [];                      // {grp,key,open}
 let lampLights = [];                      // {light,it,x,y}
 let avatarMap = {};                       // name -> Group
 let itemMeshes = new Map();               // it -> Object3D
+let hitTargets = [];                      // {mesh,use} aim-at hitboxes
+let solidMeshes = [];                     // walls+fences — block the aim ray
+const ray3 = new THREE.Raycaster(); ray3.far = 110;
+let aimClock = 0;
 
 const C = () => HP.CELL;
 const std = (c, r = 0.85, m = 0, ex) =>
@@ -171,17 +175,22 @@ function buildWalls(group) {
         batch.box(x0 - ht, DOOR_H, y0 + jAll, x0 + ht, WALL_H, y0 + wAll - jAll);
       }
       const dir = insideSign(s);                            // leaf per side on doubles
-      const leafMat = std('#a08a6a', 0.7);
+      const leafMat = std('#8f6d45', 0.65);
+      const panelMat = std('#7d5e3a', 0.7);
       const mk = (hx, hz, alongX, extend) => {
         const lg = new THREE.Group();
         lg.position.set(hx, 0, hz);
         const lw = gAll / (dbl ? 2 : 1);
-        const leaf = new THREE.Mesh(new THREE.BoxGeometry(alongX ? lw : 3, DOOR_H, alongX ? 3 : lw), leafMat);
+        const leaf = new THREE.Mesh(new THREE.BoxGeometry(alongX ? lw : 6, DOOR_H, alongX ? 6 : lw), leafMat);
         leaf.castShadow = true;
         leaf.position.set(alongX ? extend * lw / 2 : 0, DOOR_H / 2, alongX ? 0 : extend * lw / 2);
         lg.add(leaf);
-        const knob = new THREE.Mesh(new THREE.SphereGeometry(2.4, 8, 6), std('#3a3f47', 0.4, 0.8));
-        knob.position.set(alongX ? extend * (lw - 8) : 4, DOOR_H / 2, alongX ? 4 : extend * (lw - 8));
+        // recessed panel — reads as a real door, not a plank
+        const pn = new THREE.Mesh(new THREE.BoxGeometry(alongX ? lw * 0.62 : 7, DOOR_H * 0.68, alongX ? 7 : lw * 0.62), panelMat);
+        pn.position.set(alongX ? extend * lw / 2 : 0, DOOR_H * 0.48, alongX ? 0 : extend * lw / 2);
+        lg.add(pn);
+        const knob = new THREE.Mesh(new THREE.SphereGeometry(3.4, 10, 8), std('#2f333a', 0.3, 0.85));
+        knob.position.set(alongX ? extend * (lw - 9) : 6, DOOR_H / 2, alongX ? 6 : extend * (lw - 9));
         lg.add(knob);
         group.add(lg);
         // 'h': rot.y=-dir*extend swings tip into room; 'v': +dir*extend (mirrored axis)
@@ -194,6 +203,13 @@ function buildWalls(group) {
         mk(x0, y0 + jAll, false, 1);
         if (dbl) mk(x0, y0 + wAll - jAll, false, -1);
       }
+      // aim hitbox over the whole doorway (leader covers the pair)
+      const hb = new THREE.Mesh(new THREE.BoxGeometry(
+        s.d === 'h' ? wAll : t + 12, DOOR_H, s.d === 'h' ? t + 12 : wAll));
+      hb.position.set(s.d === 'h' ? x0 + wAll / 2 : x0, DOOR_H / 2, s.d === 'h' ? y0 : y0 + wAll / 2);
+      hb.visible = false;
+      group.add(hb);
+      hitTargets.push({ mesh: hb, use: { kind: 'door', key: k } });
     } else if (feat === 'window') {
       if (s.d === 'h') {
         batch.box(x0, 0, y0 - ht, x0 + jw, WALL_H, y0 + ht);
@@ -214,7 +230,9 @@ function buildWalls(group) {
       group.add(gl);
     }
   }
-  group.add(batch.mesh(wallMat));
+  const wm = batch.mesh(wallMat);
+  group.add(wm);
+  solidMeshes.push(wm);
 }
 
 function buildFences(group) {
@@ -228,7 +246,9 @@ function buildFences(group) {
     if (s.d === 'h') batch.box(x0, 0, y0 - t / 2, x0 + C(), 42, y0 + t / 2);
     else batch.box(x0 - t / 2, 0, y0, x0 + t / 2, 42, y0 + C());
   }
-  group.add(batch.mesh(mat));
+  const fm = batch.mesh(mat);
+  group.add(fm);
+  solidMeshes.push(fm);
 }
 
 /* ---------------- lamps / avatars ---------------- */
@@ -287,6 +307,7 @@ HP.buildScene = function () {
   if (!renderer || !HP.state) return;
   if (levelGroup) { scene.remove(levelGroup); disposeGroup(levelGroup); }
   doorLeaves = []; lampLights = []; itemMeshes = new Map(); avatarMap = {};
+  hitTargets = []; solidMeshes = [];
   levelGroup = new THREE.Group();
   levelGroup.add(groundPlane());
   levelGroup.add(floorMesh());
@@ -303,6 +324,16 @@ HP.buildScene = function () {
     levelGroup.add(m);
     itemMeshes.set(it, m);
     if (HP.isLamp && HP.isLamp(it.type)) addLampLight(it, f);
+    const seat = HP.seatKind && HP.seatKind(it.type), lamp = HP.isLamp && HP.isLamp(it.type);
+    if (seat || lamp) {
+      const bb = new THREE.Box3().setFromObject(m);
+      const hb = new THREE.Mesh(new THREE.BoxGeometry(
+        Math.max(10, bb.max.x - bb.min.x), Math.max(10, bb.max.y - bb.min.y), Math.max(10, bb.max.z - bb.min.z)));
+      hb.position.set((bb.min.x + bb.max.x) / 2, (bb.min.y + bb.max.y) / 2, (bb.min.z + bb.max.z) / 2);
+      hb.visible = false;
+      levelGroup.add(hb);
+      hitTargets.push({ mesh: hb, use: { kind: seat ? 'sit' : 'lamp', it } });
+    }
   }
   scene.add(levelGroup);
   builtLevel = HP.state.level;
@@ -342,7 +373,34 @@ HP.render3D = function (dt) {
       .sort((a, b) => ((a.x - p.x) ** 2 + (a.y - p.y) ** 2) - ((b.x - p.x) ** 2 + (b.y - p.y) ** 2))
       .slice(0, MAX_LAMP_LIGHTS).forEach(l => { l.light.visible = true; });
   }
+  aimClock += dt;
+  if (aimClock > 0.08) { aimClock = 0; updateAim(); }
   updateAvatars();
   renderer.render(scene, camera);
 };
+
+/* ---------------- crosshair aim ---------------- */
+const _aimDir = new THREE.Vector3();
+function updateAim() {
+  HP.aimUse = null;
+  if (!camera) return;
+  camera.getWorldDirection(_aimDir);
+  ray3.set(camera.position, _aimDir);
+  const objs = solidMeshes.concat(hitTargets.map(t => t.mesh));
+  const hits = ray3.intersectObjects(objs, false);
+  if (!hits.length) return;
+  const h = hits[0];
+  const t = hitTargets.find(tt => tt.mesh === h.object);
+  if (!t) return;                                       // wall/fence blocks
+  const u = t.use;
+  if (u.kind === 'door') {
+    const s = HP.cur().walls[u.key];
+    u.label = (s && s.c ? 'Open' : 'Close') + ' door';
+  } else if (u.kind === 'lamp') {
+    u.label = (u.it.on ? 'Turn off ' : 'Turn on ') + HP.itemDef(u.it.type).name;
+  } else if (u.kind === 'sit') {
+    u.label = (HP.seatKind(u.it.type) === 'lie' ? 'Lie on ' : 'Sit on ') + HP.itemDef(u.it.type).name;
+  }
+  HP.aimUse = u;
+}
 })();
