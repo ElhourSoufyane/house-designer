@@ -51,6 +51,9 @@ const selectTool = {
         for (const o of drag.origs) { o.m.x = o.x; o.m.y = o.y; }   // revert all
       } else if (drag.moved) {
         HP.pushUndoSnap(drag.snap);
+        for (const m of drag.members)
+          if (HP.itemDef(m.type).hangs)
+            m.hang = HP.hangSide(m.type, m.x, m.y, m.rot, m.w ? { w: m.w, h: m.h } : null);
         HP.saveState();
       }
     } else if (drag.kind === 'pan' &&
@@ -297,7 +300,10 @@ HP.rotateActive = function () {
   if (f.x + f.w > HP.GRID_W) it.x = HP.GRID_W - f.w;
   if (f.y + f.h > HP.GRID_H) it.y = HP.GRID_H - f.h;
   if (!HP.canPlace(it.type, it.x, it.y, it.rot, it)) { it.rot = oldRot; HP.status('No room to rotate here'); }
-  else HP.pushUndoSnap(snap);
+  else {
+    HP.pushUndoSnap(snap);
+    if (HP.itemDef(it.type).hangs) it.hang = HP.hangSide(it.type, it.x, it.y, it.rot);
+  }
   HP.saveState(); HP.markDirty(); HP.refreshContext();
 };
 
@@ -322,6 +328,7 @@ HP.duplicateSelected = function () {
   for (const m of members) {
     const copy = { id: HP.nextId++, type: m.type, x: m.x + dx, y: m.y + dy, rot: m.rot, v: m.v, oid: HP.oid };
     if (m.w) { copy.w = m.w; copy.h = m.h; }
+    if (HP.itemDef(m.type).hangs) copy.hang = HP.hangSide(copy.type, copy.x, copy.y, copy.rot);
     if (gid) copy.g = gid;
     HP.cur().furniture.push(copy);
     if (m === it) anchor = copy;

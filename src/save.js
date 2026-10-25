@@ -55,6 +55,7 @@ HP.migrate = function (state) {
   if (!state.levels) {
     state = { bg: state.bg || null, level: 0, levels: [state] };
   }
+  state.w = state.w || 64; state.h = state.h || 44;  // plot size (pre-size saves = standard lot)
   state.level = state.level || 0;
   for (const l of state.levels) {
     l.walls = l.walls || {}; l.floors = l.floors || {}; l.fences = l.fences || {};
@@ -69,6 +70,7 @@ HP.loadState = function () {
     if (raw) {
       const data = JSON.parse(raw);
       HP.state = HP.migrate(data.state);
+      HP.applyGridSize();
       HP.nextId = Math.max(data.nextId || 0, HP.maxFurnitureId() + 1);
       return true;
     }
@@ -76,11 +78,24 @@ HP.loadState = function () {
   return false;
 };
 
+/* start a fresh empty lot at a chosen plot size */
+HP.newSizedPlot = function (w, h) {
+  HP.pushUndo();
+  HP.state = HP.newEmpty(w, h);
+  HP.applyGridSize();
+  HP.nextId = Math.max(1, HP.maxFurnitureId() + 1);
+  HP.selected = null; HP.pending = null; HP.ghost = null; HP.selectedRoom = null;
+  HP.invalidateRegions(); HP.saveState(); HP.refreshContext();
+  if (HP.updateFloorUI) HP.updateFloorUI();
+  HP.status('New empty plot — ' + (w * 0.5) + '×' + (h * 0.5) + ' m');
+};
+
 HP.loadPreset = function (id) {
   const p = HP.PRESETS.find(p => p.id === id);
   if (!p) return;
   HP.pushUndo();
   HP.state = HP.migrate(p.build());
+  HP.applyGridSize();
   HP.nextId = HP.maxFurnitureId() + 1;
   HP.selected = null; HP.pending = null; HP.ghost = null; HP.selectedRoom = null;
   HP.invalidateRegions(); HP.saveState(); HP.refreshContext();
@@ -183,6 +198,7 @@ HP.importFile = function (file) {
       if (!st || !Array.isArray(st.levels)) throw new Error('bad file');
       HP.pushUndo();
       HP.state = HP.migrate(st);
+      HP.applyGridSize();
       HP.nextId = Math.max(data.nextId || 0, HP.maxFurnitureId() + 1);
       HP.selected = null; HP.pending = null; HP.ghost = null; HP.selectedRoom = null;
       HP.invalidateRegions(); HP.saveState(); HP.refreshContext();

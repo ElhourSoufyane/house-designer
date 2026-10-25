@@ -238,7 +238,7 @@ function mergeRemote(cur, base, inc, incStamps, baseStamps) {
       }
     }
   }
-  for (const k of ['bg', 'photoFloors'])
+  for (const k of ['bg', 'photoFloors', 'w', 'h'])
     if (inc[k] !== undefined && (!base || JSON.stringify(inc[k]) !== JSON.stringify(base[k]))) cur[k] = inc[k];
   /* inc.level is deliberately NOT synced — the viewed floor is a personal
      view choice, not shared house data. Her climbing stairs shouldn't drag
@@ -292,6 +292,7 @@ function applyState(msg, fromConn) {
     for (const it of lvl.furniture)
       if (it.id === selId) { HP.selected = it; break outer; }
   HP.selectedRoom = keepRoom;
+  if (HP.state.w !== HP.GRID_W || HP.state.h !== HP.GRID_H) HP.applyGridSize();
   HP.invalidateRegions(); HP.refreshContext(); HP.markDirty();
   if (HP.updateFloorUI) HP.updateFloorUI();
   if (HP.invalidateBlocked) HP.invalidateBlocked();

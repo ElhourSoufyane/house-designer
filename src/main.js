@@ -7,17 +7,20 @@ let dpr = 1;
 const _inv = HP.invalidateRegions;
 HP.invalidateRegions = function () { staticDirty = true; _inv(); };
 
+HP.resetLayers = function () { staticLayer = null; belowLayer = null; };
+
 /* ================= STATIC LAYER ================= */
+let staticScale = 1;                                 // bake res factor — big plots bake at 0.5
 function rebuildStatic() {
   const C = HP.CELL, W = HP.GRID_W, H = HP.GRID_H;
-  const w = (W + MARGIN * 2) * C, h = (H + MARGIN * 2) * C;
-  if (!staticLayer) {
-    staticLayer = document.createElement('canvas');
-    staticLayer.width = w; staticLayer.height = h;
-  }
+  staticScale = (W * H > 5000) ? 0.5 : 1;            // XL lots: cap baked memory (~19MB not ~75)
+  const w = Math.ceil((W + MARGIN * 2) * C * staticScale),
+        h = Math.ceil((H + MARGIN * 2) * C * staticScale);
+  if (!staticLayer) staticLayer = document.createElement('canvas');
+  staticLayer.width = w; staticLayer.height = h;
   const g = staticLayer.getContext('2d');
-  g.clearRect(0, 0, w, h);
   g.save();
+  g.scale(staticScale, staticScale);
   g.translate(MARGIN * C, MARGIN * C);
   drawGround(g);
   drawBelowWorld(g);
@@ -64,14 +67,14 @@ function drawGround(g) {
 let belowLayer = null;
 function drawBelowWorld(g) {
   if (HP.state.level <= 0 || HP.showUnderlay === false) return;
-  const C = HP.CELL, w = (HP.GRID_W + MARGIN * 2) * C, h = (HP.GRID_H + MARGIN * 2) * C;
-  if (!belowLayer) {
-    belowLayer = document.createElement('canvas');
-    belowLayer.width = w; belowLayer.height = h;
-  }
+  const C = HP.CELL, s = staticScale,
+        w = Math.ceil((HP.GRID_W + MARGIN * 2) * C * s),
+        h = Math.ceil((HP.GRID_H + MARGIN * 2) * C * s);
+  if (!belowLayer) belowLayer = document.createElement('canvas');
+  belowLayer.width = w; belowLayer.height = h;
   const bg = belowLayer.getContext('2d');
-  bg.clearRect(0, 0, w, h);
   bg.save();
+  bg.scale(s, s);
   bg.translate(MARGIN * C, MARGIN * C);
   const saveLvl = HP.state.level, saveReg = HP.regions;
   HP.state.level = saveLvl - 1; HP.regions = null;
@@ -84,7 +87,7 @@ function drawBelowWorld(g) {
   HP.state.level = saveLvl; HP.regions = saveReg;
   bg.restore();
   g.globalAlpha = 0.6;                      // world below, clearly faded
-  g.drawImage(belowLayer, 0, 0);
+  g.drawImage(belowLayer, 0, 0, belowLayer.width / s, belowLayer.height / s);
   g.globalAlpha = 1;
 }
 
@@ -2199,7 +2202,8 @@ HP.renderAll = function (g, cam, layer) {
   g.scale(cam.zoom, cam.zoom);
   g.translate(-cam.x, -cam.y);
   if (layer && !cam.export) {
-    g.drawImage(layer, -MARGIN * HP.CELL, -MARGIN * HP.CELL);
+    g.drawImage(layer, -MARGIN * HP.CELL, -MARGIN * HP.CELL,
+      layer.width / staticScale, layer.height / staticScale);
   } else {
     drawGround(g); drawFloors(g); drawLabels(g); drawWalls(g); drawFences(g);
   }

@@ -436,15 +436,23 @@ function fenceUI() {
 function projectStats() {
   const el = $('#insp-project'); if (!el) return;
   const m2 = HP.M2_PER_CELL;
-  let area = 0, rooms = 0, pieces = 0;
-  for (const lvl of HP.state.levels) {
-    area += Object.keys(lvl.floors).length * m2;
+  const gw = HP.state.w || HP.GRID_W, gh = HP.state.h || HP.GRID_H;
+  let rooms = 0, pieces = 0;
+  const interiors = [];
+  for (let i = 0; i < HP.state.levels.length; i++) {
+    const lvl = HP.state.levels[i];
+    interiors.push(HP.interiorCells(i) * m2);
     rooms += new Set(Object.values(lvl.roomNames)).size;
     pieces += lvl.furniture.length;
   }
+  const areaRows = interiors.length > 1
+    ? interiors.map((a, i) =>
+        `<div class="stat-row"><span class="k">Interior · Floor ${i + 1}</span><span class="v${i === HP.state.level ? ' accent' : ''}">${a.toFixed(1)} m²</span></div>`).join('')
+    : `<div class="stat-row"><span class="k">Interior area</span><span class="v accent">${interiors[0].toFixed(1)} m²</span></div>`;
   el.innerHTML = `
     <div class="stat-row"><span class="k">Floors</span><span class="v">${HP.state.levels.length}</span></div>
-    <div class="stat-row"><span class="k">Total area</span><span class="v accent">${area.toFixed(1)} m²</span></div>
+    <div class="stat-row"><span class="k">Plot</span><span class="v">${(gw * 0.5).toFixed(0)}×${(gh * 0.5).toFixed(0)} m (${(gw * gh * m2).toFixed(0)} m²)</span></div>
+    ${areaRows}
     <div class="stat-row"><span class="k">Named rooms</span><span class="v">${rooms}</span></div>
     <div class="stat-row"><span class="k">Furniture pieces</span><span class="v">${pieces}</span></div>`;
 }
@@ -556,6 +564,23 @@ function presetCard(p) {
     HP.updateFloorUI();
     $('#preset-overlay').classList.add('hidden');
   };
+  if (p.sizes) {                                   // Empty Plot → pick lot size
+    const row = document.createElement('div');
+    row.className = 'pc-sizes';
+    p.sizes.forEach(s => {
+      const b = document.createElement('button');
+      b.className = 'pc-chip';
+      b.innerHTML = `<b>${s.label}</b> ${s.w * 0.5}×${s.h * 0.5} m` +
+        (s.label === 'XL' ? ' <i>best on PC</i>' : '');
+      b.onclick = e => {
+        e.stopPropagation();
+        HP.newSizedPlot(s.w, s.h);
+        $('#preset-overlay').classList.add('hidden');
+      };
+      row.appendChild(b);
+    });
+    d.appendChild(row);
+  }
   return d;
 }
 

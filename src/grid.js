@@ -123,7 +123,19 @@ HP.newLevel = function () {
   return { walls: {}, floors: {}, fences: {}, roomNames: {}, furniture: [] };
 };
 HP.newState = function () {
-  return { bg: null, level: 0, levels: [HP.newLevel()] };
+  return { w: 64, h: 44, bg: null, level: 0, levels: [HP.newLevel()] };
+};
+HP.newEmpty = function (w, h) {
+  return { w, h, bg: null, level: 0, levels: [HP.newLevel()] };
+};
+/* adopt the plot dimensions stored in state — every GRID_W/H read is already
+   dynamic, so this just swaps constants and rebuilds cached layers */
+HP.applyGridSize = function () {
+  HP.GRID_W = HP.state.w || 64;
+  HP.GRID_H = HP.state.h || 44;
+  HP.regions = null;
+  if (HP.resetLayers) HP.resetLayers();              // static/below layers rebuild at new size
+  HP.invalidateRegions();
 };
 /* the level currently being edited */
 HP.cur = function () { return HP.state.levels[HP.state.level]; };
@@ -265,6 +277,29 @@ HP.doorCells = function () {
   return set;
 };
 
+/* which footprint edge touches the most wall — for hangs:true items.
+   Returns 'n'|'s'|'e'|'w' (the wall side) or null if no edge touches a wall. */
+HP.hangSide = function (type, x, y, rot, sz) {
+  const d = HP.itemDef(type);
+  const bw = (sz && sz.w) || d.w, bh = (sz && sz.h) || d.h;
+  const w = (rot % 2 === 0) ? bw : bh, h = (rot % 2 === 0) ? bh : bw;
+  const walls = HP.cur().walls;
+  const has = (k) => !!walls[k];
+  const score = { n: 0, s: 0, w: 0, e: 0 };
+  for (let cx = x; cx < x + w; cx++) {
+    if (has('h,' + cx + ',' + y)) score.n++;
+    if (has('h,' + cx + ',' + (y + h))) score.s++;
+  }
+  for (let cy = y; cy < y + h; cy++) {
+    if (has('v,' + x + ',' + cy)) score.w++;
+    if (has('v,' + (x + w) + ',' + cy)) score.e++;
+  }
+  let best = null, bs = 0;
+  for (const s of ['n', 's', 'w', 'e'])
+    if (score[s] > bs) { bs = score[s]; best = s; }
+  return best;
+};
+
 HP.canPlace = function (type, x, y, rot, ignore, sz) {
   const d = HP.itemDef(type);
   const bw = (sz && sz.w) || d.w, bh = (sz && sz.h) || d.h;   // sz = unrotated size
@@ -281,6 +316,16 @@ HP.canPlace = function (type, x, y, rot, ignore, sz) {
   for (let cy = y; cy < y + h; cy++)
     for (let cx = x; cx < x + w; cx++)
       if (dc[cx + ',' + cy]) return false;
+  if (d.hangs) {
+    if (!HP.hangSide(type, x, y, rot, sz)) return false;    // art needs a wall
+    for (const it of HP.cur().furniture) {                  // may hang above floor items;
+      if (Array.isArray(ignore) ? ignore.includes(it) : it === ignore) continue;   // but not over other wall items
+      if (!HP.itemDef(it.type).hangs) continue;
+      const f = HP.footprint(it);
+      if (x < f.x + f.w && x + w > f.x && y < f.y + f.h && y + h > f.y) return false;
+    }
+    return true;
+  }
   for (const it of HP.cur().furniture) {
     if (Array.isArray(ignore) ? ignore.includes(it) : it === ignore) continue;
     const f = HP.footprint(it);

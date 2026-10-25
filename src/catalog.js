@@ -1284,7 +1284,7 @@ HP.CATALOG = [
       g.beginPath(); g.arc(W / 2, H * 0.62, W * 0.17, 0, 7); g.fillStyle = '#9ab4c4'; g.fill();
       g.beginPath(); g.arc(W / 2 - 2, H * 0.62 - 2, W * 0.08, 0, 7); g.fillStyle = 'rgba(255,255,255,.4)'; g.fill();
     } },
-  { id: 'towelrack', name: 'Towel Rack', cat: 'Bathroom', w: 1, h: 1, colors: ['#7ba3b8', '#b8a07b', '#9cb87b'],
+  { id: 'towelrack', name: 'Towel Rack', cat: 'Bathroom', w: 1, h: 1, hangs: true, colors: ['#7ba3b8', '#b8a07b', '#9cb87b'],
     draw(g, W, H, v) {
       const p = P(), c = this.colors[v];
       g.fillStyle = '#8b939c';
@@ -1537,7 +1537,7 @@ HP.CATALOG = [
         g.fillRect(W * 0.12 + i * W * 0.22 + 8, H * 0.62, 7, 5);
       }
     } },
-  { id: 'floormirror', name: 'Mirror', cat: 'Living', w: 1, h: 1, colors: ['#a89885', '#3a3f47', '#c9b896'],
+  { id: 'floormirror', name: 'Mirror', cat: 'Living', w: 1, h: 1, hangs: true, colors: ['#a89885', '#3a3f47', '#c9b896'],
     draw(g, W, H, v) {
       const p = P(), c = this.colors[v];
       p.box(g, 5, 4, W - 10, H - 8, 3, HP.shade(c, 0.9));                        // frame
@@ -1547,7 +1547,7 @@ HP.CATALOG = [
       g.fillStyle = 'rgba(255,255,255,.5)';
       g.beginPath(); g.moveTo(10, H - 9); g.lineTo(W - 14, 9); g.lineTo(W - 8, 9); g.lineTo(16, H - 9); g.fill();
     } },
-  { id: 'wallart', name: 'Painting', cat: 'Living', w: 1, h: 1, colors: ['#c9713d', '#4a6b8a', '#8a5d8a'],
+  { id: 'wallart', name: 'Painting', cat: 'Living', w: 1, h: 1, hangs: true, colors: ['#c9713d', '#4a6b8a', '#8a5d8a'],
     draw(g, W, H, v) {
       const p = P(), c = this.colors[v];
       p.box(g, 5, 5, W - 10, H - 10, 2, '#5d4a33');                              // frame
@@ -1822,7 +1822,7 @@ HP.CATALOG = [
       }
       g.beginPath(); g.arc(W / 2, H * 0.32, W * 0.09, 0, 7); g.fillStyle = HP.shade(c, 0.7); g.fill();
     } },
-  { id: 'radiator', name: 'Radiator', cat: 'Office', w: 1, h: 1, colors: ['#dfe5ea', '#c9ced4', '#a8a294'],
+  { id: 'radiator', name: 'Radiator', cat: 'Office', w: 1, h: 1, hangs: true, colors: ['#dfe5ea', '#c9ced4', '#a8a294'],
     draw(g, W, H, v) {
       const p = P(), c = this.colors[v];
       p.box(g, 4, 10, W - 8, H - 20, 3, p.lg(g, 4, 10, W - 8, H - 20, HP.shade(c, 1.08), HP.shade(c, 0.85)));
@@ -4040,14 +4040,14 @@ HP.CATALOG = [
   { id: 'lampbanker', name: 'Banker Lamp', cat: 'Decor', brand: 'Heritage', w: 1, h: 1, colors: ['#2f5d45', '#3a5f8a', '#8a3a4a', '#5d4a68'], draw: lampDeco('banker') },
 
   /* ---------------- DECOR — wall art ---------------- */
-  { id: 'artabstract', name: 'Abstract Art', cat: 'Decor', brand: 'Aria', w: 2, h: 1, colors: ['#3a3f47', '#8a6844', '#e8e2d6', '#c9a44e'], draw: artDeco('abstract') },
-  { id: 'artgeo', name: 'Geo Art', cat: 'Decor', brand: 'Aria', w: 2, h: 1, colors: ['#3a3f47', '#a06558', '#4a6b8a', '#8a6844'], draw: artDeco('geo') },
-  { id: 'artland', name: 'Landscape Art', cat: 'Decor', brand: 'Heritage', w: 2, h: 1, colors: ['#8a7a5c', '#5d7484', '#6d8a5d', '#a08a6a'], draw: artDeco('land') },
-  { id: 'artbotan', name: 'Botanical Print', cat: 'Decor', brand: 'TerraHome', w: 2, h: 1, colors: GRE, draw: artDeco('botan') },
-  { id: 'artline', name: 'Line Art', cat: 'Decor', brand: 'Aria', w: 2, h: 1, colors: ['#3a3f47', '#a06558', '#4a6b8a', '#c9a44e'], draw: artDeco('line') },
-  { id: 'arttriptych', name: 'Triptych Set', cat: 'Decor', brand: 'Velluto', w: 3, h: 1, colors: ['#3a3f47', '#8a6844', '#5d4a68', '#a06558'], draw: artDeco('triptych') },
-  { id: 'artneon', name: 'Neon Sign', cat: 'Decor', brand: 'UrbanForm', w: 2, h: 1, colors: ['#ff5370', '#4fc3f7', '#b388ff', '#e8c832', '#5dd8a0'], draw: artDeco('neon') },
-  { id: 'artphoto', name: 'Photo Wall', cat: 'Decor', brand: 'CasaModa', w: 2, h: 2, colors: ['#3a3f47', '#8a6844', '#e8e2d6'], draw: artDeco('photo') },
+  { id: 'artabstract', hangs: true, name: 'Abstract Art', cat: 'Decor', brand: 'Aria', w: 2, h: 1, colors: ['#3a3f47', '#8a6844', '#e8e2d6', '#c9a44e'], draw: artDeco('abstract') },
+  { id: 'artgeo', hangs: true, name: 'Geo Art', cat: 'Decor', brand: 'Aria', w: 2, h: 1, colors: ['#3a3f47', '#a06558', '#4a6b8a', '#8a6844'], draw: artDeco('geo') },
+  { id: 'artland', hangs: true, name: 'Landscape Art', cat: 'Decor', brand: 'Heritage', w: 2, h: 1, colors: ['#8a7a5c', '#5d7484', '#6d8a5d', '#a08a6a'], draw: artDeco('land') },
+  { id: 'artbotan', hangs: true, name: 'Botanical Print', cat: 'Decor', brand: 'TerraHome', w: 2, h: 1, colors: GRE, draw: artDeco('botan') },
+  { id: 'artline', hangs: true, name: 'Line Art', cat: 'Decor', brand: 'Aria', w: 2, h: 1, colors: ['#3a3f47', '#a06558', '#4a6b8a', '#c9a44e'], draw: artDeco('line') },
+  { id: 'arttriptych', hangs: true, name: 'Triptych Set', cat: 'Decor', brand: 'Velluto', w: 3, h: 1, colors: ['#3a3f47', '#8a6844', '#5d4a68', '#a06558'], draw: artDeco('triptych') },
+  { id: 'artneon', hangs: true, name: 'Neon Sign', cat: 'Decor', brand: 'UrbanForm', w: 2, h: 1, colors: ['#ff5370', '#4fc3f7', '#b388ff', '#e8c832', '#5dd8a0'], draw: artDeco('neon') },
+  { id: 'artphoto', hangs: true, name: 'Photo Wall', cat: 'Decor', brand: 'CasaModa', w: 2, h: 2, colors: ['#3a3f47', '#8a6844', '#e8e2d6'], draw: artDeco('photo') },
 
   /* ---------------- DECOR — mirrors & clocks ---------------- */
   { id: 'mirsun', name: 'Sunburst Mirror', cat: 'Decor', brand: 'Velluto', w: 1, h: 1, colors: ['#c9a44e', '#8b939c', '#8a6844'], draw: mirrorDeco('sun') },
@@ -4811,7 +4811,7 @@ HP.CATALOG = [
     } },
 
   /* ---------------- LIVING extras (window & storage) ---------------- */
-  { id: 'curtains', name: 'Curtains', cat: 'Living', brand: 'Velluto', w: 3, h: 1, colors: ['#a8b8c8', '#e8a0b8', '#8fb8a0', '#d8cfc0', '#5d4a68', '#3a3f47'],
+  { id: 'curtains', name: 'Curtains', cat: 'Living', brand: 'Velluto', w: 3, h: 1, hangs: true, colors: ['#a8b8c8', '#e8a0b8', '#8fb8a0', '#d8cfc0', '#5d4a68', '#3a3f47'],
     draw(g, W, H, v) {
       const p = P(), c = this.colors[v];
       g.strokeStyle = '#8b939c'; g.lineWidth = 3;                                 // rod

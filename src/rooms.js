@@ -95,4 +95,16 @@ HP.regionAt = function (x, y) {
   const id = regionOf[y * HP.GRID_W + x];
   return id >= 0 ? regions[id] : null;
 };
+
+/* enclosed (interior) cell count on a given floor — temporarily swaps the
+   active level like drawBelowWorld does, restores everything after */
+HP.interiorCells = function (lvlIdx) {
+  const saveLvl = HP.state.level, saveReg = HP.regions;
+  HP.state.level = lvlIdx; HP.regions = null;
+  const { regionOf } = HP.computeRegions();
+  let n = 0;
+  for (let i = 0; i < regionOf.length; i++) if (regionOf[i] >= 0) n++;
+  HP.state.level = saveLvl; HP.regions = saveReg;
+  return n;
+};
 })();

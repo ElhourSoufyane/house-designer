@@ -148,7 +148,14 @@ HP.drawItem = function (g, item, ghostOk) {
   const mask = def.joins ? HP._joinMask(item) : 0;
   const spr = HP.getSprite(item.type, item.v, item.w, item.h, mask);
   const k = HP.CELL / HP.PPC;                     // world-px per sprite-px
-  const cx = (f.x + f.w / 2) * HP.CELL, cy = (f.y + f.h / 2) * HP.CELL;
+  let cx = (f.x + f.w / 2) * HP.CELL, cy = (f.y + f.h / 2) * HP.CELL;
+  if (def.hangs) {                                // wall-hung: flush onto the wall edge
+    const hs = item.hang !== undefined ? item.hang
+             : (item.hang = HP.hangSide(item.type, item.x, item.y, item.rot));
+    const d = HP.CELL * 0.38;
+    if (hs === 'n') cy -= d; else if (hs === 's') cy += d;
+    else if (hs === 'w') cx -= d; else if (hs === 'e') cx += d;
+  }
   g.save();
   g.translate(cx, cy);
   g.rotate(item.rot * Math.PI / 2);

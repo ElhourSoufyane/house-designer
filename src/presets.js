@@ -220,7 +220,9 @@ HP.PRESETS = [
   { id: 'cozy', name: 'Cozy Apartment', desc: '1 suite · bath · office · open living/kitchen — 12×10 m, furnished', build: cozy },
   { id: 'family', name: 'Family House', desc: '2 suites · bath · big living/kitchen — 20×13 m, furnished', build: family },
   { id: 'duplex', name: 'Duplex', desc: '2 floors · stairs · 2 suites · living + family room — 18×10 m each', build: duplex },
-  { id: 'empty', name: 'Empty Plot', desc: 'Blank 32×22 m lot — draw your own walls from scratch', build: empty },
+  { id: 'empty', name: 'Empty Plot', desc: 'Blank lot — draw your own walls from scratch', build: empty,
+    sizes: [{ label: 'S', w: 48, h: 32 }, { label: 'M', w: 64, h: 44 },
+            { label: 'L', w: 96, h: 60 }, { label: 'XL', w: 128, h: 80 }] },
 ];
 
 /* mini preview of a state into a canvas (walls+floors only, ground floor) */
