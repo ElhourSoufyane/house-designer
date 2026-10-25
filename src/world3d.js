@@ -334,6 +334,9 @@ function buildWalls(group) {
     if (a1 - a0 < 8) continue;                                // fully eaten — solid
     aps.push({ d: s.d, line: ln, lo: a0, hi: a1, y0: WIN_SILL, y1: WIN_TOP, w0: w.w0, w1: w.w1 });
     const gc = (s.d === 'h' ? s.y : s.x) * C() + (w.w0 + w.w1) / 2;  // glass at zone centre
+    const gl = new THREE.Mesh(
+      new THREE.PlaneGeometry(a1 - a0, WIN_TOP - WIN_SILL),
+      new THREE.MeshStandardMaterial({ color: '#bcd8e8', transparent: true, opacity: 0.25, roughness: 0.1, side: THREE.DoubleSide }));
     if (s.d === 'h') gl.position.set((a0 + a1) / 2, (WIN_SILL + WIN_TOP) / 2, gc);
     else { gl.rotation.y = Math.PI / 2; gl.position.set(gc, (WIN_SILL + WIN_TOP) / 2, (a0 + a1) / 2); }
     group.add(gl);
