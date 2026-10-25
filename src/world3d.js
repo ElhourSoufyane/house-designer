@@ -145,18 +145,16 @@ function insideSign(s) {                    // which way the door swings (toward
 }
 
 function buildWalls(group) {
-  /* Solid-first approach (Sweet Home 3D style): every wall segment adds a
-     full footprint rect; every door/window declares an aperture rect with a
-     height band; apertures are subtracted from whatever wall rect they
-     overlap. Jambs, lintels, sills, headers and corner posts all emerge
-     from the subtraction — no per-neighbour patching. */
+  /* One-sided walls + solid-minus-apertures (SH3D style):
+     each wall's thickness goes ONE side of its edge — into the larger
+     region (or outside) — so corridors and doorway junctions keep their
+     full cell width. Every seg adds a solid rect; doors/windows declare
+     aperture rects cut by height band; junction caps close L corners;
+     jambs/lintels/sills/posts all emerge from the subtraction. */
   const walls = HP.cur().walls, batch = new GeoBatch(), trim = new GeoBatch();
   const wallMat = std('#f2efe8', 0.95);
   let hasTrim = false;
   const isDoor = (d, x, y) => { const w = walls[d + ',' + x + ',' + y]; return w && w.f === 'door'; };
-  /* how much of a neighbouring same-axis segment a door opening may take —
-     every non-door neighbour grants ~0.45 cell so singles come out uniform;
-     pinched segments grant less so a post survives. */
   const eat = (d, x, y) => {
     const w = walls[d + ',' + x + ',' + y];
     if (!w || w.f === 'door') return 0;
@@ -164,17 +162,36 @@ function buildWalls(group) {
                 + (isDoor(d, x + (d === 'h'), y + (d === 'v')) ? 1 : 0);
     return (doors > 1 ? 0.28 : 0.45) * C();
   };
-  const rects = [];                    // {x0,x1,z0,z1} solid wall footprints
-  const aps = [];                      // {x0,x1,z0,z1,y0,y1} subtracted apertures
-  const wins = [];                     // window segs — glass span set in pass 2
+  /* which side of the edge the wall's thickness occupies:
+     -1 = -x/-z cell, +1 = +x/+z cell — into the bigger region / outside */
+  const { regionOf } = HP.computeRegions();
+  const rsz = {};
+  for (let i = 0; i < regionOf.length; i++) if (regionOf[i] >= 0) rsz[regionOf[i]] = (rsz[regionOf[i]] || 0) + 1;
+  const rAt = (x, y) => HP.cellIn(x, y) ? regionOf[y * HP.GRID_W + x] : -1;
+  const segSide = (s) => {
+    const a = s.d === 'h' ? rAt(s.x, s.y - 1) : rAt(s.x - 1, s.y);
+    const b = s.d === 'h' ? rAt(s.x, s.y) : rAt(s.x, s.y);
+    if (a < 0 && b < 0) return 1;
+    if (a < 0) return -1;                       // into the outside
+    if (b < 0) return 1;
+    return (rsz[a] || 1) >= (rsz[b] || 1) ? -1 : 1;   // into the bigger region
+  };
+  const rects = [], aps = [], wins = [];
+  const vt = {};                                 // vertex -> max half-thickness (caps)
+  const touch = (vx, vy, t) => { const k = vx + ',' + vy; vt[k] = Math.max(vt[k] || 0, t / 2); };
 
   for (const k in walls) {
-    const s = HP.parseWallKey(k), feat = walls[k].f, t = segThick(s), ht = t / 2;
+    const s = HP.parseWallKey(k), feat = walls[k].f, t = segThick(s), sd = segSide(s);
     const x0 = s.x * C(), y0 = s.y * C();
+    /* thickness axis range: h segs vary in z, v segs vary in x */
+    const w0 = sd < 0 ? -t : 0, w1 = sd < 0 ? 0 : t;       // offset from edge line
+    const wc = (w0 + w1) / 2;                              // wall centre offset
     rects.push(s.d === 'h'
-      ? { x0, x1: x0 + C(), z0: y0 - ht, z1: y0 + ht }
-      : { x0: x0 - ht, x1: x0 + ht, z0: y0, z1: y0 + C() });
-    if (feat === 'window') { wins.push({ s, x0, y0, ht }); continue; }
+      ? { x0, x1: x0 + C(), z0: y0 + w0, z1: y0 + w1 }
+      : { x0: x0 + w0, x1: x0 + w1, z0: y0, z1: y0 + C() });
+    if (s.d === 'h') { touch(s.x, s.y, t); touch(s.x + 1, s.y, t); }
+    else { touch(s.x, s.y, t); touch(s.x, s.y + 1, t); }
+    if (feat === 'window') { wins.push({ s, x0, y0, w0, w1, wc }); continue; }
     if (feat !== 'door') continue;
     // pair check like drawDoors: even offset leads a double door
     let off = 0;
@@ -186,45 +203,69 @@ function buildWalls(group) {
     const p0 = s.d === 'h' ? x0 : y0, pEnd = p0 + span;
     const nbL = walls[s.d + ',' + (s.d === 'h' ? s.x - 1 : s.x) + ',' + (s.d === 'h' ? s.y : s.y - 1)];
     const nbR = walls[s.d + ',' + (s.d === 'h' ? s.x + n : s.x) + ',' + (s.d === 'h' ? s.y : s.y + n)];
-    const extL = eat(s.d, s.d === 'h' ? s.x - 1 : s.x, s.d === 'h' ? s.y : s.y - 1);
-    const extR = eat(s.d, s.d === 'h' ? s.x + n : s.x, s.d === 'h' ? s.y : s.y + n);
-    /* the opening may never cross a junction vertex — a perpendicular wall
-       post MUST stand (it's real wall, not a patch). bound the opening at
-       the post's inner face; it becomes the jamb, exactly like framing. */
-    const perpHalf = (vx, vy) => {
-      let m = 0;
-      if (s.d === 'h') {
-        for (const dy of [0, -1]) if (walls['v,' + vx + ',' + (vy + dy)])
-          m = Math.max(m, segThick({ d: 'v', x: vx, y: vy + dy }) / 2);
-      } else {
-        for (const dx of [0, -1]) if (walls['h,' + (vx + dx) + ',' + vy])
-          m = Math.max(m, segThick({ d: 'h', x: vx + dx, y: vy }) / 2);
+    /* junction posts: a perpendicular wall at a vertex (a) kills extension
+       past it, and (b) bounds the opening at its far face if its thickness
+       intrudes into the door's cell. post face = jamb, like real framing. */
+    const post = (d2, x2, y2) => walls[d2 + ',' + x2 + ',' + y2] ? { d: d2, x: x2, y: y2 } : null;
+    const boundL = () => {
+      let b = -Infinity, any = false;
+      for (const dy of [0, -1]) {
+        const p = post('v', s.x, s.y + dy); if (!p) continue;
+        any = true;                                    // post face: vertex, or deeper if it intrudes into the door cell
+        b = Math.max(b, s.x * C() + (segSide(p) > 0 ? segThick(p) : 0));
       }
-      return m;
+      return { b, any };
     };
-    const faceL = perpHalf(s.x, s.y);
-    const faceR = perpHalf(s.d === 'h' ? s.x + n : s.x, s.d === 'h' ? s.y : s.y + n);
-    const ox0 = Math.max(p0 - extL + 1, p0 + faceL);
-    const ox1 = Math.min(pEnd + extR - 1, pEnd - faceR);
+    const boundR = () => {
+      let b = Infinity, any = false;
+      for (const dy of [0, -1]) {
+        const p = post('v', s.x + n, s.y + dy); if (!p) continue;
+        any = true;
+        b = Math.min(b, (s.x + n) * C() - (segSide(p) < 0 ? segThick(p) : 0));
+      }
+      return { b, any };
+    };
+    const boundT = () => {                            // 'v' door start vertex
+      let b = -Infinity, any = false;
+      for (const dx of [0, -1]) {
+        const p = post('h', s.x + dx, s.y); if (!p) continue;
+        any = true;
+        b = Math.max(b, s.y * C() + (segSide(p) > 0 ? segThick(p) : 0));
+      }
+      return { b, any };
+    };
+    const boundB = () => {                            // 'v' door end vertex
+      let b = Infinity, any = false;
+      for (const dx of [0, -1]) {
+        const p = post('h', s.x + dx, s.y + n); if (!p) continue;
+        any = true;
+        b = Math.min(b, (s.y + n) * C() - (segSide(p) < 0 ? segThick(p) : 0));
+      }
+      return { b, any };
+    };
+    const L = s.d === 'h' ? boundL() : boundT(), R = s.d === 'h' ? boundR() : boundB();
+    const extL = L.any ? 0 : eat(s.d, s.d === 'h' ? s.x - 1 : s.x, s.d === 'h' ? s.y : s.y - 1);
+    const extR = R.any ? 0 : eat(s.d, s.d === 'h' ? s.x + n : s.x, s.d === 'h' ? s.y : s.y + n);
+    const ox0 = Math.max(p0 - extL + 1, L.b);
+    const ox1 = Math.min(pEnd + extR - 1, R.b);
     const gw = ox1 - ox0;
     // extend cut to WIN_TOP when it eats into a window so no band sliver remains
     const apTop = (nbL && nbL.f === 'window') || (nbR && nbR.f === 'window') ? WIN_TOP : DOOR_H;
     aps.push(s.d === 'h'
-      ? { x0: ox0, x1: ox1, z0: y0 - ht - 1, z1: y0 + ht + 1, y0: 0, y1: apTop }
-      : { x0: x0 - ht - 1, x1: x0 + ht + 1, z0: ox0, z1: ox1, y0: 0, y1: apTop });
-    /* casing frame — flat boxes, 1.5 px proud of each face, nothing
-       overlaps so no z-fighting: posts below header, header between */
-    const fw = 5, fo = ht + 1.5;
+      ? { x0: ox0, x1: ox1, z0: y0 + w0 - 1, z1: y0 + w1 + 1, y0: 0, y1: apTop }
+      : { x0: x0 + w0 - 1, x1: x0 + w1 + 1, z0: ox0, z1: ox1, y0: 0, y1: apTop });
+    /* casing frame — flat boxes just off each wall face, no coplanar overlaps */
+    const fw = 5, ec = s.d === 'h' ? y0 + wc : x0 + wc;      // wall centre coord
     for (const sgn of [-1, 1]) {
-      const f0 = sgn < 0 ? -fo - 1.2 : fo, f1 = sgn < 0 ? -fo : fo + 1.2;
+      const fa = sgn < 0 ? w0 - 1.2 : w1, fb = sgn < 0 ? w0 : w1 + 1.2;
       if (s.d === 'h') {
-        trim.box(ox0 - fw, 0, y0 + f0, ox0, DOOR_H, y0 + f1);
-        trim.box(ox1, 0, y0 + f0, ox1 + fw, DOOR_H, y0 + f1);
-        trim.box(ox0 - fw, DOOR_H, y0 + f0, ox1 + fw, DOOR_H + 4, y0 + f1);
+        trim.box(ox0 - fw, 0, y0 + fa, ox0, DOOR_H, y0 + fb);
+        trim.box(ox1, 0, y0 + fa, ox1 + fw, DOOR_H, y0 + fb);
+        trim.box(ox0 - fw, DOOR_H, y0 + fa, ox1 + fw, DOOR_H + 4, y0 + fb);
       } else {
-        trim.box(x0 + f0, 0, ox0 - fw, x0 + f1, DOOR_H, ox0);
-        trim.box(x0 + f0, 0, ox1, x0 + f1, DOOR_H, ox1 + fw);
-        trim.box(x0 + f0, DOOR_H, ox0 - fw, x0 + f1, DOOR_H + 4, ox1 + fw);
+        trim.box(x0 + fa, 0, ox0 - fw, x0 + fb, DOOR_H, ox0);
+        trim.box(x0 + fa, 0, ox1, x0 + fb, DOOR_H, ox1 + fw);
+        trim.box(x0 + fa, DOOR_H, ox0 - fw, x0 + fb, DOOR_H + 4, ox1 + fw);
       }
     }
     hasTrim = true;
@@ -257,30 +298,37 @@ function buildWalls(group) {
       doorLeaves.push({ grp: lg, key: k, open: (alongX ? -dir : dir) * extend * 1.62 });
     };
     if (s.d === 'h') {
-      mk(ox0, y0, true, 1);
-      if (dbl) mk(ox1, y0, true, -1);
+      mk(ox0, ec, true, 1);
+      if (dbl) mk(ox1, ec, true, -1);
     } else {
-      mk(x0, ox0, false, 1);
-      if (dbl) mk(x0, ox1, false, -1);
+      mk(ec, ox0, false, 1);
+      if (dbl) mk(ec, ox1, false, -1);
     }
     // aim hitbox over the whole doorway (leader covers the pair)
     const hb = new THREE.Mesh(new THREE.BoxGeometry(
       s.d === 'h' ? gw + 10 : t + 14, DOOR_H, s.d === 'h' ? t + 14 : gw + 10));
-    hb.position.set(s.d === 'h' ? (ox0 + ox1) / 2 : x0, DOOR_H / 2,
-      s.d === 'h' ? y0 : (ox0 + ox1) / 2);
+    hb.position.set(s.d === 'h' ? (ox0 + ox1) / 2 : ec, DOOR_H / 2,
+      s.d === 'h' ? ec : (ox0 + ox1) / 2);
     hb.visible = false;
     group.add(hb);
     hitTargets.push({ mesh: hb, use: { kind: 'door', key: k } });
+  }
+
+  /* junction caps — square posts where ≥2 wall ends meet (or one ends);
+     closes L/T corner notches left by one-sided thickness */
+  for (const vk in vt) {
+    const [vx, vy] = vk.split(',').map(Number), tm = vt[vk];
+    rects.push({ x0: vx * C() - tm, x1: vx * C() + tm, z0: vy * C() - tm, z1: vy * C() + tm });
   }
 
   /* windows — glass span clipped against door apertures, then their own
      sill..top aperture is emitted; sill + header emerge from subtraction */
   const gap = Math.min(0.82 * C(), C() - 6), jw = (C() - gap) / 2;
   for (const w of wins) {
-    const b = w.s.d === 'h' ? w.y0 : w.x0;                    // edge coord
     let a0 = (w.s.d === 'h' ? w.x0 : w.y0) + jw;
     let a1 = (w.s.d === 'h' ? w.x0 : w.y0) + C() - jw;
-    const bz0 = b - w.ht - 1, bz1 = b + w.ht + 1;             // window's plan band
+    const bz0 = (w.s.d === 'h' ? w.y0 : w.x0) + w.w0 - 1;
+    const bz1 = (w.s.d === 'h' ? w.y0 : w.x0) + w.w1 + 1;
     for (const a of aps) {
       const inBand = w.s.d === 'h' ? (a.z0 < bz1 && a.z1 > bz0) : (a.x0 < bz1 && a.x1 > bz0);
       if (!inBand) continue;
@@ -294,11 +342,12 @@ function buildWalls(group) {
     aps.push(w.s.d === 'h'
       ? { x0: a0, x1: a1, z0: bz0, z1: bz1, y0: WIN_SILL, y1: WIN_TOP }
       : { x0: bz0, x1: bz1, z0: a0, z1: a1, y0: WIN_SILL, y1: WIN_TOP });
+    const gc = (w.s.d === 'h' ? w.y0 : w.x0) + w.wc;          // glass at wall centre
     const gl = new THREE.Mesh(
       new THREE.PlaneGeometry(a1 - a0, WIN_TOP - WIN_SILL),
       new THREE.MeshStandardMaterial({ color: '#bcd8e8', transparent: true, opacity: 0.25, roughness: 0.1, side: THREE.DoubleSide }));
-    if (w.s.d === 'h') gl.position.set((a0 + a1) / 2, (WIN_SILL + WIN_TOP) / 2, b);
-    else { gl.rotation.y = Math.PI / 2; gl.position.set(b, (WIN_SILL + WIN_TOP) / 2, (a0 + a1) / 2); }
+    if (w.s.d === 'h') gl.position.set((a0 + a1) / 2, (WIN_SILL + WIN_TOP) / 2, gc);
+    else { gl.rotation.y = Math.PI / 2; gl.position.set(gc, (WIN_SILL + WIN_TOP) / 2, (a0 + a1) / 2); }
     group.add(gl);
   }
 
