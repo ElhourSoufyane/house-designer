@@ -4,7 +4,7 @@
 if (typeof THREE === 'undefined') return;
 
 const WALL_H = 140;                       // ~2.5 m — chunky enough to read as walls
-const DOOR_H = 104, WIN_SILL = 54, WIN_TOP = 112;
+const DOOR_H = 96, WIN_SILL = 54, WIN_TOP = 112;
 const EYE = 78, EYE_SIT = 48;
 const MAX_LAMP_LIGHTS = 6;
 
@@ -149,12 +149,23 @@ function buildWalls(group) {
   for (const k in walls) {
     const s = HP.parseWallKey(k), feat = walls[k].f, t = segThick(s), ht = t / 2;
     const x0 = s.x * C(), y0 = s.y * C(), x1 = x0 + (s.d === 'h' ? C() : 0), y1 = y0 + (s.d === 'v' ? C() : 0);
+    const isPlain = (d, x, y) => { const w = walls[d + ',' + x + ',' + y]; return w && !w.f; };
+    const EXT = 0.24 * C();                    // door openings bleed into plain neighbours
     if (!feat) {                                            // solid segment
-      if (s.d === 'h') batch.box(x0, 0, y0 - ht, x1, WALL_H, y0 + ht);
-      else batch.box(x0 - ht, 0, y0, x0 + ht, WALL_H, y1);
+      if (s.d === 'h') {
+        let ax0 = x0, ax1 = x1;
+        if (isDoor('h', s.x - 1, s.y)) ax0 += EXT;           // neighbour door eats into me
+        if (isDoor('h', s.x + 1, s.y)) ax1 -= EXT;
+        if (ax1 > ax0) batch.box(ax0, 0, y0 - ht, ax1, WALL_H, y0 + ht);
+      } else {
+        let ay0 = y0, ay1 = y1;
+        if (isDoor('v', s.x, s.y - 1)) ay0 += EXT;
+        if (isDoor('v', s.x, s.y + 1)) ay1 -= EXT;
+        if (ay1 > ay0) batch.box(x0 - ht, 0, ay0, x0 + ht, WALL_H, ay1);
+      }
       continue;
     }
-    const gap = Math.min(0.82 * C(), C() - 6);              // opening width
+    const gap = Math.min(0.82 * C(), C() - 6);              // opening width (windows)
     const jw = (C() - gap) / 2;                             // jamb width
     if (feat === 'door') {
       // pair check like drawDoors: even offset leads a double door
@@ -163,16 +174,21 @@ function buildWalls(group) {
       else { for (let y = s.y - 1; isDoor('v', s.x, y); y--) off++; }
       if (off % 2 === 1) continue;                          // handled by pair leader
       const dbl = s.d === 'h' ? isDoor('h', s.x + 1, s.y) : isDoor('v', s.x, s.y + 1);
-      const n = dbl ? 2 : 1, wAll = n * C(), gAll = Math.min(dbl ? 1.7 * C() : gap, wAll - 6);
-      const jAll = (wAll - gAll) / 2;
+      const n = dbl ? 2 : 1, wAll = n * C(), span = n * C();
+      // opening grows up to EXT into each adjacent PLAIN segment
+      const extL = isPlain(s.d, s.d === 'h' ? s.x - 1 : s.x, s.d === 'h' ? s.y : s.y - 1) ? EXT : 0;
+      const extR = isPlain(s.d, s.d === 'h' ? s.x + n : s.x, s.d === 'h' ? s.y : s.y + n) ? EXT : 0;
+      const ox0 = (s.d === 'h' ? x0 : y0) - extL + 3;
+      const ox1 = (s.d === 'h' ? x0 : y0) + span + extR - 3;
+      const gAll = ox1 - ox0;
       if (s.d === 'h') {
-        batch.box(x0, 0, y0 - ht, x0 + jAll, WALL_H, y0 + ht);                     // left jamb
-        batch.box(x0 + wAll - jAll, 0, y0 - ht, x0 + wAll, WALL_H, y0 + ht);       // right jamb
-        batch.box(x0 + jAll, DOOR_H, y0 - ht, x0 + wAll - jAll, WALL_H, y0 + ht);  // lintel
+        batch.box(x0 - extL, 0, y0 - ht, ox0, WALL_H, y0 + ht);                // left jamb
+        batch.box(ox1, 0, y0 - ht, x0 + span + extR, WALL_H, y0 + ht);         // right jamb
+        batch.box(ox0, DOOR_H, y0 - ht, ox1, WALL_H, y0 + ht);                 // lintel
       } else {
-        batch.box(x0 - ht, 0, y0, x0 + ht, WALL_H, y0 + jAll);
-        batch.box(x0 - ht, 0, y0 + wAll - jAll, x0 + ht, WALL_H, y0 + wAll);
-        batch.box(x0 - ht, DOOR_H, y0 + jAll, x0 + ht, WALL_H, y0 + wAll - jAll);
+        batch.box(x0 - ht, 0, y0 - extL, x0 + ht, WALL_H, ox0);
+        batch.box(x0 - ht, 0, ox1, x0 + ht, WALL_H, y0 + span + extR);
+        batch.box(x0 - ht, DOOR_H, ox0, x0 + ht, WALL_H, ox1);
       }
       const dir = insideSign(s);                            // leaf per side on doubles
       const leafMat = std('#8f6d45', 0.65);
@@ -197,16 +213,17 @@ function buildWalls(group) {
         doorLeaves.push({ grp: lg, key: k, open: (alongX ? -dir : dir) * extend * 1.85 });
       };
       if (s.d === 'h') {
-        mk(x0 + jAll, y0, true, 1);
-        if (dbl) mk(x0 + wAll - jAll, y0, true, -1);
+        mk(ox0, y0, true, 1);
+        if (dbl) mk(ox1, y0, true, -1);
       } else {
-        mk(x0, y0 + jAll, false, 1);
-        if (dbl) mk(x0, y0 + wAll - jAll, false, -1);
+        mk(x0, ox0, false, 1);
+        if (dbl) mk(x0, ox1, false, -1);
       }
       // aim hitbox over the whole doorway (leader covers the pair)
       const hb = new THREE.Mesh(new THREE.BoxGeometry(
-        s.d === 'h' ? wAll : t + 12, DOOR_H, s.d === 'h' ? t + 12 : wAll));
-      hb.position.set(s.d === 'h' ? x0 + wAll / 2 : x0, DOOR_H / 2, s.d === 'h' ? y0 : y0 + wAll / 2);
+        s.d === 'h' ? gAll + 8 : t + 12, DOOR_H, s.d === 'h' ? t + 12 : gAll + 8));
+      hb.position.set(s.d === 'h' ? (ox0 + ox1) / 2 : x0, DOOR_H / 2,
+        s.d === 'h' ? y0 : (ox0 + ox1) / 2);
       hb.visible = false;
       group.add(hb);
       hitTargets.push({ mesh: hb, use: { kind: 'door', key: k } });
