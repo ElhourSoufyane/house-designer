@@ -264,17 +264,19 @@
       cur.s = tgt.s;
       cur.v += (tgt.v - cur.v) * lerpFactor;
 
-      av.root.position.set(cur.x, cur.y, cur.z);
+      const renderY = cur.s ? (cur.y > 15 ? 0 : cur.y) : cur.y;
+      av.root.position.set(cur.x, renderY, cur.z);
       av.root.rotation.y = cur.yaw;
       av.headGroup.rotation.x = Math.max(-0.9, Math.min(0.9, cur.pitch * 0.65));
 
       // Walking & Running Animation Cycle
       if (cur.s) {
         // Sitting Pose
-        av.torso.position.y = 17.0;
-        av.headGroup.position.y = 25.0;
-        av.legL.position.set(-2.0, 14.0, 1.0);
-        av.legR.position.set(2.0, 14.0, 1.0);
+        av.torso.position.y = 15.0;
+        av.headGroup.position.y = 23.0;
+        av.nameplate.position.y = 33.0;
+        av.legL.position.set(-2.0, 12.0, 2.0);
+        av.legR.position.set(2.0, 12.0, 2.0);
         av.legL.rotation.x = -Math.PI / 2;
         av.legR.rotation.x = -Math.PI / 2;
         av.armL.rotation.x = -0.4;
@@ -283,6 +285,7 @@
         // Standing / Walking
         av.torso.position.y = 26.5;
         av.headGroup.position.y = 34.5;
+        av.nameplate.position.y = 44.0;
         av.legL.position.set(-2.0, 21.0, 0);
         av.legR.position.set(2.0, 21.0, 0);
 

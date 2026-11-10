@@ -162,7 +162,7 @@ K.teleport = function (x, z, targetYaw, targetY, targetPitch, targetElevate) {
 K.playerPos = function () {
   return {
     x: px,
-    y: sitting ? (HP.world3d.EYE - 12 + groundY) : feetY,
+    y: sitting ? (groundY || 0) : feetY,
     z: pz,
     yaw: yaw,
     pitch: pitch,
