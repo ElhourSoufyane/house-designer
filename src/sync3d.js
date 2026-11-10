@@ -460,15 +460,20 @@
     return s;
   }
 
-  S3.host = function () {
+  S3.host = function (customCode) {
     S3.leave();
-    S3.roomCode = mkCode();
+    const clean = (typeof customCode === 'string' && customCode.trim()) ? customCode.trim().toUpperCase() : null;
+    S3.roomCode = clean || mkCode();
     notify(`Creating room ${S3.roomCode}…`);
     try {
       S3.peer = new Peer(PREFIX + S3.roomCode);
       S3.peer.on('error', e => {
-        if (e && e.type === 'unavailable-id') S3.host();
-        else notify(`Co-op error: ${e && e.type}`);
+        if (e && e.type === 'unavailable-id') {
+          if (clean) notify(`Room ${clean} is already hosted`);
+          else S3.host();
+        } else {
+          notify(`Co-op error: ${e && e.type}`);
+        }
       });
       S3.peer.on('open', () => {
         S3.mode = 'host';
@@ -482,17 +487,25 @@
     }
   };
 
-  S3.join = function (code) {
+  S3.join = function (code, autoHostFallback) {
     S3.leave();
     const cleanCode = (code || '').trim().toUpperCase();
-    if (cleanCode.length < 4) { notify('Please enter a 4-letter room code'); return; }
+    if (cleanCode.length < 3) { notify('Please enter a room code'); return; }
     S3.roomCode = cleanCode;
     notify(`Joining room ${cleanCode}…`);
     try {
       S3.peer = new Peer();
       S3.peer.on('error', e => {
-        if (e && e.type === 'peer-unavailable') notify('Room not found — check code and try again');
-        else notify(`Co-op error: ${e && e.type}`);
+        if (e && e.type === 'peer-unavailable') {
+          if (autoHostFallback) {
+            notify(`Hosting room ${cleanCode}…`);
+            S3.host(cleanCode);
+          } else {
+            notify('Room not found — check code and try again');
+          }
+        } else {
+          notify(`Co-op error: ${e && e.type}`);
+        }
       });
       S3.peer.on('open', () => {
         S3.mode = 'guest';
@@ -550,9 +563,13 @@
 
   function copyInvite() {
     const url = location.origin + location.pathname + '?room=' + S3.roomCode;
+    const btn = document.getElementById('coop3d-copy');
     if (navigator.clipboard) {
       navigator.clipboard.writeText(url)
-        .then(() => notify('Invite link copied — send it to your partner!'))
+        .then(() => {
+          notify('Invite link copied — send it to your partner!');
+          if (btn) { const orig = btn.innerHTML; btn.innerHTML = '✓ Copied!'; setTimeout(() => { if (btn) btn.innerHTML = orig; }, 2500); }
+        })
         .catch(() => prompt('Copy this invite link:', url));
     } else {
       prompt('Copy this invite link:', url);
@@ -562,6 +579,7 @@
   function renderModal() {
     const modal = document.getElementById('coop3d-modal');
     if (!modal) return;
+    const inviteUrl = S3.roomCode ? (location.origin + location.pathname + '?room=' + S3.roomCode) : '';
 
     if (S3.conns.length > 0) {
       const names = S3.conns.map(c => c.name || 'Partner').join(', ');
@@ -593,12 +611,14 @@
           <h3 style="margin:0;font-size:15px;color:#38bdf8">📡 Hosting 3D House</h3>
           <button id="coop3d-close" style="background:none;border:none;color:#94a3b8;font-size:18px;cursor:pointer">×</button>
         </div>
-        <div style="background:#1e293b;border:1px dashed #38bdf8;border-radius:8px;padding:10px;text-align:center;margin-bottom:12px">
+        <div style="background:#1e293b;border:1px dashed #38bdf8;border-radius:8px;padding:10px;text-align:center;margin-bottom:10px">
           <div style="font-size:11px;color:#94a3b8;text-transform:uppercase">Room Code</div>
           <div style="font-size:26px;font-weight:900;letter-spacing:4px;color:#facc15">${S3.roomCode}</div>
         </div>
-        <button id="coop3d-copy" class="btn" style="width:100%;background:#2563eb;color:#fff;padding:8px;font-size:13px;border-radius:6px;font-weight:bold;margin-bottom:8px">📋 Copy Invite Link</button>
-        <div style="font-size:12px;color:#94a3b8;text-align:center;margin-bottom:12px">Waiting for partner to connect…</div>
+        <button id="coop3d-copy" class="btn" style="width:100%;background:#059669;color:#fff;padding:9px;font-size:13px;border-radius:6px;font-weight:bold;margin-bottom:6px">📋 Copy Invite Link</button>
+        <div style="font-size:11px;color:#94a3b8;margin-bottom:3px">Direct Join Link:</div>
+        <input type="text" id="coop3d-link-input" readonly value="${inviteUrl}" onclick="this.select()" style="width:100%;background:#0f172a;border:1px solid rgba(255,255,255,.2);color:#38bdf8;border-radius:6px;padding:6px;font-size:11px;box-sizing:border-box;margin-bottom:10px;cursor:pointer" title="Click to select">
+        <div style="font-size:12px;color:#94a3b8;text-align:center;margin-bottom:10px">Send this link to your partner to join you!</div>
         <button id="coop3d-cancel" class="btn" style="width:100%;background:#475569;color:#fff;padding:6px;font-size:12px;border-radius:6px">Cancel Hosting</button>
       `;
       modal.querySelector('#coop3d-copy').onclick = copyInvite;
@@ -615,7 +635,7 @@
         </div>
         <button id="coop3d-host-btn" class="btn" style="width:100%;background:#059669;color:#fff;padding:8px;font-size:13px;font-weight:bold;border-radius:6px;margin-bottom:10px">🏠 Host My House (Get Code)</button>
         <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">
-          <input type="text" id="coop3d-code-input" placeholder="ABCD" maxlength="4" style="flex:1;text-transform:uppercase;background:#1e293b;border:1px solid rgba(255,255,255,.2);color:#facc15;font-weight:bold;letter-spacing:2px;border-radius:6px;padding:6px 8px;font-size:14px;box-sizing:border-box">
+          <input type="text" id="coop3d-code-input" placeholder="ABCD" maxlength="8" style="flex:1;text-transform:uppercase;background:#1e293b;border:1px solid rgba(255,255,255,.2);color:#facc15;font-weight:bold;letter-spacing:2px;border-radius:6px;padding:6px 8px;font-size:14px;box-sizing:border-box">
           <button id="coop3d-join-btn" class="btn" style="background:#2563eb;color:#fff;padding:7px 12px;font-size:13px;font-weight:bold;border-radius:6px">Join</button>
         </div>
         <div style="font-size:11px;color:#94a3b8">Host generates a room code or link. Partner joins and explores your house together in real time!</div>
@@ -624,7 +644,10 @@
         S3.myName = e.target.value.trim() || 'Player';
         localStorage.setItem(LS_NAME, S3.myName);
       };
-      modal.querySelector('#coop3d-host-btn').onclick = S3.host;
+      modal.querySelector('#coop3d-host-btn').onclick = () => {
+        const c = modal.querySelector('#coop3d-code-input').value;
+        S3.host(c);
+      };
       modal.querySelector('#coop3d-join-btn').onclick = () => {
         const c = modal.querySelector('#coop3d-code-input').value;
         S3.join(c);
@@ -671,10 +694,10 @@
       sendAll(msg);
     }, 50);
 
-    // Bind Auto-Join from URL query parameter ?room=CODE
+    // Bind Auto-Join from URL query parameter ?room=CODE (with auto-host fallback if empty)
     const urlCode = new URLSearchParams(location.search).get('room');
-    if (urlCode && urlCode.length >= 4) {
-      setTimeout(() => S3.join(urlCode), 400);
+    if (urlCode && urlCode.length >= 3) {
+      setTimeout(() => S3.join(urlCode, true), 400);
     }
   };
 
