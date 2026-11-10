@@ -59,8 +59,8 @@ HP.showDialog = showDialog;
 
 /* ---------- tool rail ---------- */
 const TOOL_HINTS = {
-  select: 'Tap a room to edit it, or drag furniture to move it.',
-  wall: 'Tap/drag between grid lines to draw walls.',
+  select: 'Tap a room to edit it, drag empty space to pan around, or drag furniture to move it (Shift+drag to box-select).',
+  wall: 'Draw walls between grid lines, or switch to Paint Room / Paint Wall to colour them.',
   door: 'Tap a wall to place a door. Two adjacent doors merge into a double door.',
   window: 'Tap a wall to place a window.',
   fence: 'Pick a fence type, then drag on the plan to draw a fence run of any length.',
@@ -192,6 +192,7 @@ function roomUI() {
       <input type="text" id="room-name-i" value="${(r.name || '').replace(/"/g, '&quot;')}" placeholder="e.g. Bedroom">
       <button class="ibtn primary" id="room-name-apply" style="display:none;margin-top:8px">Apply Name</button></div>
     <div class="field"><label>Flooring — click to apply</label><div class="fam-list" id="room-sw"></div></div>
+    <div class="field"><label>Wall Paint — click to apply</label><div class="swatches" id="room-wall-sw"></div></div>
     <div class="stat-row"><span class="k">Area</span><span class="v accent">${r.m2.toFixed(1)} m²</span></div>
     <div class="stat-row"><span class="k">Wall segments</span><span class="v">${cnt.walls}</span></div>
     <div class="stat-row"><span class="k">Doors</span><span class="v">${cnt.doors}</span></div>
@@ -204,6 +205,12 @@ function roomUI() {
     HP.pushUndo();
     for (const [x, y] of r.cells) HP.cur().floors[HP.cellKey(x, y)] = id;
     HP.invalidateRegions(); HP.saveState();
+  });
+  wallSwatches($('#room-wall-sw'), HP.roomWallColor(r), col => {
+    HP.pushUndo();
+    HP.paintRoomWalls(r, col);
+    HP.invalidateRegions(); HP.saveState();
+    HP.status(col ? 'Room walls painted' : 'Room walls reset to default');
   });
 
   const nameI = $('#room-name-i'), applyB = $('#room-name-apply');
@@ -353,6 +360,76 @@ function floorSwatches(wrap, activeId, onPick) {
   }
 }
 
+/* wall paint swatches + custom colour picker */
+function wallSwatches(wrap, activeCol, onPick) {
+  if (!wrap) return;
+  wrap.innerHTML = '';
+  for (const p of (HP.WALL_PAINTS || [])) {
+    const b = document.createElement('button');
+    b.className = 'sw' + ((activeCol || '') === p.id ? ' active' : '');
+    b.style.background = p.col;
+    b.title = p.name;
+    const nm = document.createElement('i'); nm.textContent = p.name; b.appendChild(nm);
+    b.onclick = () => {
+      onPick(p.id);
+      wrap.querySelectorAll('.sw').forEach(x => x.classList.remove('active'));
+      b.classList.add('active');
+    };
+    wrap.appendChild(b);
+  }
+  const ci = document.createElement('input');
+  ci.type = 'color';
+  ci.title = 'Custom wall colour';
+  ci.value = /^#[0-9a-f]{6}$/i.test(activeCol || '') ? activeCol : '#d6dfd4';
+  ci.style.cssText = 'width:34px;height:34px;border:2px solid var(--border);border-radius:7px;background:none;padding:0;cursor:pointer';
+  ci.oninput = () => {
+    wrap.querySelectorAll('.sw').forEach(x => x.classList.remove('active'));
+    onPick(ci.value);
+  };
+  wrap.appendChild(ci);
+}
+
+/* wall-tool mode & paint picker */
+function wallUI() {
+  const top = $('#wall-panel'); if (!top) return;
+  top.innerHTML = '';
+  const s = document.createElement('div');
+  s.innerHTML = `<div class="seg" id="wall-mode">
+      <button class="seg-btn" data-m="draw">Draw</button>
+      <button class="seg-btn" data-m="room">Paint Room</button>
+      <button class="seg-btn" data-m="wall">Paint Wall</button>
+    </div>
+    <div class="field"><label>Wall Paint Colour</label><div class="swatches" id="wall-sw"></div></div>
+    <div class="hint" id="wall-mode-hint"></div>`;
+  top.appendChild(s);
+  const mseg = $('#wall-mode'), mhint = $('#wall-mode-hint');
+  const HINTS = {
+    draw: 'Drag between grid intersections to build walls. Pick a colour below to pre-paint new walls.',
+    room: 'Tap inside any enclosed room to paint all of its interior walls at once.',
+    wall: 'Click or drag along one side of a wall to paint just that face (great for accent walls or exterior facades).',
+  };
+  const mmark = () => {
+    mseg.querySelectorAll('.seg-btn').forEach(b => b.classList.toggle('on', b.dataset.m === (HP.wallMode || 'draw')));
+    if (mhint) mhint.textContent = HINTS[HP.wallMode || 'draw'] || '';
+  };
+  mseg.querySelectorAll('.seg-btn').forEach(b => b.onclick = () => {
+    HP.wallMode = b.dataset.m;
+    if (HP.wallMode !== 'draw' && !HP.wallColor) HP.wallColor = '#9cb29b';
+    mmark();
+    wallSwatches($('#wall-sw'), HP.wallColor, col => { HP.wallColor = col; });
+    HP.status(HINTS[HP.wallMode]);
+  });
+  mmark();
+  wallSwatches($('#wall-sw'), HP.wallColor, col => {
+    HP.wallColor = col;
+    if ((HP.wallMode || 'draw') === 'draw' && col) {
+      HP.wallMode = 'room';
+      mmark();
+      HP.status('Paint Room: tap a room to paint its walls, or switch to Draw / Paint Wall');
+    }
+  });
+}
+
 /* floor-tool material picker */
 function floorUI() {
   const top = $('#floor-panel');
@@ -459,7 +536,7 @@ function projectStats() {
 HP.projectStats = projectStats;
 
 /* sidebar shows only the active tool's section; selection edits float on the canvas */
-const SEC_FOR = { floor: 'floor', furniture: 'furniture', fence: 'fence' };
+const SEC_FOR = { wall: 'wall', floor: 'floor', furniture: 'furniture', fence: 'fence' };
 function refreshInspector(force) {
   const insp = $('#inspector');
   if (force === 'settings') { insp.dataset.sec = 'settings'; settingsUI(); }
@@ -472,6 +549,7 @@ function refreshInspector(force) {
   else if (HP.selected) itemUI(HP.selected);
   else if (HP.selectedRoom) roomUI();
   $('#edit-panel').classList.toggle('hidden', !top.firstChild);
+  if (insp.dataset.sec === 'wall') wallUI();
   if (insp.dataset.sec === 'floor') floorUI();
   if (insp.dataset.sec === 'fence') fenceUI();
   projectStats();
@@ -611,6 +689,7 @@ HP.initUI = function () {
 
   $('#btn-undo').onclick = () => HP.undo();
   $('#btn-redo').onclick = () => HP.redo();
+  $('#btn-snap').onclick = () => HP.toggleSnap();
   $('#btn-save').onclick = () => HP.exportFile();
   $('#btn-export').onclick = () => HP.exportPNG();
   $('#btn-coop').onclick = () => HP.coop && HP.coop.show();

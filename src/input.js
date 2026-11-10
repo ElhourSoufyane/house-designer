@@ -8,7 +8,9 @@ let placing = false;                 // pointer gesture inside placement mode
 function evtPoint(e) {
   const w = HP.s2w(e.clientX, e.clientY);
   const c = HP.w2c(w);
-  return { wx: w.x, wy: w.y, cx: c.x, cy: c.y, sx: e.clientX, sy: e.clientY, e };
+  return { wx: w.x, wy: w.y, cx: c.x, cy: c.y,
+           fx: HP.snapCoord(w.x / HP.CELL), fy: HP.snapCoord(w.y / HP.CELL),
+           sx: e.clientX, sy: e.clientY, e };
 }
 
 function updateGhost(p) {
@@ -16,7 +18,8 @@ function updateGhost(p) {
   const def = HP.pending.def;
   const w = (HP.pending.rot % 2 === 0) ? def.w : def.h;
   const h = (HP.pending.rot % 2 === 0) ? def.h : def.w;
-  const x = p.cx - Math.floor(w / 2), y = p.cy - Math.floor(h / 2);
+  const px = def.hangs ? p.cx : p.fx, py = def.hangs ? p.cy : p.fy;
+  const x = px - Math.floor(w / 2), y = py - Math.floor(h / 2);
   HP.ghost = { x, y, valid: HP.canPlace(def.id, x, y, HP.pending.rot) };
   HP.markDirty();
 }
@@ -50,7 +53,7 @@ HP.initInput = function () {
     }
     if (e.button === 2) {                            // right click: cancel
       if (HP.pending) HP.cancelPending();
-      else { HP.selected = null; HP.refreshContext(); HP.markDirty(); }
+      else { HP.selected = null; HP.selectedSet = []; HP.refreshContext(); HP.markDirty(); }
       return;
     }
     if (HP.pending) { placing = true; updateGhost(evtPoint(e)); return; }
@@ -97,6 +100,7 @@ HP.initInput = function () {
             x: HP.ghost.x, y: HP.ghost.y,
             rot: HP.pending.rot, v: HP.pending.v || 0, oid: HP.oid
           };
+          if (HP.pending.def.hangs) it.hang = HP.hangSide(it.type, it.x, it.y, it.rot);
           HP.cur().furniture.push(it);
           HP.autoConnect(it);                        // modular pieces join what they touch
           HP.selected = it;
@@ -134,10 +138,11 @@ HP.initInput = function () {
     if (HP.playing) { if (k === 'escape') HP.togglePlay(); return; }
     switch (k) {
       case 'r': HP.rotateActive(); break;
+      case 'g': HP.toggleSnap(); break;
       case 'delete': case 'backspace': HP.deleteSelected(); break;
       case 'escape':
         if (HP.pending) HP.cancelPending();
-        else { HP.selected = null; HP.selectedRoom = null; HP.measureLine = null; HP.refreshContext(); HP.markDirty(); }
+        else { HP.selected = null; HP.selectedRoom = null; HP.selectedSet = []; HP.measureLine = null; HP.refreshContext(); HP.markDirty(); }
         break;
       case 'v': HP.setTool('select'); break;
       case 'w': HP.setTool('wall'); break;
@@ -166,6 +171,6 @@ HP.s2wWith = function (cam, sx, sy) {
 HP.trackPointer = function (p) {
   if (!p) return;
   const el = document.getElementById('st-cursor');
-  if (el) el.textContent = 'Cursor: ' + (p.cx * 0.5).toFixed(1) + 'm, ' + (p.cy * 0.5).toFixed(1) + 'm';
+  if (el) el.textContent = 'Cursor: ' + (p.fx * 0.5).toFixed(2) + 'm, ' + (p.fy * 0.5).toFixed(2) + 'm';
 };
 })();

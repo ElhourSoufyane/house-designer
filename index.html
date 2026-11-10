@@ -6,7 +6,7 @@
 <title>HouseDesigner — 2D Home Planner</title>
 <meta name="theme-color" content="#e8e4d8">
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🏠</text></svg>">
-<link rel="stylesheet" href="style.css?v=58">
+<link rel="stylesheet" href="style.css?v=1794093466650">
 </head>
 <body>
 
@@ -119,6 +119,7 @@
   <div class="tb-sep"></div>
   <button class="tbtn" id="btn-undo" title="Undo (Ctrl+Z)"><svg class="ic"><use href="#i-undo"/></svg>Undo</button>
   <button class="tbtn" id="btn-redo" title="Redo (Ctrl+Y)"><svg class="ic"><use href="#i-redo"/></svg>Redo</button>
+  <button class="tbtn" id="btn-snap" title="Placement grid: 0.5m or fine 0.25m (G)">Snap 0.5m</button>
   <div class="spacer"></div>
   <div class="floor-ctrl" id="floor-ctrl">
     <button id="floor-down" title="Previous floor" aria-label="Previous floor"><svg class="ic"><use href="#i-chev-l"/></svg></button>
@@ -133,6 +134,8 @@
     <button id="btn-zoomin" aria-label="Zoom in"><svg class="ic"><use href="#i-plus"/></svg></button>
   </div>
   <button class="tbtn primary" id="btn-play"><svg class="ic"><use href="#i-play"/></svg>Play</button>
+  <button class="tbtn primary" id="btn-3d" title="Walk your house in 3D" onclick="try{localStorage.setItem('homeplanner_save_v1',JSON.stringify({state:HP.state,nextId:HP.nextId}))}catch(e){}location.href='play3d.html'"><svg class="ic"><use href="#i-play"/></svg>Play 3D</button>
+  <script>fetch('play3d.html',{method:'HEAD'}).then(r=>{if(r.ok)document.getElementById('btn-3d').hidden=false}).catch(()=>{})</script>
 </header>
 
 <div class="main">
@@ -238,17 +241,17 @@
 </div>
 
 <script src="lib/peerjs.min.js"></script>
-<script src="src/grid.js?v=58"></script>
-<script src="src/catalog.js?v=58"></script>
-<script src="src/sprites.js?v=58"></script>
-<script src="src/rooms.js?v=58"></script>
-<script src="src/tools.js?v=58"></script>
-<script src="src/presets.js?v=58"></script>
-<script src="src/save.js?v=58"></script>
-<script src="src/walk.js?v=58"></script>
-<script src="src/input.js?v=58"></script>
-<script src="src/ui.js?v=58"></script>
-<script src="src/main.js?v=58"></script>
-<script src="src/sync.js?v=58"></script>
+<script src="src/grid.js?v=1794093466650"></script>
+<script src="src/catalog.js?v=1794093466650"></script>
+<script src="src/sprites.js?v=1794093466650"></script>
+<script src="src/rooms.js?v=1794093466650"></script>
+<script src="src/tools.js?v=1794093466650"></script>
+<script src="src/presets.js?v=1794093466650"></script>
+<script src="src/save.js?v=1794093466650"></script>
+<script src="src/walk.js?v=1794093466650"></script>
+<script src="src/input.js?v=1794093466650"></script>
+<script src="src/ui.js?v=1794093466650"></script>
+<script src="src/main.js?v=1794093466650"></script>
+<script src="src/sync.js?v=1794093466650"></script>
 </body>
 </html>

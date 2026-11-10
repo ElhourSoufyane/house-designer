@@ -1,0 +1,980 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<script>window.onerror = function(msg, url, line, col, err) { console.error('CLIENT_ERROR: ' + msg + ' at ' + url + ':' + line + ':' + col); };</script>
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<title>House — 3D Walk</title>
+<style>
+  html,body{margin:0;height:100%;overflow:hidden;background:#0e1216;font-family:"Segoe UI",system-ui,sans-serif;-webkit-user-select:none;user-select:none;touch-action:none}
+  #gl{position:fixed;inset:0;width:100%;height:100%;display:block}
+  .hud{position:fixed;z-index:10;color:#fff;text-shadow:0 1px 3px rgba(0,0,0,.6)}
+  #fps{top:10px;right:14px;font-size:15px;font-weight:700;font-variant-numeric:tabular-nums}
+  #topbar{top:10px;left:12px;display:flex;gap:8px;align-items:center}
+  .btn{background:rgba(20,26,32,.72);border:1px solid rgba(255,255,255,.16);color:#fff;padding:7px 13px;border-radius:9px;font-size:13px;cursor:pointer;backdrop-filter:blur(4px)}
+  .btn:hover{background:rgba(40,50,60,.85)}
+  #cross{top:50%;left:50%;transform:translate(-50%,-50%);font-size:18px;opacity:.85;pointer-events:none}
+  #hint{bottom:14px;left:50%;transform:translateX(-50%);font-size:12.5px;opacity:.75;pointer-events:none;white-space:nowrap}
+  #prompt{bottom:64px;left:50%;transform:translateX(-50%);font-size:15px;font-weight:600;background:rgba(20,26,32,.72);padding:8px 16px;border-radius:10px;display:none}
+  #overlay{position:fixed;inset:0;z-index:30;background:rgba(10,14,18,.78);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;color:#fff;cursor:pointer;backdrop-filter:blur(6px)}
+  #overlay h1{margin:0;font-size:30px;font-weight:700;letter-spacing:.5px}
+  #overlay p{margin:0;font-size:15px;opacity:.8}
+  #overlay .keys{font-size:13px;opacity:.6;margin-top:10px;line-height:1.9;text-align:center}
+  #stickL{position:fixed;left:26px;bottom:30px;width:96px;height:96px;border-radius:50%;border:2px solid rgba(255,255,255,.25);background:rgba(20,26,32,.35);z-index:10;display:none}
+  #stickL-nub{position:absolute;left:50%;top:50%;width:40px;height:40px;margin:-20px 0 0 -20px;border-radius:50%;background:rgba(255,255,255,.35)}
+  #jumpBtn{position:fixed;right:26px;bottom:44px;width:72px;height:72px;border-radius:50%;border:2px solid rgba(255,255,255,.25);background:rgba(20,26,32,.35);z-index:10;display:none;align-items:center;justify-content:center;color:#fff;font:700 13px system-ui;user-select:none;-webkit-user-select:none}
+  @media (pointer:coarse){ #stickL{display:block} #hint{display:none} }
+  .touch-controls #jumpBtn{display:flex}
+  #audit{position:fixed;top:52px;left:12px;z-index:20;width:300px;max-height:70vh;overflow:auto;background:rgba(14,18,24,.92);border:1px solid rgba(255,255,255,.14);border-radius:12px;padding:12px 14px;color:#fff;font-size:12.5px;display:none}
+  #audit h3{margin:0 0 8px;font-size:14px}
+  #audit .chk{display:flex;gap:8px;margin:7px 0;align-items:flex-start}
+  #audit .ok{color:#7fe08a}#audit .bad{color:#ff7a6a}
+  #audit .det{opacity:.7;font-size:11.5px;margin-top:2px}
+  :root{--hud-surface:rgba(33,43,39,.9);--hud-ink:#f6f0e1;--hud-line:rgba(241,232,210,.24);--hud-accent:#d9ba78}
+  html,body{font-family:Georgia,"Palatino Linotype",serif}
+  .btn,#graphics,select{font-family:"Trebuchet MS",sans-serif}
+  .btn{background:var(--hud-surface);border-color:var(--hud-line);color:var(--hud-ink);border-radius:5px;min-height:38px}
+  #overlay{background:radial-gradient(ellipse at 50% 38%,rgba(32,43,38,.5),rgba(17,27,25,.9));backdrop-filter:blur(3px)}
+  #overlay h1{font-size:clamp(38px,7vw,76px);font-weight:400;letter-spacing:-2px}
+  #overlay::before{content:"YOUR HOME, IN A NEW LIGHT";font:11px "Trebuchet MS",sans-serif;letter-spacing:4px;color:var(--hud-accent)}
+  #overlay .keys{font-family:"Trebuchet MS",sans-serif;line-height:2}
+  #graphics{position:fixed;z-index:40;top:60px;right:14px;width:230px;box-sizing:border-box;padding:18px;background:var(--hud-surface);color:var(--hud-ink);border:1px solid var(--hud-line);border-radius:8px}
+  #graphics[hidden]{display:none}
+  #graphics{max-height:calc(100dvh - 80px);overflow-y:auto}
+  #graphics h2{font:24px Georgia,serif;margin:0 0 14px}
+  #graphics label{display:block;font-size:12px;margin-bottom:8px}
+  #graphics select{width:100%;padding:10px;background:#f4efdf;color:#263c32;border-radius:4px;border:0;font-size:14px}
+  #graphics p{font-size:12px;line-height:1.6;color:#d9d3c4}
+  #quality-status{color:var(--hud-accent);font-size:12px}
+  #graphics input[type=range]{width:100%;accent-color:var(--hud-accent);margin:2px 0 10px}
+  #graphics label.check{display:flex;gap:8px;align-items:center;cursor:pointer}
+  #clock{top:34px;right:14px;font:600 14px "Trebuchet MS",sans-serif;font-variant-numeric:tabular-nums;opacity:.9}
+  #topbar{z-index:40;top:max(10px,env(safe-area-inset-top));left:max(12px,env(safe-area-inset-left))}
+  #prompt{cursor:pointer}
+  #gpu-warn{position:fixed;z-index:50;top:max(60px,env(safe-area-inset-top));left:50%;transform:translateX(-50%);max-width:min(560px,calc(100% - 24px));box-sizing:border-box;padding:12px 44px 12px 16px;background:#6b2a1f;color:#fff3e8;border-radius:8px;font:13px/1.5 "Trebuchet MS",sans-serif;box-shadow:0 6px 24px rgba(0,0,0,.35)}
+  #gpu-warn[hidden]{display:none}
+  #gpu-warn-close{position:absolute;top:6px;right:6px;min-height:30px;padding:2px 10px}
+  .touch-controls #stickL{display:block}
+  .touch-controls #hint{display:none}
+  @media(max-width:600px){#graphics{max-height:calc(100dvh - 120px)}}
+  @media(max-width:600px){#topbar{gap:5px;max-width:calc(100% - 70px);flex-wrap:wrap}.btn{font-size:11px;padding:6px 9px}#fps{font-size:12px}#graphics{top:100px}#overlay .keys{padding:0 28px}#prompt{bottom:140px;font-size:13px}}
+</style>
+</head>
+<body>
+<canvas id="gl"></canvas>
+
+<div id="topbar" class="hud">
+  <button class="btn" onclick="location.href='index.html'">← Editor</button>
+  <button class="btn" id="btn-showroom"></button>
+  <button class="btn" id="btn-audit">Wall check</button>
+  <button class="btn" id="btn-rebuild">Rebuild</button>
+  <button class="btn" id="btn-sound" title="Toggle sound">Sound: On</button>
+  <button class="btn" id="btn-graphics" aria-expanded="false" aria-controls="graphics">Graphics</button>
+</div>
+<div id="showroom-guide" class="hud" style="display:none;position:fixed;top:48px;left:50%;transform:translateX(-50%);z-index:40;background:rgba(15,23,42,.92);border:1px solid rgba(255,255,255,.18);border-radius:10px;padding:6px 10px;flex-direction:column;gap:6px;max-width:96vw;backdrop-filter:blur(10px);box-shadow:0 8px 30px rgba(0,0,0,.5)"></div>
+<section id="graphics" hidden aria-label="Graphics settings">
+  <h2>A little atmosphere.</h2>
+  <label for="quality">Rendering quality</label>
+  <select id="quality">
+    <option value="auto">Auto (recommended)</option>
+    <option value="low">Low / battery saver</option>
+    <option value="medium">Balanced</option>
+    <option value="high">High</option>
+  </select>
+  <p>Auto starts lighter on phones and adjusts to sustained frame rate. All settings keep the same house and physics.</p>
+  <label for="tod">Time of day <span id="tod-label"></span></label>
+  <input type="range" id="tod" min="0" max="24" step="0.25">
+  <label class="check"><input type="checkbox" id="tod-flow"> Time passes (1 hour = 1 minute)</label>
+  <p>Starts at your real local time. Lamps and room lights switch on after sunset.</p>
+  <label class="check"><input type="checkbox" id="sound"> Sound — ambience, footsteps, doors</label>
+  <label class="check"><input type="checkbox" id="push-furniture"> Pushable furniture (bump to move chairs)</label>
+  <output id="quality-status" aria-live="polite"></output>
+  <p id="gpu-info"></p>
+</section>
+<div id="fps" class="hud"></div>
+<div id="clock" class="hud" aria-label="In-game time"></div>
+<div id="gpu-warn" role="alert" hidden>
+  <strong>3D is running without your graphics card.</strong>
+  Chrome: Settings → System → turn on <em>“Use graphics acceleration when available”</em> → Relaunch.
+  <button class="btn" id="gpu-warn-close" aria-label="Dismiss">×</button>
+</div>
+<div id="cross" class="hud">+</div>
+<div id="hint" class="hud">WASD move · mouse look · Shift run · Space jump · E door · Esc release</div>
+<div id="prompt" class="hud" role="button" tabindex="0"></div>
+<div id="stickL"><div id="stickL-nub"></div></div>
+<div id="jumpBtn">JUMP</div>
+<div id="audit"></div>
+
+<div id="overlay">
+  <h1>3D Walk</h1>
+  <p>click to enter your house</p>
+  <div class="keys">WASD — walk &nbsp;·&nbsp; mouse — look &nbsp;·&nbsp; Shift — run<br>
+  E — open / close doors &nbsp;·&nbsp; Space — jump &nbsp;·&nbsp; Esc — pause</div>
+</div>
+
+<script>
+  document.getElementById('jumpBtn').addEventListener('touchstart', e => {
+    e.preventDefault(); if (HP.walk3d && HP.walk3d.doJump) HP.walk3d.doJump();
+  }, { passive: false });
+</script>
+
+<script src="lib/three.min.js"></script>
+<script src="src/grid.js?v=1794093466650"></script>
+<script>
+/* stubs so the editor modules load without the 2D canvas/UI */
+HP.invalidateRegions = () => { HP.regions = null; };
+HP.status = () => {}; HP.refreshContext = () => {}; HP.updateFloorUI = () => {};
+HP.markDirty = () => {}; HP.resetLayers = () => {}; HP.updateUndoButtons = () => {};
+</script>
+<script src="src/catalog.js?v=1794093466650"></script>
+<script src="src/rooms.js?v=1794093466650"></script>
+<script src="src/save.js?v=1794093466650"></script>
+<script src="src/geom3d.js?v=1794093466650"></script>
+<script src="src/graphics3d.js?v=1794093466650"></script>
+<script src="src/cull3d.js?v=1794093466650"></script>
+<script src="src/sky3d.js?v=1794093466650"></script>
+<script src="src/furniture3d.js?v=1794093466650"></script>
+<script src="src/life3d.js?v=1794093466650"></script>
+<script src="src/sound3d.js?v=1794093466650"></script>
+<script src="src/world3d.js?v=1794093466650"></script>
+<script src="src/walk3d.js?v=1794093466650"></script>
+<script>
+(function () {
+  /* ---------- state: same house as the editor (localStorage) or Showroom ---------- */
+  const isShowroom = location.search.includes('showroom');
+  const isFixed = isShowroom && location.search.includes('fixed');
+  const urlMatch = location.search.match(/batch(\d+)/i) || (!isFixed && location.search.match(/showroom=(\d+)/i));
+  let showroomBatch = urlMatch ? Math.max(1, Math.min(42, parseInt(urlMatch[1], 10))) : 1;
+  const isBatch = isShowroom && !!urlMatch;
+  const isAll = isShowroom && !isFixed && !isBatch;
+
+  let spawn = { x: HP.GRID_W * HP.CELL / 2, y: HP.GRID_H * HP.CELL / 2, yaw: Math.PI };
+  const btnShowroom = document.getElementById('btn-showroom');
+  if (btnShowroom) {
+    btnShowroom.textContent = isShowroom ? '🏠 My House' : '✨ 3D Showroom';
+    btnShowroom.onclick = () => {
+      location.href = isShowroom ? 'play3d.html' : 'play3d.html?showroom=all';
+    };
+  }
+
+  if (isShowroom) {
+    HP.state = HP.newState();
+    const cur = HP.cur(), w = cur.walls;
+
+    if (isAll) {
+      // Grand All-Catalog Exhibition Hall (All 425 Items in Thematic Wings)
+      HP.state.w = 160;
+      HP.state.h = 190;
+      HP.applyGridSize();
+
+      // Perimeter walls and scenic panoramic windows
+      for (let x = 4; x < 156; x++) {
+        w['h,' + x + ',4'] = { cb: '#f4efe4' };
+        w['h,' + x + ',186'] = { f: (x % 4 === 0) ? 'window' : null, ca: '#f4efe4' };
+      }
+      for (let y = 4; y < 186; y++) {
+        w['v,4,' + y] = { f: (y % 4 === 0) ? 'window' : null, cb: '#f4efe4' };
+        w['v,156,' + y] = { f: (y % 4 === 0) ? 'window' : null, ca: '#f4efe4' };
+      }
+
+      // Warm ambient gallery sconces along perimeter
+      for (let sx = 12; sx < 150; sx += 14) {
+        cur.furniture.push({ id: 10000 + sx, type: 'sconce', x: sx, y: 4, rot: 0 });
+      }
+
+      const SECTIONS = [
+        { name: 'Living', title: 'Living & Seating', floor: 'wood', icon: '🛋️', cats: ['Living'], maxCols: 22 },
+        { name: 'Kitchen', title: 'Kitchen & Dining', floor: 'tile', icon: '🍳', cats: ['Kitchen'], maxCols: 20 },
+        { name: 'Bedroom', title: 'Bedroom Suites', floor: 'parquet', icon: '🛏️', cats: ['Bedroom'], maxCols: 20 },
+        { name: 'Bathroom', title: 'Bathroom & Spa', floor: 'travertine', icon: '🚿', cats: ['Bathroom'], maxCols: 20 },
+        { name: 'Office', title: 'Office & Tech', floor: 'wood', icon: '💼', cats: ['Office'], maxCols: 25 },
+        { name: 'Kids', title: 'Kids & Play', floor: 'carpet', icon: '🧸', cats: ['Kids'], maxCols: 20 },
+        { name: 'Gym', title: 'Gym & Fitness', floor: 'concrete', icon: '🏋️', cats: ['Gym'], maxCols: 20 },
+        { name: 'Games', title: 'Games & Music', floor: 'wood', icon: '🎮', cats: ['Games', 'Music'], maxCols: 20 },
+        { name: 'Outdoor', title: 'Outdoor & Patio', floor: 'travertine', icon: '🌴', cats: ['Outdoor'], maxCols: 20 },
+        { name: 'Garden', title: 'Garden & Courtyard', floor: 'grass', icon: '🌿', cats: ['Garden'], maxCols: 20 },
+        { name: 'Garage', title: 'Garage & Vehicles', floor: 'concrete', icon: '🚗', cats: ['Garage'], maxCols: 22 },
+        { name: 'Utility', title: 'Utility & Laundry', floor: 'concrete', icon: '🧺', cats: ['Utility'], maxCols: 22 },
+        { name: 'Fences', title: 'Fences & Modular', floor: 'grass', icon: '🧱', cats: ['Fences', 'Modular', 'Build'], maxCols: 24 },
+        { name: 'Decor', title: 'Decor & Lighting', floor: 'travertine', icon: '🖼️', cats: ['Decor'], maxCols: 22 }
+      ];
+
+      let curY = 8;
+      let nextId = 1;
+
+      SECTIONS.forEach(sec => {
+        const secItems = HP.CATALOG.filter(it => sec.cats.includes(it.cat));
+        const cols = sec.maxCols || 20;
+        const rowStartY = curY;
+
+        for (let start = 0; start < secItems.length; start += cols) {
+          const rowItems = secItems.slice(start, start + cols);
+          const maxRowH = rowItems.reduce((m, d) => Math.max(m, d.h || 1), 1);
+          let curX = 8;
+
+          rowItems.forEach(d => {
+            const itemW = d.w || 1;
+            const itemH = d.h || 1;
+            const isWall = !!d.hangs;
+            const isOnTop = !!d.onTop;
+            const itemNum = nextId;
+
+            if (isWall) {
+              for (let wx = curX - 1; wx <= curX + itemW; wx++) {
+                w['h,' + wx + ',' + curY] = { cb: '#f4efe4', ca: '#f4efe4' };
+              }
+              cur.furniture.push({
+                id: nextId++,
+                type: d.id,
+                x: curX,
+                y: curY,
+                rot: 0,
+                hang: 'n',
+                label: '#' + itemNum + ' ' + d.name,
+                shortName: d.name,
+                itemNum,
+                section: sec.name,
+                wing: sec.name,
+                cat: d.cat,
+                icon: sec.icon,
+                detail: itemW + 'x' + itemH + ' cell • ' + (d.brand || sec.title) + ' • Wall-Mounted'
+              });
+            } else if (isOnTop) {
+              cur.furniture.push({
+                id: 50000 + nextId,
+                type: 'counter',
+                x: curX,
+                y: curY,
+                rot: 0
+              });
+              cur.furniture.push({
+                id: nextId++,
+                type: d.id,
+                x: curX + (itemW < 2 ? 0.5 : 0),
+                y: curY,
+                rot: 0,
+                label: '#' + itemNum + ' ' + d.name,
+                shortName: d.name,
+                itemNum,
+                section: sec.name,
+                wing: sec.name,
+                cat: d.cat,
+                icon: sec.icon,
+                detail: itemW + 'x' + itemH + ' cell • ' + (d.brand || sec.title) + ' • Tabletop Display'
+              });
+            } else {
+              cur.furniture.push({
+                id: nextId++,
+                type: d.id,
+                x: curX,
+                y: curY,
+                rot: 0,
+                label: '#' + itemNum + ' ' + d.name,
+                shortName: d.name,
+                itemNum,
+                section: sec.name,
+                wing: sec.name,
+                cat: d.cat,
+                icon: sec.icon,
+                detail: itemW + 'x' + itemH + ' cell • ' + (d.brand || sec.title)
+              });
+            }
+            curX += itemW + 4;
+          });
+          curY += Math.max(6, maxRowH + 3);
+        }
+
+        const rowEndY = curY;
+        for (let fx = 4; fx < 180; fx++) {
+          for (let fy = rowStartY - 2; fy < rowEndY; fy++) {
+            cur.floors[fx + ',' + fy] = sec.floor;
+          }
+        }
+        curY += 2;
+      });
+
+      HP.showroomItems = cur.furniture.filter(f => f.label);
+      const urlParams = new URLSearchParams(location.search);
+      const reqNum = parseInt(urlParams.get('num'), 10);
+      const reqItemType = urlParams.get('item');
+      const reqDir = urlParams.get('dir') || 'front';
+      const firstItem = (reqNum && HP.showroomItems.find(f => f.itemNum === reqNum)) || (reqItemType && HP.showroomItems.find(f => f.type === reqItemType)) || HP.showroomItems[0];
+      const firstDef = firstItem && HP.itemDef(firstItem.type);
+      const firstW = (firstDef && firstDef.w) || 1;
+      const firstH = (firstDef && firstDef.h) || 1;
+      const isWall = firstDef && firstDef.hangs;
+      const isTable = firstDef && firstDef.onTop;
+      const isCeiling = firstDef && /ceilingfan|pendant|chandelier|hanginglight/i.test(firstItem.type);
+      const isLampPost = firstDef && /lamppost/i.test(firstItem.type);
+      const isTallLamp = firstDef && /lamparc|floorlamp|lamptripod|lamptorch/i.test(firstItem.type);
+      const isSmallLamp = firstDef && /lampmush|lampcandle|lampbanker|lamptable|lamppaper|nightlight|topcandles|fllantern|pathlight/i.test(firstItem.type);
+      const defaultPitch = isCeiling ? 0.44 : (isTallLamp ? 0.04 : (isSmallLamp ? -0.20 : (isWall ? 0.20 : -0.12)));
+      const defaultElev = isCeiling ? 12 : (isLampPost ? 6 : (isTallLamp ? 4 : (isSmallLamp ? 5 : (isWall ? 0 : (isTable ? 6 : 0)))));
+      const viewDist = isCeiling
+        ? 2.8
+        : (isLampPost
+          ? 5.4
+          : (isTallLamp
+            ? 4.6
+            : (isSmallLamp
+              ? 2.8
+              : (isWall
+                ? Math.max(3.8, Math.max(firstW, firstH) * 0.9 + 2.4)
+                : Math.max(3.2, Math.max(firstW, firstH) * 0.8 + 1.6)))));
+      const spawnX = (firstItem.x + firstW / 2) * HP.CELL;
+      if (reqDir === 'behind') {
+        if (isWall) {
+          const targetZ = (firstItem.y + firstH + viewDist * 0.85) * HP.CELL;
+          const angleX = spawnX - viewDist * 0.65 * HP.CELL;
+          const lookYaw = -Math.atan2(spawnX - angleX, targetZ - firstItem.y * HP.CELL);
+          spawn = { x: angleX, y: targetZ, yaw: lookYaw, pitch: defaultPitch, elevate: defaultElev };
+        } else {
+          spawn = { x: spawnX, y: (firstItem.y - viewDist) * HP.CELL, yaw: Math.PI, pitch: defaultPitch, elevate: defaultElev };
+        }
+      } else if (reqDir === 'angle') {
+        const targetZ = (firstItem.y + firstH + viewDist * 0.85) * HP.CELL;
+        const angleX = spawnX + viewDist * 0.65 * HP.CELL;
+        const lookYaw = Math.atan2(angleX - spawnX, targetZ - firstItem.y * HP.CELL);
+        spawn = { x: angleX, y: targetZ, yaw: lookYaw, pitch: isCeiling ? 0.36 : (isWall ? 0.02 : -0.15), elevate: defaultElev };
+      } else if (reqDir === 'top' || reqDir === 'bird') {
+        const targetZ = (firstItem.y + firstH / 2 + viewDist * 0.35) * HP.CELL;
+        const targetElev = Math.max(34, Math.max(firstW, firstH) * 16 + 18);
+        spawn = { x: spawnX, y: targetZ, yaw: 0, pitch: -1.35, elevate: targetElev };
+      } else {
+        spawn = { x: spawnX, y: (firstItem.y + firstH + viewDist) * HP.CELL, yaw: 0, pitch: defaultPitch, elevate: defaultElev };
+      }
+      HP.showroomCurTarget = firstItem;
+
+    } else if (isFixed) {
+      // 4-Wing Exhibition Pavillion for the 33 Fixed & Refined Items
+      HP.state.w = 66;
+      HP.state.h = 62;
+      HP.applyGridSize();
+
+      // Perimeter walls and scenic windows
+      for (let x = 3; x < 63; x++) {
+        w['h,' + x + ',3'] = { cb: '#f4efe4' };
+        w['h,' + x + ',57'] = { f: (x >= 6 && x <= 60) ? 'window' : null, ca: '#f4efe4' };
+      }
+      for (let y = 3; y < 57; y++) {
+        w['v,3,' + y] = { f: (y >= 8 && y <= 52) ? 'window' : null, cb: '#f4efe4' };
+        w['v,63,' + y] = { f: (y >= 8 && y <= 52) ? 'window' : null, ca: '#f4efe4' };
+      }
+
+      // Themed zoned floors for each wing
+      for (let x = 3; x < 63; x++) {
+        for (let y = 3; y < 57; y++) {
+          if (y < 18) {
+            cur.floors[x + ',' + y] = 'travertine'; // Wing A: Hero & Craftsmanship
+          } else if (y < 32) {
+            cur.floors[x + ',' + y] = 'grass';      // Wing B: Outdoor & Garden Courtyard
+          } else if (y < 45) {
+            cur.floors[x + ',' + y] = 'wood';       // Wing C: Living, Bedroom & Kids
+          } else {
+            cur.floors[x + ',' + y] = 'concrete';   // Wing D: Garage, Utility & Architectural
+          }
+        }
+      }
+
+      // Warm ambient gallery sconces
+      for (const sx of [8, 16, 24, 32, 40, 48, 56, 60]) {
+        cur.furniture.push({ id: 1000 + sx, type: 'sconce', x: sx, y: 3, rot: 0 });
+      }
+
+      const FIXED_ITEMS = [
+        // Wing A: Hero & Craftsmanship (Row y = 9)
+        { id: 'bbq', name: 'BBQ Grill', wing: 'Hero', icon: '🔥', detail: 'Casters, Legs, Hood & Firebox', y: 9 },
+        { id: 'shoji', name: 'Shoji Screen', wing: 'Hero', icon: '🎋', detail: 'Washi Paper & Kumiko Grid', y: 9 },
+        { id: 'divider', name: 'Room Divider', wing: 'Hero', icon: '🪑', detail: 'Woven Cane Rattan', y: 9 },
+        { id: 'barcounter', name: 'Bar Counter', wing: 'Hero', icon: '🍸', detail: 'Fluted Slats, Brass Rail & Bottles', y: 9 },
+        { id: 'clothesline', name: 'Clothesline', wing: 'Hero', icon: '👕', detail: 'T-Posts, Lines & Laundry', y: 9 },
+        { id: 'potting', name: 'Potting Bench', wing: 'Hero', icon: '🌱', detail: 'Workstation, Soil Sink & Pots', y: 9 },
+        { id: 'compost', name: 'Compost Bin', wing: 'Hero', icon: '🍂', detail: 'Cedar Slats & Organic Soil', y: 9 },
+        { id: 'rainbarrel', name: 'Rain Barrel', wing: 'Hero', icon: '💧', detail: 'Ribbed Drum & Brass Spigot', y: 9 },
+
+        // Wing B: Outdoor & Garden Structures (Row y = 22)
+        { id: 'picnic', name: 'Picnic Table', wing: 'Garden', icon: '🪵', detail: 'A-Frame & Dual Benches', y: 22 },
+        { id: 'chickencoop', name: 'Chicken Coop', wing: 'Garden', icon: '🐔', detail: 'Raised Hen House & Ramp', y: 22 },
+        { id: 'scarecrow', name: 'Scarecrow', wing: 'Garden', icon: '🌾', detail: 'Cross-Beam Arms & Overalls', y: 22 },
+        { id: 'slide', name: 'Playground Slide', wing: 'Garden', icon: '🛝', detail: 'Tubular Ladder, Safety Grab Bars & Ergonomic Chute', y: 22 },
+        { id: 'skateramp', name: 'Skate Ramp', wing: 'Garden', icon: '🛹', detail: 'Skatelite Quarter-Pipe, Steel Coping, Deck & Rails', y: 22 },
+        { id: 'hammock', name: 'Hammock', wing: 'Garden', icon: '🌴', detail: 'Timber Stand & Woven Bed', y: 22 },
+        { id: 'mailbox', name: 'Mailbox', wing: 'Garden', icon: '📬', detail: 'Turned Post & Red Flag', y: 22 },
+        { id: 'wbins', name: 'Wheelie Bins', wing: 'Garden', icon: '🗑️', detail: 'Trash & Recycling Roll-Carts', y: 22 },
+        { id: 'garch', name: 'Garden Arch', wing: 'Garden', icon: '🌿', detail: 'Arbor Trellis & Ivy Canopy', y: 22 },
+
+        // Wing C: Living, Bedroom & Kids (Row y = 35)
+        { id: 'bunkbed', name: 'Bunk Bed', wing: 'Living', icon: '🛏️', detail: 'Corner Posts, Rails & Ladder', y: 35 },
+        { id: 'sectional5', name: 'U-Sectional 5', wing: 'Living', icon: '🛋️', detail: 'Modular Cushions & Chaise', y: 35 },
+        { id: 'chester2', name: 'Chesterfield 2', wing: 'Living', icon: '🛋️', detail: 'Diamond-Tufted & Rolled Arms', y: 35 },
+        { id: 'chester3', name: 'Chesterfield 3', wing: 'Living', icon: '🛋️', detail: 'Diamond-Tufted & Rolled Arms', y: 35 },
+        { id: 'papasan', name: 'Papasan Chair', wing: 'Living', icon: '🪑', detail: 'Rattan Bowl & Saucer Cushion', y: 35 },
+        { id: 'rockhorse', name: 'Rocking Horse', wing: 'Living', icon: '🎠', detail: 'Rocker Runners & Wooden Grip', y: 35 },
+        { id: 'rockchair', name: 'Rocking Chair', wing: 'Living', icon: '🪑', detail: 'Spindle Back & Floor Rockers', y: 35 },
+        { id: 'pergola', name: 'Pergola', wing: 'Living', icon: '🏛️', detail: '4 Posts, Beams & Trellis Rafters', y: 35 },
+
+        // Wing D: Garage, Utility & Architectural (Row y = 48)
+        { id: 'stairs', name: 'Stairs', wing: 'Garage', icon: '🪜', detail: 'Treads, Risers & Balustrade Rail', y: 48 },
+        { id: 'ladder', name: 'Ladder', wing: 'Garage', icon: '🪜', detail: 'Extruded Stiles & Ribbed Rungs', y: 48 },
+        { id: 'tires', name: 'Tire Stack', wing: 'Garage', icon: '🛞', detail: 'Radial Rubber Treads & Rims', y: 48 },
+        { id: 'carport', name: 'Carport', wing: 'Garage', icon: '🚗', detail: 'Steel Uprights & Rafters', y: 48 },
+        { id: 'evcharger', name: 'EV Charger', wing: 'Garage', icon: '⚡', detail: 'Supply Conduit & Ground Plate', y: 48 },
+        { id: 'motorcycle', name: 'Motorcycle', wing: 'Garage', icon: '🏍️', detail: 'Engine, Exhaust & Spoke Wheels', y: 48 },
+        { id: 'mower', name: 'Lawn Mower', wing: 'Garage', icon: '🚜', detail: 'Deck, Engine, Wheels & Handle', y: 48 },
+        { id: 'wheelbarrow', name: 'Wheelbarrow', wing: 'Garage', icon: '🪴', detail: 'Sloped Hopper & Dual Handles', y: 48 }
+      ];
+
+      // Place each item with 360-degree walking space
+      const wings = ['Hero', 'Garden', 'Living', 'Garage'];
+      let itemId = 1;
+      wings.forEach(wName => {
+        const wingItems = FIXED_ITEMS.filter(it => it.wing === wName);
+        let curX = 7;
+        wingItems.forEach(item => {
+          const d = HP.itemDef(item.id);
+          const itemW = (d && d.w) || 1;
+          const itemNum = itemId;
+          const label = '#' + itemNum + ' ' + item.icon + ' ' + item.name + ' (' + item.detail + ')';
+          cur.furniture.push({
+            id: itemId++,
+            type: item.id,
+            x: curX,
+            y: item.y,
+            rot: 0,
+            label,
+            wing: item.wing,
+            shortName: item.name,
+            itemNum,
+            icon: item.icon,
+            detail: item.detail
+          });
+          curX += itemW + 4; // 4 cells = 2m walking clearance
+        });
+      });
+
+      HP.showroomItems = cur.furniture.filter(f => f.label);
+      const urlParams = new URLSearchParams(location.search);
+      const reqNum = parseInt(urlParams.get('num'), 10);
+      const reqItemType = urlParams.get('item');
+      const reqDir = urlParams.get('dir') || 'front';
+      const firstItem = (reqNum && HP.showroomItems.find(f => f.itemNum === reqNum)) || (reqItemType && HP.showroomItems.find(f => f.type === reqItemType)) || HP.showroomItems[0];
+      const firstDef = firstItem && HP.itemDef(firstItem.type);
+      const firstW = (firstDef && firstDef.w) || 1;
+      const firstH = (firstDef && firstDef.h) || 1;
+      const isWall = firstDef && firstDef.hangs;
+      const isTable = firstDef && firstDef.onTop;
+      const isCeiling = firstDef && /ceilingfan|pendant|chandelier|hanginglight/i.test(firstItem.type);
+      const isLampPost = firstDef && /lamppost/i.test(firstItem.type);
+      const isTallLamp = firstDef && /lamparc|floorlamp|lamptripod|lamptorch/i.test(firstItem.type);
+      const isSmallLamp = firstDef && /lampmush|lampcandle|lampbanker|lamptable|lamppaper|nightlight|topcandles|fllantern|pathlight/i.test(firstItem.type);
+      const defaultPitch = isCeiling ? 0.44 : (isTallLamp ? 0.04 : (isSmallLamp ? -0.20 : (isWall ? 0.20 : -0.12)));
+      const defaultElev = isCeiling ? 12 : (isLampPost ? 6 : (isTallLamp ? 4 : (isSmallLamp ? 5 : (isWall ? 0 : (isTable ? 6 : 0)))));
+      const viewDist = isCeiling
+        ? 2.8
+        : (isLampPost
+          ? 5.4
+          : (isTallLamp
+            ? 4.6
+            : (isSmallLamp
+              ? 2.8
+              : (isWall
+                ? Math.max(3.8, Math.max(firstW, firstH) * 0.9 + 2.4)
+                : Math.max(3.2, Math.max(firstW, firstH) * 0.8 + 1.6)))));
+      const spawnX = (firstItem.x + firstW / 2) * HP.CELL;
+      if (reqDir === 'behind') {
+        if (isWall) {
+          const targetZ = (firstItem.y + firstH + viewDist * 0.85) * HP.CELL;
+          const angleX = spawnX - viewDist * 0.65 * HP.CELL;
+          const lookYaw = -Math.atan2(spawnX - angleX, targetZ - firstItem.y * HP.CELL);
+          spawn = { x: angleX, y: targetZ, yaw: lookYaw, pitch: defaultPitch, elevate: defaultElev };
+        } else {
+          spawn = { x: spawnX, y: (firstItem.y - viewDist) * HP.CELL, yaw: Math.PI, pitch: defaultPitch, elevate: defaultElev };
+        }
+      } else if (reqDir === 'angle') {
+        const targetZ = (firstItem.y + firstH + viewDist * 0.85) * HP.CELL;
+        const angleX = spawnX + viewDist * 0.65 * HP.CELL;
+        const lookYaw = Math.atan2(angleX - spawnX, targetZ - firstItem.y * HP.CELL);
+        spawn = { x: angleX, y: targetZ, yaw: lookYaw, pitch: isCeiling ? 0.36 : (isWall ? 0.02 : -0.15), elevate: defaultElev };
+      } else if (reqDir === 'top' || reqDir === 'bird') {
+        const targetZ = (firstItem.y + firstH / 2 + viewDist * 0.35) * HP.CELL;
+        const targetElev = Math.max(34, Math.max(firstW, firstH) * 16 + 18);
+        spawn = { x: spawnX, y: targetZ, yaw: 0, pitch: -1.35, elevate: targetElev };
+      } else {
+        spawn = { x: spawnX, y: (firstItem.y + firstH + viewDist) * HP.CELL, yaw: 0, pitch: defaultPitch, elevate: defaultElev };
+      }
+      HP.showroomCurTarget = firstItem;
+
+    } else {
+      // Standard 10-item batch view
+      HP.state.w = 76;
+      HP.state.h = 44;
+      HP.applyGridSize();
+      for (let x = 5; x < 71; x++) {
+        w['h,' + x + ',10'] = { cb: '#f4efe4' };
+        w['h,' + x + ',26'] = { f: (x >= 12 && x <= 64) ? 'window' : null, ca: '#f4efe4' };
+      }
+      for (let y = 10; y < 26; y++) {
+        w['v,5,' + y] = { cb: '#f4efe4' };
+        w['v,71,' + y] = { f: (y >= 14 && y <= 22) ? 'window' : null, ca: '#f4efe4' };
+      }
+      for (let x = 5; x < 71; x++) {
+        for (let y = 10; y < 26; y++) {
+          cur.floors[x + ',' + y] = 'travertine';
+        }
+      }
+      for (const sx of [10, 22, 34, 46, 58, 68]) {
+        cur.furniture.push({ id: 1000 + sx, type: 'sconce', x: sx, y: 10, rot: 0 });
+      }
+
+      const startIdx = (showroomBatch - 1) * 10;
+      const batchItems = HP.CATALOG.slice(startIdx, startIdx + 10);
+      let curX = 8;
+      for (let i = 0; i < batchItems.length; i++) {
+        const d = batchItems[i];
+        const itemW = d.w || 1;
+        const itemH = d.h || 1;
+        const isWall = !d.hangs;
+        const isOnTop = !d.onTop;
+        const itemNum = startIdx + i + 1;
+        const label = '#' + itemNum + ' ' + d.name;
+
+        if (isOnTop) {
+          cur.furniture.push({ id: 2000 + i, type: 'counter', x: curX, y: 14, rot: 0 });
+          cur.furniture.push({ id: i + 1, type: d.id, x: curX + (itemW < 2 ? 0.5 : 0), y: 14, rot: 0, label, itemNum, shortName: d.name });
+        } else if (isWall) {
+          cur.furniture.push({ id: i + 1, type: d.id, x: curX, y: 10, rot: 0, label, itemNum, shortName: d.name });
+        } else {
+          const placeY = itemH > 2 ? 13 : 14;
+          cur.furniture.push({ id: i + 1, type: d.id, x: curX, y: placeY, rot: 0, label, itemNum, shortName: d.name });
+        }
+        const spacing = itemW >= 3 ? 1.5 : 2.0;
+        curX += itemW + spacing;
+      }
+
+      HP.showroomItems = cur.furniture.filter(f => f.label);
+      const firstItem = HP.showroomItems[0];
+      const firstDef = firstItem && HP.itemDef(firstItem.type);
+      const spawnX = firstItem ? (firstItem.x + ((firstDef && firstDef.w) || 1) / 2) * HP.CELL : 9 * HP.CELL;
+      spawn = { x: spawnX, y: 16.5 * HP.CELL, yaw: 0 };
+      HP.showroomCurTarget = firstItem;
+    }
+
+    // Teleport helpers
+    HP.showroomCurAngle = 'front';
+    HP.showroomTeleport = function (it, dir) {
+      if (!it) return;
+      HP.showroomCurTarget = it;
+      const d = HP.itemDef(it.type);
+      const itemW = (d && d.w) || 1;
+      const itemH = (d && d.h) || 1;
+      const isWall = !!(d && d.hangs);
+      const isTable = !!(d && d.onTop);
+      const isCeiling = /ceilingfan|pendant|chandelier|hanginglight/i.test(it.type);
+      const isLampPost = /lamppost/i.test(it.type);
+      const isTallLamp = /lamparc|floorlamp|lamptripod|lamptorch/i.test(it.type);
+      const isSmallLamp = /lampmush|lampcandle|lampbanker|lamptable|lamppaper|nightlight|topcandles|fllantern/i.test(it.type);
+      const targetX = (it.x + itemW / 2) * HP.CELL;
+      const viewDist = isCeiling
+        ? 2.8
+        : (isLampPost
+          ? 5.0
+          : (isTallLamp
+            ? 4.6
+            : (isSmallLamp
+              ? 2.8
+              : (isWall
+                ? Math.max(3.8, Math.max(itemW, itemH) * 0.9 + 2.4)
+                : Math.max(3.2, Math.max(itemW, itemH) * 0.8 + 1.6)))));
+      const pitchNorm = isCeiling ? 0.44 : (isTallLamp ? 0.04 : (isSmallLamp ? -0.20 : (isWall ? 0.20 : -0.12)));
+      const pitchAng = isCeiling ? 0.40 : (isTallLamp ? 0.04 : (isSmallLamp ? -0.22 : (isWall ? 0.20 : -0.15)));
+      const elevate = isCeiling ? 12 : (isLampPost ? 6 : (isTallLamp ? 4 : (isSmallLamp ? 5 : (isWall ? 0 : (isTable ? 6 : 0)))));
+      const angle = dir || HP.showroomCurAngle || 'front';
+      HP.showroomCurAngle = angle;
+
+      if (angle === 'top' || angle === 'bird') {
+        const targetZ = (it.y + itemH / 2 + 0.35) * HP.CELL;
+        const targetElev = Math.max(38, Math.max(itemW, itemH) * 16 + 22);
+        HP.walk3d.teleport(targetX, targetZ, 0, 0, -1.38, targetElev);
+      } else if (angle === 'behind') {
+        if (isWall) {
+          const targetZ = (it.y + itemH + viewDist * 0.85) * HP.CELL;
+          const angleX = targetX - viewDist * 0.65 * HP.CELL;
+          const lookYaw = -Math.atan2(targetX - angleX, targetZ - it.y * HP.CELL);
+          HP.walk3d.teleport(angleX, targetZ, lookYaw, 0, pitchAng, elevate);
+        } else {
+          const targetZ = (it.y - viewDist) * HP.CELL;
+          HP.walk3d.teleport(targetX, targetZ, Math.PI, 0, pitchNorm, elevate);
+        }
+      } else if (angle === 'angle') {
+        const targetZ = (it.y + itemH + viewDist * 0.85) * HP.CELL;
+        const angleX = targetX + viewDist * 0.65 * HP.CELL;
+        const lookYaw = Math.atan2(angleX - targetX, targetZ - it.y * HP.CELL);
+        HP.walk3d.teleport(angleX, targetZ, lookYaw, 0, pitchAng, elevate);
+      } else {
+        const targetZ = (it.y + itemH + viewDist) * HP.CELL;
+        HP.walk3d.teleport(targetX, targetZ, 0, 0, pitchNorm, elevate);
+      }
+      HP.showroomUpdateUI();
+    };
+
+    HP.showroomTeleportById = function (type, dir) {
+      const it = HP.showroomItems.find(f => f.type === type);
+      if (it) HP.showroomTeleport(it, dir || HP.showroomCurAngle);
+    };
+
+    HP.showroomTeleportByNum = function (num, dir) {
+      const n = parseInt(num, 10);
+      if (isNaN(n)) return;
+      const it = HP.showroomItems.find(f => f.itemNum === n) || HP.showroomItems[n - 1];
+      if (it) HP.showroomTeleport(it, dir || HP.showroomCurAngle);
+    };
+
+    HP.showroomFlipAngle = function (dir) {
+      HP.showroomCurAngle = dir;
+      if (!HP.showroomCurTarget && HP.showroomItems && HP.showroomItems.length) {
+        HP.showroomCurTarget = HP.showroomItems[0];
+      }
+      if (HP.showroomCurTarget) {
+        HP.showroomTeleport(HP.showroomCurTarget, dir);
+      }
+    };
+
+    HP.showroomCurWing = 'All';
+
+    HP.showroomNext = function () {
+      if (!HP.showroomItems || !HP.showroomItems.length) return;
+      const list = (HP.showroomCurWing && HP.showroomCurWing !== 'All') ?
+        HP.showroomItems.filter(f => (f.wing || f.section) === HP.showroomCurWing) :
+        HP.showroomItems;
+      if (!list.length) return;
+      let curIdx = HP.showroomCurTarget ? list.indexOf(HP.showroomCurTarget) : 0;
+      if (curIdx < 0) curIdx = 0;
+      const nextIdx = (curIdx + 1) % list.length;
+      HP.showroomTeleport(list[nextIdx], HP.showroomCurAngle || 'front');
+    };
+
+    HP.showroomPrev = function () {
+      if (!HP.showroomItems || !HP.showroomItems.length) return;
+      const list = (HP.showroomCurWing && HP.showroomCurWing !== 'All') ?
+        HP.showroomItems.filter(f => (f.wing || f.section) === HP.showroomCurWing) :
+        HP.showroomItems;
+      if (!list.length) return;
+      let curIdx = HP.showroomCurTarget ? list.indexOf(HP.showroomCurTarget) : 0;
+      if (curIdx < 0) curIdx = 0;
+      const prevIdx = (curIdx - 1 + list.length) % list.length;
+      HP.showroomTeleport(list[prevIdx], HP.showroomCurAngle || 'front');
+    };
+
+    HP.showroomRibbonHidden = true;
+    HP.showroomToggleRibbon = function () {
+      const ribbon = document.getElementById('showroom-ribbon');
+      const btn = document.getElementById('btn-toggle-ribbon');
+      if (!ribbon || !btn) return;
+      HP.showroomRibbonHidden = !HP.showroomRibbonHidden;
+      if (HP.showroomRibbonHidden) {
+        ribbon.style.display = 'none';
+        btn.textContent = '▼ Show Items';
+      } else {
+        ribbon.style.display = 'flex';
+        btn.textContent = '▲ Hide Items';
+      }
+    };
+
+    HP.showroomFilterWing = function (wing) {
+      HP.showroomCurWing = wing || 'All';
+      document.querySelectorAll('.showroom-item-btn').forEach(btn => {
+        if (!wing || wing === 'All' || btn.getAttribute('data-wing') === wing) {
+          btn.style.display = 'inline-flex';
+        } else {
+          btn.style.display = 'none';
+        }
+      });
+      document.querySelectorAll('.wing-tab-btn').forEach(t => {
+        t.style.background = (t.getAttribute('data-wing') === wing) ? '#3b82f6' : 'rgba(255,255,255,.12)';
+      });
+      const sel = document.getElementById('showroom-item-select');
+      if (sel) {
+        const list = (wing && wing !== 'All') ?
+          HP.showroomItems.filter(it => (it.wing || it.section) === wing) :
+          HP.showroomItems;
+        sel.innerHTML = list.map((it, idx) => {
+          const name = it.shortName || it.type;
+          const wName = it.wing || it.section || 'Item';
+          const itemNum = it.itemNum || idx + 1;
+          return '<option value="' + itemNum + '">[' + wName + '] #' + itemNum + '. ' + name + '</option>';
+        }).join('');
+        if (list.length) {
+          HP.showroomTeleport(list[0], HP.showroomCurAngle || 'front');
+        }
+      }
+    };
+
+    HP.showroomUpdateUI = function () {
+      const it = HP.showroomCurTarget;
+      if (!it) return;
+      const sel = document.getElementById('showroom-item-select');
+      if (sel) sel.value = it.itemNum;
+
+      const badgeNum = document.getElementById('showroom-badge-num');
+      const badgeName = document.getElementById('showroom-badge-name');
+      const badgeDetail = document.getElementById('showroom-badge-detail');
+      if (badgeNum) badgeNum.textContent = '#' + (it.itemNum || '');
+      if (badgeName) badgeName.textContent = (it.icon || '') + ' ' + (it.shortName || it.type);
+      if (badgeDetail) badgeDetail.textContent = it.detail || '';
+
+      const curAngle = HP.showroomCurAngle || 'front';
+      document.querySelectorAll('.angle-btn').forEach(b => {
+        const isCur = b.id === 'btn-angle-' + curAngle;
+        b.style.outline = isCur ? '2px solid #fff' : 'none';
+        b.style.boxShadow = isCur ? '0 0 10px rgba(255,255,255,0.5)' : 'none';
+      });
+
+      document.querySelectorAll('.showroom-item-btn').forEach(b => {
+        if (b.getAttribute('data-type') === it.type) {
+          b.style.borderColor = '#38bdf8';
+          b.style.background = 'rgba(56, 189, 248, 0.35)';
+          b.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
+        } else {
+          b.style.borderColor = 'rgba(255,255,255,.2)';
+          b.style.background = 'rgba(255,255,255,.08)';
+        }
+      });
+    };
+
+    if (!window._showroomKeyBound) {
+      window._showroomKeyBound = true;
+      window.addEventListener('keydown', e => {
+        if (e.target && (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT' || e.target.tagName === 'TEXTAREA')) return;
+        const k = e.key.toLowerCase();
+        if (k === 'n' || e.key === ']') { e.preventDefault(); HP.showroomNext(); }
+        else if (k === 'p' || e.key === '[') { e.preventDefault(); HP.showroomPrev(); }
+        else if (k === '1' || k === 'f') { e.preventDefault(); HP.showroomFlipAngle('front'); }
+        else if (k === '2' || k === 'v') { e.preventDefault(); HP.showroomFlipAngle('angle'); }
+        else if (k === '3' || k === 'b') { e.preventDefault(); HP.showroomFlipAngle('behind'); }
+        else if (k === '4' || k === 't') { e.preventDefault(); HP.showroomFlipAngle('top'); }
+        else if (k === 'h') { e.preventDefault(); HP.showroomToggleRibbon(); }
+      });
+    }
+
+    // Setup interactive quick-jump guide bar
+    const guide = document.getElementById('showroom-guide');
+    if (guide) {
+      guide.style.display = 'flex';
+      const prevBatch = Math.max(1, showroomBatch - 1);
+      const nextBatch = Math.min(42, showroomBatch + 1);
+
+      const modeSelectOptions = [
+        '<option value="all" ' + (isAll ? 'selected' : '') + '>🏛️ All Catalog Exhibition (425 Items)</option>',
+        '<option value="fixed" ' + (isFixed ? 'selected' : '') + '>⭐ Fixed Items Pavillion (33 Items)</option>'
+      ];
+      for (let b = 1; b <= 42; b++) {
+        const bItems = HP.CATALOG.slice((b - 1) * 10, b * 10);
+        const bCats = [...new Set(bItems.map(it => it.cat))].join('/');
+        const isSel = (!isAll && !isFixed && b === showroomBatch) ? 'selected' : '';
+        modeSelectOptions.push('<option value="batch' + b + '" ' + isSel + '>Batch ' + b + ': ' + bCats + ' (' + ((b-1)*10+1) + '–' + (b*10) + ')</option>');
+      }
+
+      if (isAll || isFixed) {
+        const itemSelectOptions = HP.showroomItems.map((it, idx) => {
+          const name = it.shortName || it.type;
+          const wing = it.wing || it.section || 'Item';
+          const itemNum = it.itemNum || idx + 1;
+          return '<option value="' + itemNum + '">[' + wing + '] #' + itemNum + '. ' + name + '</option>';
+        }).join('');
+
+        const wingCounts = {};
+        HP.showroomItems.forEach(it => {
+          const w = it.wing || it.section || 'Item';
+          wingCounts[w] = (wingCounts[w] || 0) + 1;
+        });
+
+        const wingTabs = [
+          '<button class="btn wing-tab-btn" data-wing="All" onclick="HP.showroomFilterWing(\'All\')" style="background:#3b82f6;color:#fff;padding:3px 7px;font-size:11px;font-weight:bold;border-radius:5px">All (' + HP.showroomItems.length + ')</button>'
+        ];
+        for (const [wName, count] of Object.entries(wingCounts)) {
+          wingTabs.push('<button class="btn wing-tab-btn" data-wing="' + wName + '" onclick="HP.showroomFilterWing(\'' + wName + '\')" style="background:rgba(255,255,255,.12);color:#fff;padding:3px 7px;font-size:11px;font-weight:bold;border-radius:5px">' + wName + ' (' + count + ')</button>');
+        }
+
+        const topControls = `
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;width:100%;flex-wrap:wrap">
+            <div style="display:flex;align-items:center;gap:5px;flex-wrap:wrap">
+              <select onchange="location.href='play3d.html?showroom=' + this.value" style="background:#0f172a;color:#facc15;font-weight:bold;font-size:11px;border:1px solid rgba(250,204,21,.4);border-radius:6px;padding:3px 6px;cursor:pointer">
+                ${modeSelectOptions.join('')}
+              </select>
+              <button class="btn" onclick="HP.showroomPrev()" style="background:#2563eb;color:#fff;font-weight:bold;padding:3px 9px;border-radius:6px;font-size:12px" title="Previous item (Key P or [)">◀ Prev</button>
+              <select id="showroom-item-select" onchange="HP.showroomTeleportByNum(this.value, HP.showroomCurAngle)" style="background:#1e293b;color:#f8fafc;font-weight:bold;font-size:12px;border:1px solid rgba(255,255,255,.3);border-radius:6px;padding:3px 8px;cursor:pointer;max-width:240px">
+                ${itemSelectOptions}
+              </select>
+              <button class="btn" onclick="HP.showroomNext()" style="background:#2563eb;color:#fff;font-weight:bold;padding:3px 9px;border-radius:6px;font-size:12px" title="Next item (Key N or ])">Next ▶</button>
+            </div>
+
+            <div style="display:flex;align-items:center;gap:5px;flex-wrap:wrap">
+              <span style="font-size:11px;color:#94a3b8;font-weight:600">Angle:</span>
+              <button id="btn-angle-front" class="btn angle-btn" onclick="HP.showroomFlipAngle('front')" style="background:#059669;color:#fff;padding:3px 8px;font-size:11px;border-radius:6px;font-weight:bold" title="Hotkey 1 or F">👁️ Front</button>
+              <button id="btn-angle-angle" class="btn angle-btn" onclick="HP.showroomFlipAngle('angle')" style="background:#7c3aed;color:#fff;padding:3px 8px;font-size:11px;border-radius:6px;font-weight:bold" title="Hotkey 2 or V">📐 3/4 View</button>
+              <button id="btn-angle-behind" class="btn angle-btn" onclick="HP.showroomFlipAngle('behind')" style="background:#d97706;color:#fff;padding:3px 8px;font-size:11px;border-radius:6px;font-weight:bold" title="Hotkey 3 or B">🔄 Behind</button>
+              <button id="btn-angle-top" class="btn angle-btn" onclick="HP.showroomFlipAngle('top')" style="background:#0284c7;color:#fff;padding:3px 8px;font-size:11px;border-radius:6px;font-weight:bold" title="Hotkey 4 or T">🦅 Bird's Eye</button>
+              <button id="btn-toggle-ribbon" class="btn" onclick="HP.showroomToggleRibbon()" style="background:rgba(255,255,255,.18);color:#fff;padding:3px 8px;font-size:11px;border-radius:5px;margin-left:4px" title="Hotkey H">▼ Show Items</button>
+            </div>
+          </div>
+          <div style="display:flex;align-items:center;gap:4px;overflow-x:auto;white-space:nowrap;width:100%;padding:3px 0 1px 0;scrollbar-width:thin">
+            ${wingTabs.join('')}
+          </div>
+        `;
+
+        const curTarget = HP.showroomCurTarget || HP.showroomItems[0] || {};
+        const badgeHtml = `
+          <div id="showroom-badge" style="font-size:12px;color:#e2e8f0;text-align:center;padding:2px 4px;display:flex;align-items:center;justify-content:center;gap:8px;flex-wrap:wrap;border-top:1px solid rgba(255,255,255,.1);margin-top:2px">
+            <span id="showroom-badge-num" style="background:#2563eb;color:#fff;font-weight:900;padding:2px 8px;border-radius:6px;font-size:13px;letter-spacing:0.5px;box-shadow:0 2px 8px rgba(37,99,235,0.4)">#${curTarget.itemNum || 1}</span>
+            <span id="showroom-badge-name" style="font-weight:bold;color:#facc15;font-size:13px">${(curTarget.icon || '') + ' ' + (curTarget.shortName || curTarget.type || '')}</span>
+            <span id="showroom-badge-detail" style="color:#94a3b8;font-size:11px">${curTarget.detail || ''}</span>
+            <span style="font-size:10px;opacity:.65">WASD to walk around • Esc to release mouse • N/P Next/Prev • 1/2/3/4 Angles (4: 🦅 Bird's Eye)</span>
+          </div>
+        `;
+
+        const buttonsHtml = `
+          <div id="showroom-ribbon" style="display:none;gap:5px;overflow-x:auto;white-space:nowrap;padding:4px 0 2px 0;width:100%;scrollbar-width:thin">
+            ${HP.showroomItems.map((it, idx) => {
+              const icon = it.icon || '📦';
+              const name = it.shortName || it.type;
+              const itemNum = it.itemNum || (idx + 1);
+              const isFirst = idx === 0;
+              const border = isFirst ? '#38bdf8' : 'rgba(255,255,255,.2)';
+              const bg = isFirst ? 'rgba(56, 189, 248, 0.25)' : 'rgba(255,255,255,.08)';
+              const wing = it.wing || it.section || 'Item';
+              return '<button class="btn showroom-item-btn" data-wing="' + wing + '" data-type="' + it.type + '" data-num="' + itemNum + '" style="display:inline-flex;align-items:center;gap:5px;padding:3px 8px;font-size:11px;background:' + bg + ';border:1px solid ' + border + ';color:#fff;border-radius:6px;cursor:pointer;flex-shrink:0" onclick="HP.showroomTeleportByNum(' + itemNum + ')"><span style="background:#2563eb;color:#fff;font-weight:900;padding:1px 5px;border-radius:4px;font-size:10px">#' + itemNum + '</span><span>' + icon + '</span><b>' + name + '</b></button>';
+            }).join('')}
+          </div>
+        `;
+
+        guide.innerHTML = topControls + badgeHtml + buttonsHtml;
+        HP.showroomUpdateUI();
+
+      } else {
+        const startIdx = (showroomBatch - 1) * 10;
+        const tabsHtml = `
+          <div style="display:flex;gap:8px;margin-bottom:6px;justify-content:center;align-items:center;width:100%;border-bottom:1px solid rgba(255,255,255,.15);padding-bottom:6px;flex-wrap:wrap">
+            <a class="btn" href="play3d.html?showroom=batch${prevBatch}" style="background:rgba(255,255,255,.12);color:#fff;padding:3px 10px;font-size:12px;border-radius:6px;text-decoration:none;font-weight:bold">◀ Prev</a>
+            <select id="showroom-batch-select" onchange="location.href='play3d.html?showroom=' + (this.value === 'fixed' ? 'fixed' : 'batch' + this.value)" style="background:#1e293b;color:#f8fafc;border:1px solid rgba(255,255,255,.3);border-radius:6px;padding:3px 8px;font-size:12px;font-weight:bold;cursor:pointer">
+              ${batchOptions.join('')}
+            </select>
+            <a class="btn" href="play3d.html?showroom=batch${nextBatch}" style="background:rgba(255,255,255,.12);color:#fff;padding:3px 10px;font-size:12px;border-radius:6px;text-decoration:none;font-weight:bold">Next ▶</a>
+            <span style="color:#94a3b8;font-size:11px;margin-left:4px">Batch ${showroomBatch} of 42 (Items ${startIdx+1}–${Math.min(420, startIdx+10)} of 420)</span>
+          </div>
+        `;
+        const buttonsHtml = HP.showroomItems.map((it, idx) => {
+          const d = HP.itemDef(it.type);
+          const itemW = (d && d.w) || 1;
+          const itemH = (d && d.h) || 1;
+          const shortName = (it.label || '').replace(/#\d+\s*/, '');
+          const targetX = (it.x + itemW / 2) * HP.CELL;
+          const targetY = (it.y + itemH + 2.5) * HP.CELL;
+          return '<button class="btn" style="padding:4px 8px;font-size:11px;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.2);color:#fff;border-radius:6px;cursor:pointer" onclick="HP.walk3d.teleport(' + targetX + ', ' + targetY + ', Math.PI)"><b>' + (startIdx + idx + 1) + '.</b> ' + shortName + '</button>';
+        }).join('');
+        guide.innerHTML = tabsHtml + buttonsHtml;
+      }
+    }
+  } else if (!HP.loadState()) {
+    /* demo house so the page works on a fresh browser */
+    HP.state = HP.newState();
+    const w = HP.cur().walls;
+    for (let x = 20; x < 30; x++) { w['h,' + x + ',18'] = {}; w['h,' + x + ',26'] = {}; }
+    for (let y = 18; y < 26; y++) { w['v,20,' + y] = {}; w['v,30,' + y] = {}; }
+    w['h,24,26'] = { f: 'door' }; w['h,25,26'] = { f: 'door' };
+    w['v,30,21'] = { f: 'door' };
+    w['h,22,18'] = { f: 'window' }; w['h,23,18'] = { f: 'window' };
+    HP.cur().floors['24,22'] = 'wood';
+    HP.cur().furniture = [
+      { type: 'sofa3', x: 22, y: 20, rot: 0, id: 1 },
+      { type: 'tableDin', x: 26, y: 22, rot: 0, id: 2 },
+      { type: 'bedDouble', x: 27, y: 19, rot: 0, id: 3 },
+    ];
+    HP.applyGridSize();
+  }
+  HP.invalidateRegions();
+
+  const W3 = HP.world3d;
+  W3.init(document.getElementById('gl'));
+  W3.buildLevel();
+  if (isShowroom) { W3.setTime(14); W3.setTimeFlow(false); }
+  const graphics = document.getElementById('graphics');
+  const graphicsButton = document.getElementById('btn-graphics');
+  const quality = document.getElementById('quality');
+  quality.value = HP.graphics3d.mode;
+  HP.graphics3d.onChange();
+  graphicsButton.onclick = () => {
+    graphics.hidden = !graphics.hidden;
+    graphicsButton.setAttribute('aria-expanded', String(!graphics.hidden));
+  };
+  quality.onchange = () => HP.graphics3d.setQuality(quality.value);
+  const warn = document.getElementById('gpu-warn');
+  warn.hidden = !HP.graphics3d.software;
+  document.getElementById('gpu-warn-close').onclick = () => { warn.hidden = true; };
+  const tod = document.getElementById('tod'), todFlow = document.getElementById('tod-flow');
+  const todLabel = document.getElementById('tod-label');
+  const syncTod = () => { tod.value = W3.time.hour; todLabel.textContent = HP.sky3d.clock(W3.time.hour); };
+  todFlow.checked = W3.time.flow;
+  syncTod(); setInterval(() => { if (!graphics.hidden && document.activeElement !== tod) syncTod(); }, 1000);
+  tod.oninput = () => { W3.setTime(+tod.value); todLabel.textContent = HP.sky3d.clock(+tod.value); };
+  todFlow.onchange = () => W3.setTimeFlow(todFlow.checked);
+  const snd = document.getElementById('sound');
+  const sndBtn = document.getElementById('btn-sound');
+  const syncSnd = () => {
+    const on = HP.sound3d && HP.sound3d.enabled();
+    if (snd) snd.checked = !!on;
+    if (sndBtn) sndBtn.textContent = 'Sound: ' + (on ? 'On' : 'Off');
+  };
+  if (HP.sound3d) {
+    syncSnd();
+    if (snd) snd.onchange = () => { HP.sound3d.setEnabled(snd.checked); if (snd.checked) HP.sound3d.start(); syncSnd(); };
+    if (sndBtn) sndBtn.onclick = () => { const next = !HP.sound3d.enabled(); HP.sound3d.setEnabled(next); if (next) HP.sound3d.start(); syncSnd(); };
+  }
+  const pushBox = document.getElementById('push-furniture');
+  if (pushBox) {
+    pushBox.checked = !!HP.pushFurniture;
+    pushBox.onchange = () => { HP.pushFurniture = pushBox.checked; };
+  }
+
+  /* spawn: pole-of-inaccessibility of the largest room, else lot centre */
+  if (!isShowroom) {
+    const { regions } = HP.computeRegions();
+    if (regions.length) {
+      const big = regions.reduce((a, b) => a.cells.length > b.cells.length ? a : b);
+      spawn = { x: big.lx, y: big.ly };
+    }
+  }
+
+  HP.walk3d.boot();
+
+  const overlay = document.getElementById('overlay');
+  if (isShowroom) {
+    const h1 = overlay.querySelector('h1');
+    const p = overlay.querySelector('p');
+    if (h1) h1.textContent = isAll ? '🏛️ All 425 Catalog Items Exhibition' : '3D Inspection Showroom';
+    if (p) p.textContent = 'Click to explore all 425 items · Use top ribbon or hotkeys (N/P/1/2/3) to inspect';
+  }
+  if (HP.graphics3d.touch) {
+    overlay.querySelector('p').textContent = 'tap to enter your home';
+    overlay.querySelector('.keys').textContent =
+      'Left stick to walk. Drag the right side to look. Tap a door prompt to interact.';
+  }
+  overlay.addEventListener('click', () => HP.walk3d.resume(spawn));
+
+  /* wall-check button */
+  const panel = document.getElementById('audit');
+  document.getElementById('btn-audit').onclick = () => {
+    const checks = W3.runAudit();
+    panel.style.display = panel.style.display === 'block' ? 'none' : 'block';
+    panel.innerHTML = '<h3>Physical wall check</h3>' + checks.map(c =>
+      `<div class="chk"><span class="${c.ok ? 'ok' : 'bad'}">${c.ok ? '✓' : '✗'}</span>
+       <div><div>${c.name}</div><div class="det">${c.detail}</div></div></div>`).join('');
+  };
+  document.getElementById('btn-rebuild').onclick = () => {
+    HP.invalidateRegions(); W3.buildLevel();
+  };
+  if (location.search.includes('audit=1')) document.getElementById('btn-audit').click();
+  if (isShowroom || location.search.includes('autoenter=1')) { overlay.style.display = 'none'; HP.walk3d.resume(spawn); }
+})();
+</script>
+</body>
+</html>

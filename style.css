@@ -90,6 +90,8 @@ button { font-family: inherit; color: inherit; }
 }
 .tbtn.primary:hover { color: var(--accent-ink); }
 .tbtn:disabled { opacity: .4; cursor: default; transform: none; box-shadow: var(--sh-sm); }
+.tbtn.on { color: var(--accent); box-shadow: inset 2px 2px 0 rgba(0,0,0,.08); }
+.tbtn[hidden] { display: none; }
 .tb-sep { width: 2px; height: 26px; background: var(--border); margin: 0 6px; flex: none; }
 .topbar .spacer { flex: 1; min-width: 8px; }
 .zoom-ctrl, .floor-ctrl {
@@ -243,6 +245,7 @@ button { font-family: inherit; color: inherit; }
 .insp-grabber { display: none; }
 .insp-section { padding: 16px 16px 18px; border-bottom: 1px solid var(--border-soft); }
 .tool-sec { display: none; }
+#inspector[data-sec="wall"] [data-sec="wall"],
 #inspector[data-sec="floor"] [data-sec="floor"],
 #inspector[data-sec="fence"] [data-sec="fence"],
 #inspector[data-sec="label"] [data-sec="label"],

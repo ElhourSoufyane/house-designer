@@ -4,22 +4,59 @@
 
 let drag = null;          // per-gesture tool state
 
+/* fine-snap toggle: 1 cell (0.5m) <-> half cell (0.25m) */
+HP.toggleSnap = function () {
+  HP.snapStep = HP.snapStep === 1 ? 0.5 : 1;
+  const b = document.getElementById('btn-snap');
+  if (b) b.textContent = 'Snap ' + (HP.snapStep === 1 ? '0.5m' : '0.25m');
+  if (b) b.classList.toggle('on', HP.snapStep !== 1);
+  HP.status(HP.snapStep === 1
+    ? 'Snap 0.5m — items place on whole cells'
+    : 'Fine snap 0.25m — nudge items half a cell (wall items stay on grid)');
+  HP.markDirty();
+};
+
+/* the working selection: marquee set (each expanded to its connected
+   group), else the selected item's group — used by move/copy/delete/rotate */
+HP.selSet = function () {
+  const out = new Set();
+  if (HP.selectedSet && HP.selectedSet.length) {
+    /* undo restores fresh item objects — re-find set members by id     */
+    const cur = HP.cur().furniture;
+    HP.selectedSet = HP.selectedSet
+      .map(m => cur.find(f => f === m || f.id === m.id))
+      .filter(Boolean);
+    for (const m of HP.selectedSet) for (const g of HP.groupOf(m)) out.add(g);
+    return [...out];
+  }
+  return HP.groupOf(HP.selected);
+};
+
 /* ---------------- select / move ---------------- */
 const selectTool = {
   down(p) {
-    const it = HP.itemAt(p.cx, p.cy);
+    const it = HP.itemAt(p.cx, p.cy, p.wx, p.wy);
+    const mouse = !p.e || p.e.pointerType === 'mouse';
     if (it) {
+      /* clicking a member of the marquee set moves the whole set        */
+      const inSet = HP.selectedSet && HP.selectedSet.length && HP.selectedSet.includes(it);
+      const members = inSet ? HP.selSet() : HP.groupOf(it);
       HP.selected = it;
       HP.selectedRoom = null;
       const f = HP.footprint(it);
-      const members = HP.groupOf(it);
+      const fine = !HP.itemDef(it.type).hangs;   // wall items stay cell-snapped
       drag = {
-        kind: 'move', item: it, members, snap: HP.snap(),
-        ox: p.cx - f.x, oy: p.cy - f.y,          // grab offset in cells
+        kind: 'move', item: it, members, snap: HP.snap(), fine,
+        ox: (fine ? p.fx : p.cx) - f.x, oy: (fine ? p.fy : p.cy) - f.y,
         origs: members.map(m => ({ m, x: m.x, y: m.y })), moved: false, valid: true
       };
-    } else {
+    } else if (p.e && p.e.shiftKey) {
+      /* Shift + drag on empty space = box select; normal drag = pan     */
       HP.selected = null;
+      drag = { kind: 'marquee', ax: p.wx, ay: p.wy, sx: p.sx, sy: p.sy,
+               roomCell: HP.regionAt(p.cx, p.cy) ? { cx: p.cx, cy: p.cy } : null };
+    } else {
+      HP.selected = null; HP.selectedSet = [];
       drag = { kind: 'pan', sx: p.sx, sy: p.sy, cam: { ...HP.camera },
                roomCell: HP.regionAt(p.cx, p.cy) ? { cx: p.cx, cy: p.cy } : null };
     }
@@ -28,7 +65,8 @@ const selectTool = {
   move(p) {
     if (!drag) return;
     if (drag.kind === 'move') {
-      const nx = p.cx - drag.ox, ny = p.cy - drag.oy;
+      const nx = (drag.fine ? p.fx : p.cx) - drag.ox;
+      const ny = (drag.fine ? p.fy : p.cy) - drag.oy;
       const dx = nx - drag.item.x, dy = ny - drag.item.y;
       if (dx || dy) {
         for (const m of drag.members) { m.x += dx; m.y += dy; }
@@ -37,6 +75,10 @@ const selectTool = {
           HP.canPlace(m.type, m.x, m.y, m.rot, drag.members, m.w ? { w: m.w, h: m.h } : null));
         HP.markDirty();
       }
+    } else if (drag.kind === 'marquee') {
+      HP.marquee = { x0: Math.min(drag.ax, p.wx), y0: Math.min(drag.ay, p.wy),
+                     x1: Math.max(drag.ax, p.wx), y1: Math.max(drag.ay, p.wy) };
+      HP.markDirty();
     } else if (drag.kind === 'pan') {
       HP.camera.x = drag.cam.x - (p.sx - drag.sx) / HP.camera.zoom;
       HP.camera.y = drag.cam.y - (p.sy - drag.sy) / HP.camera.zoom;
@@ -56,20 +98,68 @@ const selectTool = {
             m.hang = HP.hangSide(m.type, m.x, m.y, m.rot, m.w ? { w: m.w, h: m.h } : null);
         HP.saveState();
       }
+    } else if (drag.kind === 'marquee') {
+      const m = HP.marquee;
+      if (m && (m.x1 - m.x0 > 4 || m.y1 - m.y0 > 4)) {
+        /* every item whose footprint centre falls inside the box        */
+        HP.selectedSet = HP.cur().furniture.filter(it => {
+          const f = HP.footprint(it);
+          const cx = (f.x + f.w / 2) * HP.CELL, cy = (f.y + f.h / 2) * HP.CELL;
+          return cx >= m.x0 && cx <= m.x1 && cy >= m.y0 && cy <= m.y1;
+        });
+        HP.selected = HP.selectedSet[0] || null;
+        HP.status(HP.selectedSet.length
+          ? HP.selectedSet.length + ' items selected — drag to move, Del to remove, Copy to duplicate'
+          : 'Nothing in the box');
+      } else {
+        HP.selectedSet = [];
+        HP.selectedRoom = drag.roomCell;         // plain click → room
+      }
+      HP.marquee = null;
     } else if (drag.kind === 'pan' &&
                Math.hypot(p.sx - drag.sx, p.sy - drag.sy) < 6) {
       HP.selectedRoom = drag.roomCell;           // plain click → tap a room → edit it
     }
     drag = null; HP.refreshContext(); HP.markDirty();
   },
-  cancel() { drag = null; }
+  cancel() { HP.marquee = null; drag = null; }
 };
 
-/* ---------------- wall draw / erase ---------------- */
+/* ---------------- wall draw / paint ---------------- */
 const wallTool = {
-  down(p) { drag = { a: HP.nearestVertex(p.wx, p.wy), b: null }; },
+  down(p) {
+    if (HP.wallMode === 'room') {
+      const r = HP.regionAt(p.cx, p.cy);
+      if (!r) { HP.status('That area is outside — switch to Paint Wall to paint an exterior wall, or enclose a room first'); return; }
+      HP.pushUndo();
+      const n = HP.paintRoomWalls(r, HP.wallColor);
+      HP.saveState(); HP.invalidateRegions();
+      HP.status((HP.wallColor ? 'Room walls painted' : 'Room walls reset to default') + ' (' + n + ' faces)');
+      return;
+    }
+    if (HP.wallMode === 'wall') {
+      drag = { kind: 'paint', pushed: false, seen: new Set() };
+      wallTool.move(p);
+      return;
+    }
+    drag = { kind: 'draw', a: HP.nearestVertex(p.wx, p.wy), b: null };
+  },
   move(p) {
     if (!drag) return;
+    if (drag.kind === 'paint') {
+      const k = HP.nearestWallSeg(p.wx, p.wy, 0.75);
+      if (!k) return;
+      const s = HP.parseWallKey(k), w = HP.cur().walls[k];
+      const side = s.d === 'h' ? (p.wy < s.y * HP.CELL ? 'ca' : 'cb')
+                               : (p.wx < s.x * HP.CELL ? 'ca' : 'cb');
+      const tag = k + ':' + side;
+      if (drag.seen.has(tag)) return;
+      if (!drag.pushed) { HP.pushUndo(); drag.pushed = true; }
+      drag.seen.add(tag);
+      if (HP.wallColor) w[side] = HP.wallColor; else delete w[side];
+      HP.invalidateRegions();
+      return;
+    }
     drag.b = HP.nearestVertex(p.wx, p.wy);
     HP.wallPreview = HP.segmentsBetween(drag.a, drag.b);
     const n = HP.wallPreview.length;
@@ -81,10 +171,25 @@ const wallTool = {
     HP.markDirty();
   },
   up() {
+    if (drag && drag.kind === 'paint') {
+      if (drag.pushed) {
+        HP.saveState();
+        HP.status((HP.wallColor ? 'Painted ' : 'Reset ') + drag.seen.size + ' wall face(s)');
+      } else {
+        HP.status('No wall there — drag along a wall to paint that side');
+      }
+      drag = null;
+      return;
+    }
     if (drag && HP.wallPreview && HP.wallPreview.length) {
       HP.pushUndo();
-      for (const k of HP.wallPreview)
+      for (const k of HP.wallPreview) {
         if (!HP.cur().walls[k]) HP.cur().walls[k] = { f: null };
+        if (HP.wallColor) {
+          HP.cur().walls[k].ca = HP.wallColor;
+          HP.cur().walls[k].cb = HP.wallColor;
+        }
+      }
       HP.saveState();
       HP.status('Wall added — ' + HP.wallPreview.length + ' segments');
     }
@@ -192,7 +297,7 @@ const eraseTool = {
   down(p) { drag = { pushed: false }; eraseTool.move(p); },
   move(p) {
     if (!drag) return;
-    const it = HP.itemAt(p.cx, p.cy);
+    const it = HP.itemAt(p.cx, p.cy, p.wx, p.wy);
     const k = HP.nearestWallSeg(p.wx, p.wy, 0.5);
     const fk = HP.nearestWallSeg(p.wx, p.wy, 0.5, HP.cur().fences);
     // floor paint on a non-room cell = outdoor path — erasable
@@ -252,43 +357,45 @@ HP.tools = { select: selectTool, wall: wallTool, door: featureTool('door'),
 HP.rotateActive = function () {
   if (HP.pending) { HP.pending.rot = (HP.pending.rot + 1) % 4; HP.markDirty(); return; }
   if (!HP.selected) return;
-  const members = HP.groupOf(HP.selected);
-  if (members.length > 1) {                       // rotate whole group around its centre
+  const membersAll = HP.selSet();
+  if (membersAll.length > 1) {                       // rotate the whole selection
     let x0 = 1e9, y0 = 1e9, x1 = -1e9, y1 = -1e9;
-    for (const m of members) {
+    for (const m of membersAll) {
       const f = HP.footprint(m);
       x0 = Math.min(x0, f.x); y0 = Math.min(y0, f.y);
       x1 = Math.max(x1, f.x + f.w); y1 = Math.max(y1, f.y + f.h);
     }
     const cx = (x0 + x1) / 2, cy = (y0 + y1) / 2, snap = HP.snap();
-    const backup = members.map(m => ({ m, x: m.x, y: m.y, rot: m.rot }));
-    for (const m of members) {
+    const backup = membersAll.map(m => ({ m, x: m.x, y: m.y, rot: m.rot }));
+    for (const m of membersAll) {
       const f = HP.footprint(m);
       const mx = f.x + f.w / 2, my = f.y + f.h / 2;
       m.rot = (m.rot + 1) % 4;
-      m.x = Math.round(cx - (my - cy) - f.h / 2);   // rotated centre − new dims/2
+      m.x = Math.round(cx - (my - cy) - f.h / 2);
       m.y = Math.round(cy + (mx - cx) - f.w / 2);
     }
-    let bx = 0, by = 0;                             // nudge back inside grid
-    for (const m of members) {
+    let bx = 0, by = 0;
+    for (const m of membersAll) {
       const f = HP.footprint(m);
       if (f.x < 0) bx = Math.max(bx, -f.x);
       if (f.y < 0) by = Math.max(by, -f.y);
       if (f.x + f.w > HP.GRID_W) bx = Math.min(bx, HP.GRID_W - f.x - f.w);
       if (f.y + f.h > HP.GRID_H) by = Math.min(by, HP.GRID_H - f.y - f.h);
     }
-    for (const m of members) { m.x += bx; m.y += by; }
-    let clash = false;                              // members may not overlap each other
-    for (let i = 0; i < members.length && !clash; i++)
-      for (let j = i + 1; j < members.length; j++) {
-        const A = HP.footprint(members[i]), B = HP.footprint(members[j]);
+    for (const m of membersAll) { m.x += bx; m.y += by; }
+    let clash = false;
+    for (let i = 0; i < membersAll.length && !clash; i++)
+      for (let j = i + 1; j < membersAll.length; j++) {
+        /* tabletop items legitimately overlap their surface            */
+        if (HP.itemDef(membersAll[i].type).onTop || HP.itemDef(membersAll[j].type).onTop) continue;
+        const A = HP.footprint(membersAll[i]), B = HP.footprint(membersAll[j]);
         if (A.x < B.x + B.w && B.x < A.x + A.w && A.y < B.y + B.h && B.y < A.y + A.h) { clash = true; break; }
       }
-    const ok = !clash && members.every(m =>
-      HP.canPlace(m.type, m.x, m.y, m.rot, members, m.w ? { w: m.w, h: m.h } : null));
+    const ok = !clash && membersAll.every(m =>
+      HP.canPlace(m.type, m.x, m.y, m.rot, membersAll, m.w ? { w: m.w, h: m.h } : null));
     if (!ok) {
       for (const b of backup) { b.m.x = b.x; b.m.y = b.y; b.m.rot = b.rot; }
-      HP.status('No room to rotate the group');
+      HP.status('No room to rotate the selection');
     } else HP.pushUndoSnap(snap);
     HP.saveState(); HP.markDirty(); HP.refreshContext();
     return;
@@ -309,10 +416,15 @@ HP.rotateActive = function () {
 
 HP.duplicateSelected = function () {
   const it = HP.selected; if (!it) return;
-  const members = HP.groupOf(it);
+  const members = HP.selSet();
   const sz = m => (m.w ? { w: m.w, h: m.h } : null);
-  const fits = (dx, dy) => members.every(m =>
-    HP.canPlace(m.type, m.x + dx, m.y + dy, m.rot, members, sz(m)));
+  const fits = (dx, dy) => {                     // trial-move so tabletop items
+    for (const m of members) { m.x += dx; m.y += dy; }   // find their host at the new spot
+    const ok = members.every(m =>
+      HP.canPlace(m.type, m.x, m.y, m.rot, members, sz(m)));
+    for (const m of members) { m.x -= dx; m.y -= dy; }
+    return ok;
+  };
   let bx0 = 1e9, by0 = 1e9, bx1 = -1e9, by1 = -1e9;   // group bbox for offsets
   for (const m of members) {
     const f = HP.footprint(m);
@@ -323,7 +435,7 @@ HP.duplicateSelected = function () {
   if (!fits(dx, 0)) { dx = 0; dy = by1 - by0; }
   if (!fits(dx, dy)) { HP.status('No space to duplicate'); return; }
   HP.pushUndo();
-  const gid = it.g ? HP.maxGroup() + 1 : 0;
+  const gid = (it.g || members.length > 1) ? HP.maxGroup() + 1 : 0;
   let anchor = null;
   for (const m of members) {
     const copy = { id: HP.nextId++, type: m.type, x: m.x + dx, y: m.y + dy, rot: m.rot, v: m.v, oid: HP.oid };
@@ -362,9 +474,10 @@ HP.resizeItem = function (it, dw, dh) {
 HP.deleteSelected = function () {
   const it = HP.selected; if (!it) return;
   HP.pushUndo();
-  const members = HP.groupOf(it);                   // delete the whole connected piece
+  const members = HP.selSet();                      // marquee set or connected piece
   HP.cur().furniture = HP.cur().furniture.filter(f => !members.includes(f));
-  HP.selected = null; HP.saveState(); HP.markDirty(); HP.refreshContext();
+  HP.selected = null; HP.selectedSet = [];
+  HP.saveState(); HP.markDirty(); HP.refreshContext();
 };
 
 HP.cycleVariant = function () {

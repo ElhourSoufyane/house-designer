@@ -176,6 +176,11 @@ HP.w2s = function (wx, wy) {
   };
 };
 HP.w2c = p => ({ x: Math.floor(p.x / HP.CELL), y: Math.floor(p.y / HP.CELL) }); // world -> cell
+/* fine placement: snapStep 1 = normal cell snap (0.5m), 0.5 = half-cell (0.25m).
+   Wall-mounted items always keep step 1 — they must align to wall edges. */
+HP.snapStep = 1;
+HP.snapCoord = v => HP.snapStep === 1 ? Math.floor(v)
+                                      : Math.round(v / HP.snapStep) * HP.snapStep;
 HP.cellIn = (x, y) => x >= 0 && y >= 0 && x < HP.GRID_W && y < HP.GRID_H;
 HP.cellKey = (x, y) => x + ',' + y;
 
@@ -243,6 +248,73 @@ HP.FENCE_TYPES = {
   rope:      { name: 'Post & Rope',     c: '#d0c4a8', post: '#8a6844' },
   gate:      { name: 'Gate (walk-through)', c: '#7c5a38', post: '#5c4028' },
 };
+
+/* ---------- wall paint palette + helpers ---------- */
+HP.WALL_PAINTS = [
+  { id: '',        name: 'Default Plaster', col: '#f4efe4' },
+  { id: '#f7f5f0', name: 'Chalk White',     col: '#f7f5f0' },
+  { id: '#ebe3d2', name: 'Warm Cream',      col: '#ebe3d2' },
+  { id: '#ddd2be', name: 'Sandstone',       col: '#ddd2be' },
+  { id: '#c8b89e', name: 'Greige',          col: '#c8b89e' },
+  { id: '#d6dfd4', name: 'Mist Sage',       col: '#d6dfd4' },
+  { id: '#9cb29b', name: 'Sage Green',      col: '#9cb29b' },
+  { id: '#6e846d', name: 'Olive',           col: '#6e846d' },
+  { id: '#d4e2ea', name: 'Powder Blue',     col: '#d4e2ea' },
+  { id: '#8faec4', name: 'Coastal Blue',    col: '#8faec4' },
+  { id: '#3f566e', name: 'Navy',            col: '#3f566e' },
+  { id: '#eed9d4', name: 'Blush Pink',      col: '#eed9d4' },
+  { id: '#d8a499', name: 'Dusty Rose',      col: '#d8a499' },
+  { id: '#c87d5c', name: 'Terracotta',      col: '#c87d5c' },
+  { id: '#dfc28b', name: 'Warm Ochre',      col: '#dfc28b' },
+  { id: '#dcd6e4', name: 'Soft Lavender',   col: '#dcd6e4' },
+  { id: '#c5c9ce', name: 'Cool Grey',       col: '#c5c9ce' },
+  { id: '#7d848d', name: 'Slate Grey',      col: '#7d848d' },
+  { id: '#3a3f47', name: 'Charcoal',        col: '#3a3f47' },
+  { id: '#b06a50', name: 'Brick Red',       col: '#b06a50' },
+  { id: '#9a774f', name: 'Warm Wood',       col: '#9a774f' },
+];
+HP.wallColor = '';       // '' = default plaster; else '#rrggbb'
+HP.wallMode  = 'draw';   // 'draw' | 'room' | 'wall'
+
+/* paint all interior wall faces bounding room region `r` */
+HP.paintRoomWalls = function (r, col) {
+  if (!r || !r.cells) return 0;
+  const walls = HP.cur().walls;
+  let n = 0;
+  const setSide = (k, side) => {
+    const w = walls[k]; if (!w) return;
+    if (col) w[side] = col; else delete w[side];
+    n++;
+  };
+  for (const [x, y] of r.cells) {
+    setSide(HP.wallKey('h', x, y),     'cb');   // north edge: room is on +y (cb) side
+    setSide(HP.wallKey('h', x, y + 1), 'ca');   // south edge: room is on -y (ca) side
+    setSide(HP.wallKey('v', x, y),     'cb');   // west edge:  room is on +x (cb) side
+    setSide(HP.wallKey('v', x + 1, y), 'ca');   // east edge:  room is on -x (ca) side
+  }
+  return n;
+};
+HP.roomWallColor = function (r) {
+  if (!r || !r.cells) return '';
+  const walls = HP.cur().walls;
+  for (const [x, y] of r.cells) {
+    for (const [k, s] of [[HP.wallKey('h', x, y), 'cb'], [HP.wallKey('h', x, y + 1), 'ca'],
+                          [HP.wallKey('v', x, y), 'cb'], [HP.wallKey('v', x + 1, y), 'ca']]) {
+      if (walls[k] && walls[k][s]) return walls[k][s];
+    }
+  }
+  return '';
+};
+/* paint the face of the nearest wall segment on the cursor's side */
+HP.paintWallAt = function (wx, wy, col) {
+  const k = HP.nearestWallSeg(wx, wy, 0.75);
+  if (!k) return null;
+  const s = HP.parseWallKey(k), w = HP.cur().walls[k];
+  const side = s.d === 'h' ? (wy < s.y * HP.CELL ? 'ca' : 'cb')
+                           : (wx < s.x * HP.CELL ? 'ca' : 'cb');
+  if (col) w[side] = col; else delete w[side];
+  return k + ':' + side;
+};
 HP.fenceType = 'wood';
 HP.fencePreview = null;      // segments being dragged by the fence tool
 
@@ -255,14 +327,33 @@ HP.footprint = function (item) {          // {x,y,w,h} in cells, rotation applie
   const h = (item.rot % 2 === 0) ? bh : bw;
   return { x: item.x, y: item.y, w, h };
 };
-HP.itemAt = function (cx, cy) {
+HP.itemAt = function (cx, cy, px, py) {
+  /* px/py = world px (sub-cell) — lets the wall-edge strip test work
+     inside a single cell; callers without them get whole-cell hits    */
+  const fx = px !== undefined ? px / HP.CELL : cx + 0.5;
+  const fy = py !== undefined ? py / HP.CELL : cy + 0.5;
   const list = HP.cur().furniture;
+  let floorHit = null;
   for (let i = list.length - 1; i >= 0; i--) {
-    const f = HP.footprint(list[i]);
-    if (cx >= f.x && cx < f.x + f.w && cy >= f.y && cy < f.y + f.h)
-      return list[i];
+    const it = list[i], f = HP.footprint(it);
+    if (!(fx >= f.x && fx < f.x + f.w && fy >= f.y && fy < f.y + f.h)) continue;
+    const d = HP.itemDef(it.type);
+    if (d && d.hangs) {
+      /* hung sprites draw pinned to the wall edge — only that strip
+         is the item; the rest of the cell belongs to what's below    */
+      const hs = it.hang || HP.hangSide(it.type, it.x, it.y, it.rot,
+        { w: it.w || f.w, h: it.h || f.h });
+      const S = 0.62;
+      if (hs === 'n' && fy >= f.y + S) continue;
+      if (hs === 's' && fy < f.y + f.h - S) continue;
+      if (hs === 'w' && fx >= f.x + S) continue;
+      if (hs === 'e' && fx < f.x + f.w - S) continue;
+      return it;
+    }
+    if (d && d.onTop) return it;
+    if (!floorHit) floorHit = it;
   }
-  return null;
+  return floorHit;
 };
 /* cells that must stay clear so doors can open (both sides of each door seg) */
 HP.doorCells = function () {
@@ -275,6 +366,13 @@ HP.doorCells = function () {
     else { set[(s.x - 1) + ',' + s.y] = 1; set[s.x + ',' + s.y] = 1; }
   }
   return set;
+};
+
+/* flat-topped furniture a tabletop (onTop) item may sit on */
+const SURFACE_T = /table|desk|counter|dresser|nightstand|vanity|island|shelf|bookcase|cabinet|sideboard|buffet|bench|chest|console|drawer|fridge|washer|dryer|stove|dishwash|ksink|kitcart|credenza|worktop|machine|piano|stand|bar\b|coffeetable|ottoman/i;
+HP.isSurface = function (it) {
+  const d = HP.itemDef(it.type);
+  return d && !d.hangs && !d.onTop && SURFACE_T.test(it.type + ' ' + (d.name || ''));
 };
 
 /* which footprint edge touches the most wall — for hangs:true items.
@@ -311,11 +409,27 @@ HP.canPlace = function (type, x, y, rot, ignore, sz) {
     if (s.d === 'h') { if (s.x >= x && s.x < x + w && s.y > y && s.y < y + h) return false; }
     else { if (s.x > x && s.x < x + w && s.y >= y && s.y < y + h) return false; }
   }
-  // keep door swings clear
+  // keep door swings clear (floor/ceil → every cell the footprint overlaps)
   const dc = HP.doorCells();
-  for (let cy = y; cy < y + h; cy++)
-    for (let cx = x; cx < x + w; cx++)
+  for (let cy = Math.floor(y); cy < Math.ceil(y + h); cy++)
+    for (let cx = Math.floor(x); cx < Math.ceil(x + w); cx++)
       if (dc[cx + ',' + cy]) return false;
+  if (d.onTop) {
+    /* tabletop items must sit on a flat surface — and only that.
+       ignored items (a moving set) still qualify: the host may be
+       travelling with the item                                        */
+    let host = false;
+    for (const it of HP.cur().furniture) {
+      const ignored = Array.isArray(ignore) ? ignore.includes(it) : it === ignore;
+      const fd = HP.itemDef(it.type);
+      if (fd && fd.hangs) continue;
+      const f = HP.footprint(it);
+      if (!(x < f.x + f.w && x + w > f.x && y < f.y + f.h && y + h > f.y)) continue;
+      if (fd.onTop || !HP.isSurface(it)) { if (!ignored) return false; continue; }
+      host = true;
+    }
+    return host;
+  }
   if (d.hangs) {
     if (!HP.hangSide(type, x, y, rot, sz)) return false;    // art needs a wall
     for (const it of HP.cur().furniture) {                  // may hang above floor items;
@@ -326,10 +440,15 @@ HP.canPlace = function (type, x, y, rot, ignore, sz) {
     }
     return true;
   }
+  const isSurf = HP.isSurface({ type });
   for (const it of HP.cur().furniture) {
     if (Array.isArray(ignore) ? ignore.includes(it) : it === ignore) continue;
+    const fd = HP.itemDef(it.type);
+    if (fd && (fd.hangs || (isSurf && fd.onTop))) continue;  // wall/top items share the cell with their surface
     const f = HP.footprint(it);
-    if (x < f.x + f.w && x + w > f.x && y < f.y + f.h && y + h > f.y) return false;
+    if (x < f.x + f.w && x + w > f.x && y < f.y + f.h && y + h > f.y) {
+      if (HP.itemsClash ? HP.itemsClash({ type, x, y, rot }, it) : true) return false;
+    }
   }
   return true;
 };
@@ -421,4 +540,319 @@ HP.shade = function (col, f) {             // f<1 darker, f>1 lighter
   }
   const s = v => Math.min(255, Math.round(v * f));
   return `rgb(${s(r)},${s(g)},${s(b)})`;
+};
+
+/* ---------- item sub-colliders & open footprint spaces ---------- */
+HP.itemSubBoxes = function (type, bw, bh, H) {
+  const t = (type || '').toLowerCase();
+  const C = HP.CELL;
+  const W = bw * C, D = bh * C;
+  if (/^sofau$|sectional.*5|^u.*sofa/i.test(t)) {
+    return [
+      // Rear backrest & seat row
+      { x0: -W / 2, x1: W / 2, z0: -D / 2, z1: -D / 2 + 1.1 * C, y0: 0, y1: H },
+      // Left chaise lounge
+      { x0: -W / 2, x1: -W / 2 + 1.65 * C, z0: -D / 2 + 1.1 * C, z1: D / 2, y0: 0, y1: H },
+      // Right chaise lounge
+      { x0: W / 2 - 1.65 * C, x1: W / 2, z0: -D / 2 + 1.1 * C, z1: D / 2, y0: 0, y1: H }
+    ];
+  }
+  if (/^sofal$|^l.*sofa/i.test(t)) {
+    return [
+      // Rear seats along back
+      { x0: -W / 2, x1: W / 2 - 1.6 * C, z0: -D / 2, z1: -D / 2 + 1.25 * C, y0: 0, y1: H },
+      // Right chaise lounge extending forward
+      { x0: W / 2 - 1.6 * C, x1: W / 2, z0: -D / 2, z1: D / 2, y0: 0, y1: H }
+    ];
+  }
+  if (/^deskl$|corner.*desk/i.test(t)) {
+    return [
+      // Main desk along back
+      { x0: -W / 2, x1: W / 2, z0: -D / 2, z1: -D / 2 + 1.1 * C, y0: 0, y1: H },
+      // Return along left
+      { x0: -W / 2, x1: -W / 2 + 1.1 * C, z0: -D / 2 + 1.1 * C, z1: D / 2, y0: 0, y1: H }
+    ];
+  }
+  if (/^garch$/i.test(t)) {
+    return [
+      { x0: -W / 2, x1: -W / 2 + 0.35 * C, z0: -D / 2, z1: D / 2, y0: 0, y1: H },
+      { x0: W / 2 - 0.35 * C, x1: W / 2, z0: -D / 2, z1: D / 2, y0: 0, y1: H },
+      { x0: -W / 2, x1: W / 2, z0: -D / 2, z1: D / 2, y0: 44, y1: H }
+    ];
+  }
+  if (/^swingset$/i.test(t)) {
+    return [
+      { x0: -W / 2, x1: -W / 2 + 0.35 * C, z0: -D / 2, z1: D / 2, y0: 0, y1: H },
+      { x0: W / 2 - 0.35 * C, x1: W / 2, z0: -D / 2, z1: D / 2, y0: 0, y1: H },
+      { x0: -W / 2, x1: W / 2, z0: -D / 2, z1: D / 2, y0: 44, y1: H }
+    ];
+  }
+  if (/^carport$/i.test(t)) {
+    return [
+      // Left 3 support posts
+      { x0: -W / 2, x1: -W / 2 + 0.4 * C, z0: -D / 2, z1: -D / 2 + 0.4 * C, y0: 0, y1: H },
+      { x0: -W / 2, x1: -W / 2 + 0.4 * C, z0: -0.2 * C, z1: 0.2 * C, y0: 0, y1: H },
+      { x0: -W / 2, x1: -W / 2 + 0.4 * C, z0: D / 2 - 0.4 * C, z1: D / 2, y0: 0, y1: H },
+      // Right 3 support posts
+      { x0: W / 2 - 0.4 * C, x1: W / 2, z0: -D / 2, z1: -D / 2 + 0.4 * C, y0: 0, y1: H },
+      { x0: W / 2 - 0.4 * C, x1: W / 2, z0: -0.2 * C, z1: 0.2 * C, y0: 0, y1: H },
+      { x0: W / 2 - 0.4 * C, x1: W / 2, z0: D / 2 - 0.4 * C, z1: D / 2, y0: 0, y1: H },
+      // Overhead roof canopy
+      { x0: -W / 2, x1: W / 2, z0: -D / 2, z1: D / 2, y0: 44, y1: H }
+    ];
+  }
+  if (/^pergola$/i.test(t)) {
+    return [
+      // 4 corner posts
+      { x0: -W / 2, x1: -W / 2 + 0.35 * C, z0: -D / 2, z1: -D / 2 + 0.35 * C, y0: 0, y1: H },
+      { x0: W / 2 - 0.35 * C, x1: W / 2, z0: -D / 2, z1: -D / 2 + 0.35 * C, y0: 0, y1: H },
+      { x0: -W / 2, x1: -W / 2 + 0.35 * C, z0: D / 2 - 0.35 * C, z1: D / 2, y0: 0, y1: H },
+      { x0: W / 2 - 0.35 * C, x1: W / 2, z0: D / 2 - 0.35 * C, z1: D / 2, y0: 0, y1: H },
+      // Overhead rafters
+      { x0: -W / 2, x1: W / 2, z0: -D / 2, z1: D / 2, y0: 44, y1: H }
+    ];
+  }
+  if (/^treehouse$/i.test(t)) {
+    return [
+      // Central ancient oak trunk (ground to tree canopy)
+      { x0: -0.28 * C, x1: 0.28 * C, z0: -0.28 * C, z1: 0.28 * C, y0: 0, y1: H },
+      // 4 Heavy timber corner stilts with clearance underneath (y=0 to 54)
+      { x0: -W / 2, x1: -W / 2 + 0.25 * C, z0: -D / 2, z1: -D / 2 + 0.25 * C, y0: 0, y1: 54 },
+      { x0: W / 2 - 0.25 * C, x1: W / 2, z0: -D / 2, z1: -D / 2 + 0.25 * C, y0: 0, y1: 54 },
+      { x0: -W / 2, x1: -W / 2 + 0.25 * C, z0: D / 2 - 0.25 * C, z1: D / 2, y0: 0, y1: 54 },
+      { x0: W / 2 - 0.25 * C, x1: W / 2, z0: D / 2 - 0.25 * C, z1: D / 2, y0: 0, y1: 54 },
+      // Elevated timber deck floor slab (y=50 to 54.0 - flush with feetY=54.0)
+      { x0: -W / 2, x1: W / 2, z0: -D / 2, z1: D / 2, y0: 50, y1: 54.0 },
+      // Cabin rear wall (y=54 to 86)
+      { x0: -W / 2, x1: 0.12 * W, z0: -D / 2, z1: -D / 2 + 0.25 * C, y0: 54, y1: 104 },
+      // Cabin left wall (y=54 to 86)
+      { x0: -W / 2, x1: -W / 2 + 0.25 * C, z0: -D / 2, z1: 0.12 * D, y0: 54, y1: 104 },
+      // Cabin front wall (leaving walk-in Dutch doorway)
+      { x0: -W / 2, x1: -0.16 * W, z0: 0.10 * D, z1: 0.10 * D + 0.25 * C, y0: 54, y1: 104 },
+      // Cabin right wall
+      { x0: 0.10 * W, x1: 0.10 * W + 0.25 * C, z0: -D / 2, z1: 0.12 * D, y0: 54, y1: 104 },
+      // Cabin gabled roof (only over cabin footprint, leaves deck open & clear)
+      { x0: -W / 2, x1: 0.12 * W, z0: -D / 2, z1: 0.12 * D, y0: 104, y1: H },
+      // Observation deck perimeter guardrails (leaves ladder opening at front-right)
+      { x0: -W / 2, x1: 0.18 * W, z0: D / 2 - 0.20 * C, z1: D / 2, y0: 54, y1: 66 },
+      { x0: 0.35 * W, x1: W / 2, z0: D / 2 - 0.20 * C, z1: D / 2, y0: 54, y1: 66 },
+      { x0: 0.10 * W, x1: W / 2, z0: -D / 2, z1: -D / 2 + 0.20 * C, y0: 54, y1: 66 },
+      { x0: W / 2 - 0.20 * C, x1: W / 2, z0: -D / 2, z1: D / 2, y0: 54, y1: 66 }
+    ];
+  }
+  if (/^greenhouse/i.test(t)) {
+    const doorHalfW = Math.max(0.6 * C, W * 0.16);
+    const benchW = Math.max(0.8 * C, W * 0.26);
+    const eaveY = Math.max(54, Math.round(H * 0.56));
+    const benchH = Math.max(18, Math.round(H * 0.22));
+    return [
+      // Left exterior glass wall & brick knee-wall
+      { x0: -W / 2, x1: -W / 2 + 0.25 * C, z0: -D / 2, z1: D / 2, y0: 0, y1: H },
+      // Right exterior glass wall & brick knee-wall
+      { x0: W / 2 - 0.25 * C, x1: W / 2, z0: -D / 2, z1: D / 2, y0: 0, y1: H },
+      // Left staging potting workbench
+      { x0: -W / 2, x1: -W / 2 + benchW, z0: -D / 2, z1: D / 2, y0: 0, y1: benchH },
+      // Right staging potting workbench
+      { x0: W / 2 - benchW, x1: W / 2, z0: -D / 2, z1: D / 2, y0: 0, y1: benchH },
+      // Rear brick knee-wall & glass wall
+      { x0: -W / 2, x1: W / 2, z0: -D / 2, z1: -D / 2 + 0.25 * C, y0: 0, y1: H },
+      // Front wall left side of walk-in entrance
+      { x0: -W / 2, x1: -doorHalfW, z0: D / 2 - 0.25 * C, z1: D / 2, y0: 0, y1: H },
+      // Front wall right side of walk-in entrance
+      { x0: doorHalfW, x1: W / 2, z0: D / 2 - 0.25 * C, z1: D / 2, y0: 0, y1: H },
+      // Overhead roof canopy (headroom clearance below eaves)
+      { x0: -W / 2, x1: W / 2, z0: -D / 2, z1: D / 2, y0: eaveY, y1: H }
+    ];
+  }
+  if (/^sandbox$/i.test(t)) {
+    return [
+      { x0: -W / 2, x1: W / 2, z0: -D / 2, z1: -D / 2 + 0.2 * C, y0: 0, y1: 14 },
+      { x0: -W / 2, x1: W / 2, z0: D / 2 - 0.2 * C, z1: D / 2, y0: 0, y1: 14 },
+      { x0: -W / 2, x1: -W / 2 + 0.2 * C, z0: -D / 2, z1: D / 2, y0: 0, y1: 14 },
+      { x0: W / 2 - 0.2 * C, x1: W / 2, z0: -D / 2, z1: D / 2, y0: 0, y1: 14 }
+    ];
+  }
+  if (/^goal$/i.test(t)) {
+    return [
+      { x0: -W / 2, x1: -W / 2 + 0.25 * C, z0: -D / 2, z1: D / 2, y0: 0, y1: H },
+      { x0: W / 2 - 0.25 * C, x1: W / 2, z0: -D / 2, z1: D / 2, y0: 0, y1: H },
+      { x0: -W / 2, x1: W / 2, z0: -D / 2, z1: -D / 2 + 0.25 * C, y0: 0, y1: H },
+      { x0: -W / 2, x1: W / 2, z0: -D / 2, z1: D / 2, y0: 44, y1: H }
+    ];
+  }
+  if (/^cornershelf$/i.test(t)) {
+    return [
+      { x0: -W / 2, x1: 0.15 * C, z0: -D / 2, z1: 0.15 * C, y0: 0, y1: H }
+    ];
+  }
+  if (/^garagedoor/i.test(t)) {
+    return [
+      // Left jamb vertical track post
+      { x0: -W / 2, x1: -W / 2 + 0.15 * C, z0: -D / 2, z1: D / 2, y0: 0, y1: H },
+      // Right jamb vertical track post
+      { x0: W / 2 - 0.15 * C, x1: W / 2, z0: -D / 2, z1: D / 2, y0: 0, y1: H },
+      // Top header beam (lintel)
+      { x0: -W / 2, x1: W / 2, z0: -D / 2, z1: D / 2, y0: 54, y1: H }
+    ];
+  }
+  if (/^car$|^suv$/i.test(t)) {
+    return [
+      { x0: -W / 2 + 0.08 * C, x1: W / 2 - 0.08 * C, z0: -D / 2 + 0.08 * C, z1: D / 2 - 0.08 * C, y0: 0, y1: H }
+    ];
+  }
+  return [{ x0: -W / 2, x1: W / 2, z0: -D / 2, z1: D / 2, y0: 0, y1: H }];
+};
+
+HP.itemColliders = function (it, def, f, H) {
+  const C = HP.CELL;
+  const bw = it.w || def.w, bh = it.h || def.h;
+  const rot = (it.rot || 0) % 4;
+  const cx = (f.x + f.w / 2) * C, cz = (f.y + f.h / 2) * C;
+  const subs = HP.itemSubBoxes(it.type, bw, bh, H);
+  return subs.map(b => {
+    let x0, x1, z0, z1;
+    if (rot === 0) {
+      x0 = cx + b.x0; x1 = cx + b.x1;
+      z0 = cz + b.z0; z1 = cz + b.z1;
+    } else if (rot === 1) {
+      x0 = cx - b.z1; x1 = cx - b.z0;
+      z0 = cz + b.x0; z1 = cz + b.x1;
+    } else if (rot === 2) {
+      x0 = cx - b.x1; x1 = cx - b.x0;
+      z0 = cz - b.z1; z1 = cz - b.z0;
+    } else {
+      x0 = cx + b.z0; x1 = cx + b.z1;
+      z0 = cz - b.x1; z1 = cz - b.x0;
+    }
+    return { x0, x1, z0, z1, y0: b.y0, y1: b.y1 };
+  });
+};
+
+HP.itemBlockedCells = function (it, def, f, H = 24) {
+  const C = HP.CELL;
+  const colliders = HP.itemColliders(it, def, f, H);
+  const groundColliders = colliders.filter(b => b.y0 < 30);
+  const blocked = [];
+  for (let cy = f.y; cy < f.y + f.h; cy++) {
+    for (let cx = f.x; cx < f.x + f.w; cx++) {
+      const cellCx = (cx + 0.5) * C, cellCz = (cy + 0.5) * C;
+      const isSolid = groundColliders.some(b =>
+        cellCx >= b.x0 && cellCx <= b.x1 && cellCz >= b.z0 && cellCz <= b.z1
+      );
+      if (isSolid) blocked.push(cx + ',' + cy);
+    }
+  }
+  return blocked;
+};
+
+HP.itemsClash = function (a, b) {
+  const ad = HP.itemDef(a.type), bd = HP.itemDef(b.type);
+  if (!ad || !bd) return true;
+  const at = (a.type || '').toLowerCase(), bt = (b.type || '').toLowerCase();
+  // Allow garden/plant/flower/tree/potting items inside greenhouse
+  if (at === 'greenhouse' || bt === 'greenhouse') {
+    const other = at === 'greenhouse' ? b : a;
+    const otherDef = at === 'greenhouse' ? bd : ad;
+    const otherType = (other.type || '').toLowerCase();
+    const otherCat = otherDef.cat || '';
+    if (otherCat === 'Outdoor' || otherCat === 'Plants' || /plant|tree|flower|pot|veggie|tomato|bench|seed|growshelf|compost|watering|shrub|bush/i.test(otherType)) {
+      return false;
+    }
+  }
+  // Allow vehicles to cross garage door threshold
+  if (/^garagedoor/i.test(at) || /^garagedoor/i.test(bt)) {
+    const other = /^garagedoor/i.test(at) ? b : a;
+    const otherType = (other.type || '').toLowerCase();
+    if (/car|suv|vehicle|motorcycle|scooter|bike|mower/i.test(otherType)) {
+      return false;
+    }
+  }
+  // Allow cabin furniture, decor, toys, lamps on treehouse deck
+  if (at === 'treehouse' || bt === 'treehouse') {
+    const other = at === 'treehouse' ? b : a;
+    const otherDef = at === 'treehouse' ? bd : ad;
+    const otherType = (other.type || '').toLowerCase();
+    const otherCat = otherDef.cat || '';
+    if (otherCat !== 'Structure' && !/carport|pergola|shed|swingset/i.test(otherType)) {
+      return false;
+    }
+  }
+  const af = HP.footprint(a), bf = HP.footprint(b);
+  const aCells = HP.itemBlockedCells(a, ad, af);
+  const bCells = HP.itemBlockedCells(b, bd, bf);
+  const bSet = new Set(bCells);
+  return aCells.some(c => bSet.has(c));
+};
+
+/* furniture you can sit on / lie down in (walk-mode interact in 2D and 3D) */
+const SEATS = new Set(['sofa2', 'sofa3', 'sofaL', 'sofaU', 'outsofa', 'modseat', 'loveseat2',
+  'settee', 'reclinerSofa', 'curvedSofa', 'recliner', 'armchair', 'tubchair', 'clubchair',
+  'accentchair', 'swivelchair', 'rockchair', 'rocker', 'chair', 'highchair', 'offchair',
+  'gamingchair', 'kneelchair', 'bench', 'gardenbench', 'entrybench', 'showerbench',
+  'bedbench', 'weightbench', 'barstool', 'footstool', 'ottoman', 'ottomanTuft', 'ottomanStor',
+  'beanbag', 'beanbag2', 'toilet', 'bathtub', 'hottub', 'lounger', 'cinemaseats', 'swingset', 'car',
+  'sectional5', 'tuxedo3', 'camel3', 'track4', 'velvet3', 'boucle3', 'armless3', 'recamier',
+  'wingback', 'papasan', 'slipper', 'stepstool', 'modcorner', 'chester2', 'chester3',
+  'english3', 'midcen3', 'track2', 'track3']);
+const LIES = new Set(['bedSingle', 'bedDouble', 'bedQueen', 'bedKing', 'bunkbed', 'daybed',
+  'daybed2', 'futon', 'sleeper', 'hammock', 'crib', 'petbed', 'chaise', 'modchaise', 'canopy', 'treehouse']);
+HP.seatKind = t => SEATS.has(t) ? 'sit' : LIES.has(t) ? 'lie' : null;
+
+HP.itemSeatSpots = function (it, def) {
+  const C = HP.CELL;
+  const t = (it.type || '').toLowerCase();
+  const bw = it.w || def.w, bh = it.h || def.h;
+  const W = bw * C, D = bh * C;
+  const rot = (it.rot || 0) % 4;
+  const f = HP.footprint(it);
+  const cx = (f.x + f.w / 2) * C, cz = (f.y + f.h / 2) * C;
+
+  let modelSpots = [];
+  if (/^sofau$|sectional.*5|^u.*sofa/i.test(t)) {
+    modelSpots = [
+      { x: -0.30 * W, z: -0.18 * D }, // rear left
+      { x: 0,         z: -0.18 * D }, // rear center
+      { x: 0.30 * W,  z: -0.18 * D }, // rear right
+      { x: -0.30 * W, z: 0.18 * D },  // left chaise lounge
+      { x: 0.30 * W,  z: 0.18 * D },  // right chaise lounge
+    ];
+  } else if (/^sofal$|^l.*sofa/i.test(t)) {
+    modelSpots = [
+      { x: -0.33 * W, z: -0.18 * D }, // left rear seat 1
+      { x: -0.06 * W, z: -0.18 * D }, // left rear seat 2
+      { x: 0.28 * W,  z: 0.07 * D },  // right chaise lounge
+    ];
+  } else if (/^treehouse$/i.test(t)) {
+    modelSpots = [
+      { x: -0.14 * W, z: -0.32 * D }  // daybed bench inside treehouse cabin
+    ];
+  } else if (HP.seatKind && HP.seatKind(it.type) === 'lie') {
+    if (bw >= bh) {
+      modelSpots.push({ x: -W / 4, z: 0 }, { x: W / 4, z: 0 });
+    } else {
+      modelSpots.push({ x: 0, z: -D / 4 }, { x: 0, z: D / 4 });
+    }
+  } else if (bw >= bh) {
+    for (let i = 0; i < bw; i++) {
+      modelSpots.push({ x: -W / 2 + (i + 0.5) * (W / bw), z: 0 });
+    }
+  } else {
+    for (let i = 0; i < bh; i++) {
+      modelSpots.push({ x: 0, z: -D / 2 + (i + 0.5) * (D / bh) });
+    }
+  }
+
+  return modelSpots.map(s => {
+    let wx, wz;
+    if (rot === 0) {
+      wx = cx + s.x; wz = cz + s.z;
+    } else if (rot === 1) {
+      wx = cx - s.z; wz = cz + s.x;
+    } else if (rot === 2) {
+      wx = cx - s.x; wz = cz - s.z;
+    } else {
+      wx = cx + s.z; wz = cz - s.x;
+    }
+    return { x: wx, y: wz, z: wz };
+  });
 };

@@ -12,7 +12,7 @@ const R = 9;                   // player radius in world px
 /* furniture that lights up / toggles in walk mode */
 const LIGHTS = new Set(['floorlamp', 'lamppost', 'pathlight', 'lamparc', 'lamptripod',
   'lamptorch', 'lamptable', 'lamppaper', 'lampmush', 'lampcandle', 'lampbanker',
-  'artneon', 'topcandles', 'fllantern', 'nightlight', 'fireplace', 'firepit']);
+  'artneon', 'topcandles', 'fllantern', 'nightlight', 'sconce', 'fireplace', 'firepit']);
 HP.isLamp = t => LIGHTS.has(t);
 
 /* furniture you can sit on / lie down in (walk-mode interact) */
@@ -21,9 +21,12 @@ const SEATS = new Set(['sofa2', 'sofa3', 'sofaL', 'sofaU', 'outsofa', 'modseat',
   'accentchair', 'swivelchair', 'rockchair', 'rocker', 'chair', 'highchair', 'offchair',
   'gamingchair', 'kneelchair', 'bench', 'gardenbench', 'entrybench', 'showerbench',
   'bedbench', 'weightbench', 'barstool', 'footstool', 'ottoman', 'ottomanTuft', 'ottomanStor',
-  'beanbag', 'beanbag2', 'toilet', 'bathtub', 'hottub', 'lounger', 'cinemaseats', 'swingset', 'car']);
+  'beanbag', 'beanbag2', 'toilet', 'bathtub', 'hottub', 'lounger', 'cinemaseats', 'swingset', 'car',
+  'sectional5', 'tuxedo3', 'camel3', 'track4', 'velvet3', 'boucle3', 'armless3', 'recamier',
+  'wingback', 'papasan', 'slipper', 'stepstool', 'modcorner', 'chester2', 'chester3',
+  'english3', 'midcen3', 'track2', 'track3']);
 const LIES = new Set(['bedSingle', 'bedDouble', 'bedQueen', 'bedKing', 'bunkbed', 'daybed',
-  'daybed2', 'futon', 'sleeper', 'hammock', 'crib', 'petbed', 'chaise', 'modchaise']);
+  'daybed2', 'futon', 'sleeper', 'hammock', 'crib', 'petbed', 'chaise', 'modchaise', 'canopy', 'treehouse']);
 HP.seatKind = t => SEATS.has(t) ? 'sit' : LIES.has(t) ? 'lie' : null;
 
 /* wall that blocks walking (open doors let you through, closed ones don't) */
@@ -56,7 +59,7 @@ const WALKTHROUGH = new Set([
   'arttriptych', 'artneon', 'artphoto', 'floormirror', 'curtains',
   // small ground items — step over
   'plantSm', 'plantBig', 'vase', 'umbstand', 'trashbin', 'robotvac',
-  'petbed', 'hamper', 'wbins', 'firepit'
+  'petbed', 'hamper', 'wbins', 'firepit', 'sandbox', 'flowerbed', 'flowerbox', 'veggie'
 ]);
 
 /* set of cells blocked by furniture (walkable defs like rugs excluded) */
@@ -67,11 +70,16 @@ function blockedSet() {
   blockedCells = new Set();
   for (const it of HP.cur().furniture) {
     const def = HP.itemDef(it.type);
-    if (def.walkable || WALKTHROUGH.has(it.type)) continue;
+    if (!def || def.walkable || def.hangs || def.onTop || WALKTHROUGH.has(it.type)) continue;
     const f = HP.footprint(it);
-    for (let y = f.y; y < f.y + f.h; y++)
-      for (let x = f.x; x < f.x + f.w; x++)
-        blockedCells.add(x + ',' + y);
+    const cells = HP.itemBlockedCells ? HP.itemBlockedCells(it, def, f) : [];
+    if (cells.length) {
+      for (const c of cells) blockedCells.add(c);
+    } else {
+      for (let y = f.y; y < f.y + f.h; y++)
+        for (let x = f.x; x < f.x + f.w; x++)
+          blockedCells.add(x + ',' + y);
+    }
   }
   blockedFor = HP.state.level;
   return blockedCells;
@@ -183,12 +191,14 @@ function distToItem(px, py, it) {
    sofas & benches → one cushion per cell along the long axis
    beds & wide lie-downs → two sides (left / right) along the narrow axis */
 function seatSpots(it) {
+  const def = HP.itemDef(it.type);
+  if (HP.itemSeatSpots && def) return HP.itemSeatSpots(it, def);
   const C = HP.CELL, f = HP.footprint(it), spots = [];
   if (HP.seatKind(it.type) === 'lie') {
-    if (f.w >= f.h) {                                   // wide → left & right halves
+    if (f.w >= f.h) {
       const my = (f.y + f.h / 2) * C;
       spots.push({ x: (f.x + f.w / 4) * C, y: my }, { x: (f.x + f.w * 3 / 4) * C, y: my });
-    } else {                                            // tall → top & bottom halves
+    } else {
       const mx = (f.x + f.w / 2) * C;
       spots.push({ x: mx, y: (f.y + f.h / 4) * C }, { x: mx, y: (f.y + f.h * 3 / 4) * C });
     }

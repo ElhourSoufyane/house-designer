@@ -1159,7 +1159,7 @@ HP.CATALOG = [
       });
     } },
   { id: 'chair', name: 'Chair', cat: 'Kitchen', w: 1, h: 1, colors: ['#9a774f', '#7d8fa3', '#a06558'], draw: chairDraw(true) },
-  { id: 'microwave', name: 'Microwave', cat: 'Kitchen', w: 1, h: 1, colors: ['#454a52', '#c9ced4', '#2f333a'],
+  { id: 'microwave', name: 'Microwave', cat: 'Kitchen', w: 1, h: 1, onTop: true, colors: ['#454a52', '#c9ced4', '#2f333a'],
     draw(g, W, H, v) {
       const p = P(), c = this.colors[v];
       p.box(g, 5, 8, W - 10, H - 16, 3, p.lg(g, 5, 8, W - 10, H - 16, HP.shade(c, 1.1), HP.shade(c, 0.8)));
@@ -2187,19 +2187,107 @@ HP.CATALOG = [
         g.beginPath(); g.moveTo(W * 0.3, H * i / 6); g.lineTo(W * 0.7, H * i / 6); g.stroke();
       }
     } },
-  { id: 'car', name: 'Car', cat: 'Outdoor', w: 2, h: 4, colors: ['#7a8ca8', '#a05050', '#4a4f57', '#d8d2c6'],
+  { id: 'car', name: 'Luxury Sedan', cat: 'Garage', w: 2, h: 4, colors: ['#2563eb', '#dc2626', '#0f172a', '#f8fafc', '#64748b'],
     draw(g, W, H, v) {
       const p = P(), c = this.colors[v];
-      p.shadow(g, 4, 4, W - 8, H - 8, 12);
-      p.box(g, 4, 4, W - 8, H - 8, 14, p.lg(g, 4, 4, W - 8, H - 8, HP.shade(c, 1.15), HP.shade(c, 0.8)));
-      g.strokeStyle = HP.shade(c, 0.55); g.lineWidth = 2; P().RR(g, 4, 4, W - 8, H - 8, 14); g.stroke();
-      p.box(g, 8, H * 0.2, W - 16, H * 0.18, 5, '#2a3540');                      // windshield
-      p.box(g, 8, H * 0.72, W - 16, H * 0.14, 5, '#2a3540');                     // rear window
-      p.box(g, 10, H * 0.42, W - 20, H * 0.24, 6, HP.shade(c, 1.05));            // roof
-      g.fillStyle = '#1b1e22';                                                   // wheels
-      [[4, H * 0.16], [W - 4, H * 0.16], [4, H * 0.8], [W - 4, H * 0.8]].forEach(pt =>
-        g.fillRect(pt[0] - 3, pt[1] - 6, 6, 12));
-      g.fillStyle = 'rgba(255,255,255,.2)'; g.fillRect(6, 6, 8, H - 12);         // sheen
+      // 1. Soft realistic drop shadow under car
+      p.shadow(g, 4, 4, W - 8, H - 8, 14);
+      // 2. Wheels: 4 wide low-profile tires with alloy rims
+      g.fillStyle = '#181b20';
+      [[4, H * 0.22], [W - 4, H * 0.22], [4, H * 0.78], [W - 4, H * 0.78]].forEach(pt => {
+        p.RR(g, pt[0] - 4, pt[1] - 10, 8, 20, 3); g.fill();
+      });
+      // 3. Aerodynamic sculpted body
+      p.box(g, 5, 4, W - 10, H - 8, 14, p.lg(g, 5, 4, W - 10, H - 8, HP.shade(c, 1.18), HP.shade(c, 0.78)));
+      g.strokeStyle = HP.shade(c, 0.55); g.lineWidth = 1.5; p.RR(g, 5, 4, W - 10, H - 8, 14); g.stroke();
+      // 4. Front fascia (front is at top): bumper, grille, headlights
+      g.fillStyle = '#0f172a'; p.RR(g, W * 0.25, 4, W * 0.50, 5, 2); g.fill(); // radiator grille
+      // Headlights with LED projector blades
+      g.fillStyle = '#ffffff';
+      p.RR(g, 8, 5, 12, 5, 2); g.fill();
+      p.RR(g, W - 20, 5, 12, 5, 2); g.fill();
+      // Hood character crease lines
+      g.strokeStyle = HP.shade(c, 0.70); g.lineWidth = 1;
+      g.beginPath(); g.moveTo(W * 0.30, 8); g.lineTo(W * 0.32, H * 0.22); g.stroke();
+      g.beginPath(); g.moveTo(W * 0.70, 8); g.lineTo(W * 0.68, H * 0.22); g.stroke();
+      // Side mirrors
+      g.fillStyle = c;
+      p.RR(g, 0, H * 0.28, 6, 9, 2); g.fill();
+      p.RR(g, W - 6, H * 0.28, 6, 9, 2); g.fill();
+      // 5. Greenhouse Cabin: sloping front windshield, roof, panoramic glass, rear windshield
+      p.box(g, 8, H * 0.24, W - 16, H * 0.16, 6, '#1e293b'); // front windshield
+      g.fillStyle = 'rgba(56, 189, 248, 0.35)'; g.fillRect(10, H * 0.25, W - 20, H * 0.14); // glass tint sheen
+      p.box(g, 9, H * 0.40, W - 18, H * 0.26, 4, c);          // roof
+      p.box(g, 13, H * 0.42, W - 26, H * 0.22, 3, '#0f172a'); // panoramic sunroof
+      p.box(g, 8, H * 0.66, W - 16, H * 0.14, 5, '#1e293b'); // rear windshield
+      // 6. Rear fascia: trunk deck lid, full-width red LED taillight bar, chrome dual exhaust
+      g.fillStyle = '#ef4444'; p.RR(g, 7, H - 7, W - 14, 3.5, 1.5); g.fill(); // red taillight strip
+      g.fillStyle = '#cbd5e1'; // dual exhausts
+      g.fillRect(10, H - 3, 6, 2.5);
+      g.fillRect(W - 16, H - 3, 6, 2.5);
+    } },
+  { id: 'suv', name: 'Luxury SUV', cat: 'Garage', w: 2, h: 4, colors: ['#1e293b', '#047857', '#991b1b', '#3b82f6', '#f1f5f9'],
+    draw(g, W, H, v) {
+      const p = P(), c = this.colors[v];
+      // 1. Drop shadow
+      p.shadow(g, 3, 3, W - 6, H - 6, 15);
+      // 2. Chunky all-terrain tires with off-road tread
+      g.fillStyle = '#14171a';
+      [[3, H * 0.21], [W - 3, H * 0.21], [3, H * 0.79], [W - 3, H * 0.79]].forEach(pt => {
+        p.RR(g, pt[0] - 5, pt[1] - 11, 10, 22, 3); g.fill();
+        g.fillStyle = '#cbd5e1'; g.fillRect(pt[0] - 2, pt[1] - 5, 4, 10); g.fillStyle = '#14171a';
+      });
+      // 3. Wide muscular SUV body with protective fender flares
+      p.box(g, 4, 4, W - 8, H - 8, 14, p.lg(g, 4, 4, W - 8, H - 8, HP.shade(c, 1.15), HP.shade(c, 0.75)));
+      g.strokeStyle = HP.shade(c, 0.50); g.lineWidth = 1.5; p.RR(g, 4, 4, W - 8, H - 8, 14); g.stroke();
+      // Bold front geometric grille & skid plate
+      g.fillStyle = '#0f172a'; p.RR(g, W * 0.20, 4, W * 0.60, 6, 2); g.fill();
+      g.fillStyle = '#94a3b8'; g.fillRect(W * 0.30, 4, W * 0.40, 2); // chrome accent bar
+      // Front LED light clusters
+      g.fillStyle = '#ffffff';
+      p.RR(g, 7, 5, 13, 6, 2); g.fill();
+      p.RR(g, W - 20, 5, 13, 6, 2); g.fill();
+      // Rugged side mirrors
+      g.fillStyle = c;
+      p.RR(g, 0, H * 0.27, 7, 10, 2); g.fill();
+      p.RR(g, W - 7, H * 0.27, 7, 10, 2); g.fill();
+      // 4. Large Greenhouse cabin
+      p.box(g, 7, H * 0.24, W - 14, H * 0.17, 6, '#18202a'); // windshield
+      g.fillStyle = 'rgba(56, 189, 248, 0.4)'; g.fillRect(9, H * 0.25, W - 18, H * 0.15);
+      p.box(g, 8, H * 0.41, W - 16, H * 0.32, 4, c);          // roof
+      p.box(g, 12, H * 0.43, W - 24, H * 0.28, 3, '#0f172a'); // panoramic moonroof
+      // Aluminum roof rack side rails
+      g.fillStyle = '#cbd5e1';
+      g.fillRect(8, H * 0.38, 2.5, H * 0.38);
+      g.fillRect(W - 10.5, H * 0.38, 2.5, H * 0.38);
+      // Rear liftgate glass & spoiler
+      p.box(g, 7, H * 0.73, W - 14, H * 0.13, 5, '#18202a');
+      g.fillStyle = HP.shade(c, 0.85); g.fillRect(7, H * 0.85, W - 14, 3); // roof spoiler
+      // Full-width rear LED taillights & dual rectangular exhaust tips
+      g.fillStyle = '#ef4444'; p.RR(g, 6, H - 7, W - 12, 4, 1.5); g.fill();
+      g.fillStyle = '#cbd5e1';
+      g.fillRect(9, H - 3, 8, 2.5);
+      g.fillRect(W - 17, H - 3, 8, 2.5);
+    } },
+  { id: 'car_ev', name: 'Electric Vehicle', cat: 'Garage', brand: 'Aero', w: 2, h: 4, colors: ['#f8fafc', '#1e293b', '#2563eb', '#dc2626', '#10b981'],
+    draw(g, W, H, v) {
+      const p = P(), c = this.colors[v];
+      p.shadow(g, 4, 4, W - 8, H - 8, 8);
+      for (const [wx, wy] of [[5, H * 0.18], [W - 13, H * 0.18], [5, H * 0.74], [W - 13, H * 0.74]]) {
+        g.fillStyle = '#181b20'; g.beginPath(); p.RR(g, wx, wy, 8, H * 0.16, 3); g.fill();
+        g.fillStyle = '#94a3b8'; g.fillRect(wx + 2, wy + 4, 4, H * 0.16 - 8);
+      }
+      p.box(g, 6, 4, W - 12, H - 8, 10, p.lg(g, 6, 4, W - 12, H - 8, HP.shade(c, 1.15), HP.shade(c, 0.85)));
+      g.fillStyle = '#0f172a';
+      p.RR(g, 10, H * 0.22, W - 20, H * 0.52, 6); g.fill();
+      g.fillStyle = 'rgba(56, 189, 248, 0.45)';
+      p.RR(g, 12, H * 0.26, W - 24, H * 0.44, 4); g.fill();
+      g.fillStyle = '#334155';
+      g.fillRect(15, H * 0.38, 7, 10); g.fillRect(W - 22, H * 0.38, 7, 10);
+      g.fillStyle = '#38bdf8'; g.fillRect(W / 2 - 4, H * 0.35, 8, 5);
+      g.fillStyle = '#ffffff'; g.fillRect(10, 5, W - 20, 2.5);
+      g.fillStyle = '#ef4444'; g.fillRect(10, H - 7.5, W - 20, 2.5);
+      g.fillStyle = '#38bdf8'; g.beginPath(); g.arc(W - 8, H * 0.70, 2, 0, Math.PI * 2); g.fill();
     } },
   { id: 'wbins', name: 'Wheelie Bins', cat: 'Outdoor', w: 1, h: 1, colors: ['#4a6b4a', '#3a4a6b', '#6b6b3a'],
     draw(g, W, H, v) {
@@ -2333,6 +2421,91 @@ HP.CATALOG = [
     } },
 
   /* ---------------- GARAGE ---------------- */
+  { id: 'garagedoor', name: 'Garage Door', cat: 'Garage', w: 3, h: 1, colors: ['#f8fafc', '#334155', '#78350f', '#0f172a', '#94a3b8'],
+    draw(g, W, H, v) {
+      const p = P(), c = this.colors[v];
+      // 1. Mounting jamb posts on left and right
+      p.box(g, 1, 2, 8, H - 4, 2, '#475569');
+      p.box(g, W - 9, 2, 8, H - 4, 2, '#475569');
+      // 2. Overhead ceiling tracks extending into room (dashed guide rails)
+      g.strokeStyle = '#64748b'; g.lineWidth = 2;
+      g.beginPath(); g.moveTo(7, 2); g.lineTo(7, H - 2); g.stroke();
+      g.beginPath(); g.moveTo(W - 7, 2); g.lineTo(W - 7, H - 2); g.stroke();
+      // 3. Sectional roll-up door panels (4 horizontal slats with embossed stiles)
+      const pw = W - 18;
+      const sh = (H - 6) / 4;
+      for (let i = 0; i < 4; i++) {
+        const sy = 3 + i * sh;
+        p.box(g, 9, sy, pw, sh - 1.5, 2, p.lg(g, 9, sy, pw, sh, HP.shade(c, 1.08), HP.shade(c, 0.88)));
+        g.strokeStyle = HP.shade(c, 0.65); g.lineWidth = 1;
+        p.RR(g, 9, sy, pw, sh - 1.5, 2); g.stroke();
+        // Inset rectangular carriage stampings
+        const stampW = (pw - 20) / 4;
+        for (let j = 0; j < 4; j++) {
+          const sx = 13 + j * (stampW + 4);
+          if (i === 0) {
+            // Top panel has frosted window light panes
+            p.box(g, sx, sy + 1.5, stampW, sh - 4.5, 1, '#e0f2fe');
+            g.strokeStyle = '#334155'; g.lineWidth = 1; p.RR(g, sx, sy + 1.5, stampW, sh - 4.5, 1); g.stroke();
+          } else {
+            g.strokeStyle = HP.shade(c, 0.78); g.lineWidth = 1;
+            p.RR(g, sx, sy + 1.5, stampW, sh - 4.5, 1); g.stroke();
+          }
+        }
+      }
+      // 4. Center lift handle
+      g.fillStyle = '#0f172a'; p.RR(g, W / 2 - 8, H - 7, 16, 3, 1); g.fill();
+      // 5. Torsion spring bar across header
+      g.fillStyle = '#94a3b8'; g.fillRect(10, 2, pw, 2);
+      g.fillStyle = '#1e293b'; g.fillRect(W / 2 - 6, 1, 12, 4); // center bracket
+      // Upward roll indicator arrow
+      g.fillStyle = 'rgba(255, 255, 255, 0.7)';
+      g.beginPath();
+      g.moveTo(W / 2, 8); g.lineTo(W / 2 - 5, 13); g.lineTo(W / 2 + 5, 13);
+      g.closePath(); g.fill();
+    } },
+  { id: 'garagedoor_wide', name: 'Double Garage Door', cat: 'Garage', w: 5, h: 1, colors: ['#f8fafc', '#334155', '#78350f', '#0f172a', '#94a3b8'],
+    draw(g, W, H, v) {
+      const p = P(), c = this.colors[v];
+      // 1. Heavy jamb posts on left and right
+      p.box(g, 1, 2, 9, H - 4, 2, '#475569');
+      p.box(g, W - 10, 2, 9, H - 4, 2, '#475569');
+      // 2. Guide tracks
+      g.strokeStyle = '#64748b'; g.lineWidth = 2;
+      g.beginPath(); g.moveTo(8, 2); g.lineTo(8, H - 2); g.stroke();
+      g.beginPath(); g.moveTo(W - 8, 2); g.lineTo(W - 8, H - 2); g.stroke();
+      // 3. Sectional roll-up door panels
+      const pw = W - 20;
+      const sh = (H - 6) / 4;
+      for (let i = 0; i < 4; i++) {
+        const sy = 3 + i * sh;
+        p.box(g, 10, sy, pw, sh - 1.5, 2, p.lg(g, 10, sy, pw, sh, HP.shade(c, 1.08), HP.shade(c, 0.88)));
+        g.strokeStyle = HP.shade(c, 0.65); g.lineWidth = 1;
+        p.RR(g, 10, sy, pw, sh - 1.5, 2); g.stroke();
+        // 8 carriage panel stampings across 5 cells
+        const stampW = (pw - 36) / 8;
+        for (let j = 0; j < 8; j++) {
+          const sx = 14 + j * (stampW + 4);
+          if (i === 0) {
+            p.box(g, sx, sy + 1.5, stampW, sh - 4.5, 1, '#e0f2fe');
+            g.strokeStyle = '#334155'; g.lineWidth = 1; p.RR(g, sx, sy + 1.5, stampW, sh - 4.5, 1); g.stroke();
+          } else {
+            g.strokeStyle = HP.shade(c, 0.78); g.lineWidth = 1;
+            p.RR(g, sx, sy + 1.5, stampW, sh - 4.5, 1); g.stroke();
+          }
+        }
+      }
+      // Dual lift handles & central torsion spring bar
+      g.fillStyle = '#0f172a';
+      p.RR(g, W * 0.32 - 8, H - 7, 16, 3, 1); g.fill();
+      p.RR(g, W * 0.68 - 8, H - 7, 16, 3, 1); g.fill();
+      g.fillStyle = '#94a3b8'; g.fillRect(10, 2, pw, 2);
+      g.fillStyle = '#1e293b'; g.fillRect(W / 2 - 8, 1, 16, 4);
+      g.fillStyle = 'rgba(255, 255, 255, 0.7)';
+      g.beginPath();
+      g.moveTo(W / 2, 8); g.lineTo(W / 2 - 5, 13); g.lineTo(W / 2 + 5, 13);
+      g.closePath(); g.fill();
+    } },
   { id: 'motorcycle', name: 'Motorcycle', cat: 'Garage', w: 1, h: 2, colors: ['#3a3f47', '#7a4a3e', '#4a6b8a'],
     draw(g, W, H, v) {
       const p = P(), c = this.colors[v];
@@ -2403,22 +2576,235 @@ HP.CATALOG = [
     } },
 
   /* ---------------- GARDEN ---------------- */
-  { id: 'greenhouse', name: 'Greenhouse', cat: 'Garden', w: 3, h: 4, colors: ['#a8c4b0', '#8fa8b8', '#b8c8a8'],
+  { id: 'greenhouse', name: 'Grand Glasshouse', cat: 'Garden', w: 6, h: 8,
+    colors: ['#1b4332', '#27272a', '#f8fafc', '#475569', '#3f6212'],
     draw(g, W, H, v) {
-      const p = P(), c = this.colors[v];
-      p.shadow(g, 4, 4, W - 8, H - 8, 4);
-      p.box(g, 4, 4, W - 8, H - 8, 4, 'rgba(190,215,195,.55)');                    // glass shell
-      g.strokeStyle = HP.shade(c, 0.7); g.lineWidth = 2; P().RR(g, 4, 4, W - 8, H - 8, 4); g.stroke();
-      g.strokeStyle = 'rgba(255,255,255,.7)'; g.lineWidth = 1.5;                   // glass glare
-      g.beginPath(); g.moveTo(10, H - 10); g.lineTo(W * 0.4, 6); g.stroke();
-      g.strokeStyle = HP.shade(c, 0.55); g.lineWidth = 1;                          // frame ribs
-      for (let i = 1; i < 4; i++) { g.beginPath(); g.moveTo(4 + i * (W - 8) / 4, 5); g.lineTo(4 + i * (W - 8) / 4, H - 5); g.stroke(); }
-      g.beginPath(); g.moveTo(5, H * 0.5); g.lineTo(W - 5, H * 0.5); g.stroke();
-      for (let i = 0; i < 2; i++) {                                              // plants inside
-        p.leaves(g, W * (0.3 + i * 0.4), H * 0.3, W * 0.1, '#5d8a50', 5);
-        p.leaves(g, W * (0.3 + i * 0.4), H * 0.72, W * 0.1, '#4e7d45', 5);
+      const p = P(), c = this.colors[v % this.colors.length];
+      p.shadow(g, 3, 3, W - 6, H - 6, 4);
+      // 1. Weathered terracotta brick knee-wall foundation plinth
+      p.box(g, 2, 2, W - 4, H - 4, 3, '#a84c2a');
+      p.box(g, 3.5, 3.5, W - 7, H - 7, 2, '#8f3b24');
+
+      // 2. Under-bench potting soil beds flanking walkway
+      g.fillStyle = '#3e2723';
+      g.fillRect(5, 5, W * 0.28, H - 10);
+      g.fillRect(W * 0.72 - 5, 5, W * 0.28, H - 10);
+
+      // 3. Central flagstone walkway with drain grates
+      g.fillStyle = '#78716c';
+      g.fillRect(W * 0.30, 5, W * 0.40, H - 10);
+      for (let py = 10; py < H - 8; py += 10) {
+        g.strokeStyle = '#57534e'; g.lineWidth = 1;
+        g.beginPath(); g.moveTo(W * 0.30, py); g.lineTo(W * 0.70, py); g.stroke();
       }
-      g.fillStyle = '#8a6844'; g.fillRect(W * 0.42, H - 12, W * 0.16, 8);          // door
+      // Cast-iron drainage grates
+      g.fillStyle = '#334155';
+      g.fillRect(W * 0.40, H * 0.35, W * 0.20, 5);
+      g.fillRect(W * 0.40, H * 0.70, W * 0.20, 5);
+
+      // 4. Back master potting table & tool workstation
+      p.wood(g, W * 0.26, 5, W * 0.48, 8, '#b45309');
+      g.fillStyle = '#3e2723'; g.fillRect(W * 0.32, 6, W * 0.36, 5); // soil mixing trough
+
+      // 5. Built-in cedar staging workbenches along both sides with upper tier line
+      const bw = W * 0.26;
+      p.wood(g, 5, 12, bw, H - 20, '#c28b58');
+      p.wood(g, W - 5 - bw, 12, bw, H - 20, '#c28b58');
+      g.strokeStyle = '#d97706'; g.lineWidth = 1;
+      g.beginPath(); g.moveTo(5 + bw * 0.45, 12); g.lineTo(5 + bw * 0.45, H - 8); g.stroke();
+      g.beginPath(); g.moveTo(W - 5 - bw * 0.45, 12); g.lineTo(W - 5 - bw * 0.45, H - 8); g.stroke();
+
+      // 6. Rich potted plants, herbs, flowers, seedlings & conservatory decor
+      const pots = [
+        // Left bench (flowering geraniums, lavender, orchid, ferns, copper can)
+        [6 + bw * 0.25, H * 0.22, '#c26d38', '#15803d', '#f43f5e', 3.5], // pink geranium
+        [6 + bw * 0.70, H * 0.32, '#c26d38', '#3b7a57', '#a855f7', 3.2], // lavender
+        [6 + bw * 0.30, H * 0.44, '#f8fafc', '#166534', '#ec4899', 2.8], // orchid
+        [6 + bw * 0.70, H * 0.56, '#c26d38', '#166534', '#ef4444', 3.4], // red geranium
+        [6 + bw * 0.35, H * 0.68, '#c26d38', '#15803d', null, 4.2],      // Boston fern
+        [6 + bw * 0.70, H * 0.80, '#b45309', '#f59e0b', null, 3.2],      // copper watering can
+
+        // Right bench (seedling flats, staked tomatoes, herbs, cloche, succulents)
+        [W - 6 - bw * 0.50, H * 0.22, '#181b20', '#84cc16', null, 3.8],  // seedling flat
+        [W - 6 - bw * 0.30, H * 0.34, '#c26d38', '#16a34a', '#ef4444', 3.8], // tomato vine
+        [W - 6 - bw * 0.70, H * 0.46, '#e2ddd6', '#22c55e', null, 3.2],  // basil herb
+        [W - 6 - bw * 0.30, H * 0.58, '#e2ddd6', '#84cc16', null, 3.0],  // glass bell cloche
+        [W - 6 - bw * 0.70, H * 0.70, '#c26d38', '#0d9488', null, 2.8],  // echeveria succulent
+        [W - 6 - bw * 0.40, H * 0.80, '#78350f', '#f59e0b', null, 2.5],  // amber mister bottle
+      ];
+      for (const [px, py, potCol, folCol, flwCol, r] of pots) {
+        if (py < H - 10) {
+          g.fillStyle = potCol;
+          g.beginPath(); g.arc(px, py, r * 0.8, 0, Math.PI * 2); g.fill();
+          if (folCol) {
+            g.fillStyle = folCol;
+            g.beginPath(); g.arc(px, py - 0.5, r, 0, Math.PI * 2); g.fill();
+          }
+          if (flwCol) {
+            g.fillStyle = flwCol;
+            g.beginPath(); g.arc(px, py - 0.5, r * 0.45, 0, Math.PI * 2); g.fill();
+          }
+        }
+      }
+
+      // 7. Translucent crystalline glass envelope
+      g.fillStyle = 'rgba(165, 216, 226, 0.32)';
+      g.fillRect(5, 5, W - 10, H - 10);
+
+      // 8. Slender structural glazing bars & outer frame
+      g.strokeStyle = c; g.lineWidth = 2.5;
+      p.RR(g, 4, 4, W - 8, H - 8, 2); g.stroke();
+
+      // Transverse roof glazing ribs
+      g.lineWidth = 1.2;
+      const ribs = Math.max(5, Math.round(H / 16));
+      for (let i = 1; i < ribs; i++) {
+        const ry = 4 + i * (H - 8) / ribs;
+        g.beginPath(); g.moveTo(4, ry); g.lineTo(W - 4, ry); g.stroke();
+      }
+
+      // Central high ridge beam spine
+      g.strokeStyle = HP.shade(c, 0.7); g.lineWidth = 3.2;
+      g.beginPath(); g.moveTo(W / 2, 3); g.lineTo(W / 2, H - 3); g.stroke();
+
+      // Victorian fleur-de-lis ridge cresting spikes
+      g.strokeStyle = '#334155'; g.lineWidth = 1.8;
+      for (let py = 8; py < H - 8; py += 10) {
+        g.beginPath(); g.moveTo(W / 2 - 2.5, py); g.lineTo(W / 2 + 2.5, py); g.stroke();
+      }
+
+      // Turned roof finial spires at front and back apex
+      g.fillStyle = '#334155';
+      g.beginPath(); g.arc(W / 2, 3, 3.0, 0, Math.PI * 2); g.fill();
+      g.beginPath(); g.arc(W / 2, H - 3, 3.0, 0, Math.PI * 2); g.fill();
+
+      // Diagonal glass specular reflection streaks
+      g.strokeStyle = 'rgba(255, 255, 255, 0.55)'; g.lineWidth = 2.0;
+      g.beginPath(); g.moveTo(W * 0.15, H * 0.75); g.lineTo(W * 0.45, H * 0.25); g.stroke();
+      g.beginPath(); g.moveTo(W * 0.55, H * 0.85); g.lineTo(W * 0.85, H * 0.35); g.stroke();
+
+      // 9. Open French double doors welcoming player inside at front
+      g.fillStyle = c;
+      g.fillRect(W * 0.31, H - 6.5, 3.2, 7.5);
+      g.fillRect(W * 0.66, H - 6.5, 3.2, 7.5);
+      g.fillStyle = '#f59e0b';
+      g.fillRect(W * 0.32, H - 3.5, 1.8, 1.8);
+      g.fillRect(W * 0.665, H - 3.5, 1.8, 1.8);
+    } },
+  { id: 'greenhouse_grand', name: 'Estate Conservatory', cat: 'Garden', w: 8, h: 10,
+    colors: ['#1b4332', '#27272a', '#f8fafc', '#475569', '#3f6212'],
+    draw(g, W, H, v) {
+      const p = P(), c = this.colors[v % this.colors.length];
+      p.shadow(g, 3, 3, W - 6, H - 6, 4);
+      // 1. Weathered terracotta brick knee-wall foundation plinth
+      p.box(g, 2, 2, W - 4, H - 4, 3, '#a84c2a');
+      p.box(g, 3.5, 3.5, W - 7, H - 7, 2, '#8f3b24');
+
+      // 2. Under-bench potting soil beds flanking walkway
+      g.fillStyle = '#3e2723';
+      g.fillRect(5, 5, W * 0.28, H - 10);
+      g.fillRect(W * 0.72 - 5, 5, W * 0.28, H - 10);
+
+      // 3. Central flagstone walkway with drain grates
+      g.fillStyle = '#78716c';
+      g.fillRect(W * 0.30, 5, W * 0.40, H - 10);
+      for (let py = 10; py < H - 8; py += 10) {
+        g.strokeStyle = '#57534e'; g.lineWidth = 1;
+        g.beginPath(); g.moveTo(W * 0.30, py); g.lineTo(W * 0.70, py); g.stroke();
+      }
+      // Cast-iron drainage grates
+      g.fillStyle = '#334155';
+      g.fillRect(W * 0.40, H * 0.35, W * 0.20, 5);
+      g.fillRect(W * 0.40, H * 0.70, W * 0.20, 5);
+
+      // 4. Back master potting table & tool workstation
+      p.wood(g, W * 0.26, 5, W * 0.48, 8, '#b45309');
+      g.fillStyle = '#3e2723'; g.fillRect(W * 0.32, 6, W * 0.36, 5); // soil mixing trough
+
+      // 5. Built-in cedar staging workbenches along both sides with upper tier line
+      const bw = W * 0.26;
+      p.wood(g, 5, 12, bw, H - 20, '#c28b58');
+      p.wood(g, W - 5 - bw, 12, bw, H - 20, '#c28b58');
+      g.strokeStyle = '#d97706'; g.lineWidth = 1;
+      g.beginPath(); g.moveTo(5 + bw * 0.45, 12); g.lineTo(5 + bw * 0.45, H - 8); g.stroke();
+      g.beginPath(); g.moveTo(W - 5 - bw * 0.45, 12); g.lineTo(W - 5 - bw * 0.45, H - 8); g.stroke();
+
+      // 6. Rich potted plants, herbs, flowers, seedlings & conservatory decor
+      const pots = [
+        // Left bench (flowering geraniums, lavender, orchid, ferns, copper can)
+        [6 + bw * 0.25, H * 0.22, '#c26d38', '#15803d', '#f43f5e', 3.5], // pink geranium
+        [6 + bw * 0.70, H * 0.32, '#c26d38', '#3b7a57', '#a855f7', 3.2], // lavender
+        [6 + bw * 0.30, H * 0.44, '#f8fafc', '#166534', '#ec4899', 2.8], // orchid
+        [6 + bw * 0.70, H * 0.56, '#c26d38', '#166534', '#ef4444', 3.4], // red geranium
+        [6 + bw * 0.35, H * 0.68, '#c26d38', '#15803d', null, 4.2],      // Boston fern
+        [6 + bw * 0.70, H * 0.80, '#b45309', '#f59e0b', null, 3.2],      // copper watering can
+
+        // Right bench (seedling flats, staked tomatoes, herbs, cloche, succulents)
+        [W - 6 - bw * 0.50, H * 0.22, '#181b20', '#84cc16', null, 3.8],  // seedling flat
+        [W - 6 - bw * 0.30, H * 0.34, '#c26d38', '#16a34a', '#ef4444', 3.8], // tomato vine
+        [W - 6 - bw * 0.70, H * 0.46, '#e2ddd6', '#22c55e', null, 3.2],  // basil herb
+        [W - 6 - bw * 0.30, H * 0.58, '#e2ddd6', '#84cc16', null, 3.0],  // glass bell cloche
+        [W - 6 - bw * 0.70, H * 0.70, '#c26d38', '#0d9488', null, 2.8],  // echeveria succulent
+        [W - 6 - bw * 0.40, H * 0.80, '#78350f', '#f59e0b', null, 2.5],  // amber mister bottle
+      ];
+      for (const [px, py, potCol, folCol, flwCol, r] of pots) {
+        if (py < H - 10) {
+          g.fillStyle = potCol;
+          g.beginPath(); g.arc(px, py, r * 0.8, 0, Math.PI * 2); g.fill();
+          if (folCol) {
+            g.fillStyle = folCol;
+            g.beginPath(); g.arc(px, py - 0.5, r, 0, Math.PI * 2); g.fill();
+          }
+          if (flwCol) {
+            g.fillStyle = flwCol;
+            g.beginPath(); g.arc(px, py - 0.5, r * 0.45, 0, Math.PI * 2); g.fill();
+          }
+        }
+      }
+
+      // 7. Translucent crystalline glass envelope
+      g.fillStyle = 'rgba(165, 216, 226, 0.32)';
+      g.fillRect(5, 5, W - 10, H - 10);
+
+      // 8. Slender structural glazing bars & outer frame
+      g.strokeStyle = c; g.lineWidth = 2.5;
+      p.RR(g, 4, 4, W - 8, H - 8, 2); g.stroke();
+
+      // Transverse roof glazing ribs
+      g.lineWidth = 1.2;
+      const ribs = Math.max(5, Math.round(H / 16));
+      for (let i = 1; i < ribs; i++) {
+        const ry = 4 + i * (H - 8) / ribs;
+        g.beginPath(); g.moveTo(4, ry); g.lineTo(W - 4, ry); g.stroke();
+      }
+
+      // Central high ridge beam spine
+      g.strokeStyle = HP.shade(c, 0.7); g.lineWidth = 3.2;
+      g.beginPath(); g.moveTo(W / 2, 3); g.lineTo(W / 2, H - 3); g.stroke();
+
+      // Victorian fleur-de-lis ridge cresting spikes
+      g.strokeStyle = '#334155'; g.lineWidth = 1.8;
+      for (let py = 8; py < H - 8; py += 10) {
+        g.beginPath(); g.moveTo(W / 2 - 2.5, py); g.lineTo(W / 2 + 2.5, py); g.stroke();
+      }
+
+      // Turned roof finial spires at front and back apex
+      g.fillStyle = '#334155';
+      g.beginPath(); g.arc(W / 2, 3, 3.0, 0, Math.PI * 2); g.fill();
+      g.beginPath(); g.arc(W / 2, H - 3, 3.0, 0, Math.PI * 2); g.fill();
+
+      // Diagonal glass specular reflection streaks
+      g.strokeStyle = 'rgba(255, 255, 255, 0.55)'; g.lineWidth = 2.0;
+      g.beginPath(); g.moveTo(W * 0.15, H * 0.75); g.lineTo(W * 0.45, H * 0.25); g.stroke();
+      g.beginPath(); g.moveTo(W * 0.55, H * 0.85); g.lineTo(W * 0.85, H * 0.35); g.stroke();
+
+      // 9. Open French double doors welcoming player inside at front
+      g.fillStyle = c;
+      g.fillRect(W * 0.31, H - 6.5, 3.2, 7.5);
+      g.fillRect(W * 0.66, H - 6.5, 3.2, 7.5);
+      g.fillStyle = '#f59e0b';
+      g.fillRect(W * 0.32, H - 3.5, 1.8, 1.8);
+      g.fillRect(W * 0.665, H - 3.5, 1.8, 1.8);
     } },
   { id: 'shed', name: 'Garden Shed', cat: 'Garden', w: 3, h: 2, colors: ['#8a6844', '#5d6a5a', '#7a6a8c'],
     draw(g, W, H, v) {
@@ -3746,21 +4132,145 @@ HP.CATALOG = [
   { id: 'treehouse', name: 'Treehouse', cat: 'Outdoor', w: 3, h: 3, colors: ['#8a6844', '#6b4f33', '#a4805c'],
     draw(g, W, H, v) {
       const p = P(), c = this.colors[v];
-      for (let i = 0; i < 8; i++) {                                                // tree foliage
-        const a = i * Math.PI / 4;
-        g.beginPath(); g.ellipse(W / 2 + Math.cos(a) * W * 0.3, H / 2 + Math.sin(a) * H * 0.3,
-          W * 0.14, W * 0.14, 0, 0, 7);
-        g.fillStyle = HP.shade('#4e7d45', 0.9 + (i % 3) * 0.08); g.fill();
+      p.shadow(g, 4, 4, W - 8, H - 8, 8);
+      // 1. Structural deck rim beam and timber planks
+      g.fillStyle = '#5c3317';
+      g.fillRect(6, 6, W - 12, H - 12);
+      p.wood(g, 8, 8, W - 16, H - 16, c);
+      // Deck plank lines
+      g.strokeStyle = HP.shade(c, 0.75); g.lineWidth = 1;
+      for (let x = 14; x < W - 14; x += 10) {
+        g.beginPath(); g.moveTo(x, 8); g.lineTo(x, H - 8); g.stroke();
       }
-      g.beginPath(); g.arc(W / 2, H / 2, W * 0.28, 0, 7);                          // trunk area
-      g.fillStyle = '#6b4f33'; g.fill();
-      p.wood(g, W * 0.28, H * 0.28, W * 0.44, H * 0.44, c);                        // platform house
-      g.fillStyle = '#c9e0f0'; g.fillRect(W * 0.36, H * 0.36, W * 0.12, H * 0.12); // window
-      g.fillStyle = '#3f3a34'; g.fillRect(W * 0.3, H * 0.3, W * 0.4, 3);           // roof edge
-      g.strokeStyle = '#c9854e'; g.lineWidth = 2;                                  // rope ladder
-      g.beginPath(); g.moveTo(W * 0.75, H * 0.6); g.lineTo(W * 0.82, H * 0.85); g.stroke();
-      g.beginPath(); g.moveTo(W * 0.72, H * 0.66); g.lineTo(W * 0.84, H * 0.66); g.stroke();
+      // 2. Heavy corner and intermediate deck railing posts
+      g.fillStyle = '#451a03';
+      const posts = [[8, 8], [W - 12, 8], [8, H - 12], [W * 0.60, H - 12], [W - 12, H * 0.40]];
+      posts.forEach(([px, py]) => g.fillRect(px - 2, py - 2, 5, 5));
+      // Top handrails
+      g.strokeStyle = '#78350f'; g.lineWidth = 2.5;
+      g.beginPath();
+      // Rear & left
+      g.moveTo(W - 12, 8); g.lineTo(8, 8); g.lineTo(8, H - 12);
+      // Front (up to ladder opening)
+      g.lineTo(W * 0.60, H - 12); g.stroke();
+      // Right (above ladder opening)
+      g.beginPath(); g.moveTo(W - 12, 8); g.lineTo(W - 12, H * 0.40); g.stroke();
+
+      // 3. Central Ancient Oak Trunk cross-section with growth rings & root flares
+      g.fillStyle = '#3b2214';
+      for (let a = 0; a < 6.28; a += 0.78) {
+        g.beginPath();
+        g.arc(W / 2 + Math.cos(a) * W * 0.16, H / 2 + Math.sin(a) * H * 0.16, W * 0.07, 0, 7);
+        g.fill();
+      }
+      g.beginPath(); g.arc(W / 2, H / 2, W * 0.17, 0, 7);
+      g.fillStyle = '#4a2c1a'; g.fill();
+      g.strokeStyle = '#2d160c'; g.lineWidth = 2; g.stroke();
+      // Tree growth rings
+      g.strokeStyle = 'rgba(217, 119, 6, 0.25)'; g.lineWidth = 1;
+      g.beginPath(); g.arc(W / 2, H / 2, W * 0.11, 0, 7); g.stroke();
+      g.beginPath(); g.arc(W / 2, H / 2, W * 0.06, 0, 7); g.stroke();
+
+      // 4. Sturdy Ship's Ladder at front-right with wooden rungs
+      const lx0 = W * 0.68, lx1 = W * 0.88, ly0 = H * 0.55, ly1 = H - 2;
+      g.fillStyle = '#3d2516'; // shadow under ladder
+      g.fillRect(lx0 - 1, ly0, (lx1 - lx0) + 2, ly1 - ly0);
+      g.strokeStyle = '#fed7aa'; g.lineWidth = 2.5;
+      g.beginPath(); g.moveTo(lx0, ly0); g.lineTo(lx0, ly1); g.stroke();
+      g.beginPath(); g.moveTo(lx1, ly0); g.lineTo(lx1, ly1); g.stroke();
+      g.lineWidth = 2;
+      for (let r = 0; r < 6; r++) {
+        const ry = ly0 + 4 + r * ((ly1 - ly0 - 8) / 5);
+        g.beginPath(); g.moveTo(lx0, ry); g.lineTo(lx1, ry); g.stroke();
+      }
+
+      // 5. Rustic Cabin on rear-left of deck
+      const cabW = W * 0.54, cabH = H * 0.54;
+      g.fillStyle = 'rgba(0,0,0,0.22)';
+      g.fillRect(10, 10, cabW + 4, cabH + 4);
+      p.wood(g, 9, 9, cabW, cabH, HP.shade(c, 0.9));
+      g.strokeStyle = '#451a03'; g.lineWidth = 2;
+      g.strokeRect(9, 9, cabW, cabH);
+      // Gabled roof planes and ridge beam
+      g.fillStyle = '#3f2113';
+      g.beginPath();
+      g.moveTo(7, 7); g.lineTo(cabW * 0.55, 7);
+      g.lineTo(cabW * 0.55, cabH + 9); g.lineTo(7, cabH + 9);
+      g.closePath(); g.fill();
+      g.fillStyle = '#5c3317';
+      g.beginPath();
+      g.moveTo(cabW * 0.55, 7); g.lineTo(cabW + 11, 7);
+      g.lineTo(cabW + 11, cabH + 9); g.lineTo(cabW * 0.55, cabH + 9);
+      g.closePath(); g.fill();
+      g.strokeStyle = '#2d160c'; g.lineWidth = 3;
+      g.beginPath(); g.moveTo(cabW * 0.55, 6); g.lineTo(cabW * 0.55, cabH + 10); g.stroke();
+      // Cabin windows (cyan glass)
+      g.fillStyle = '#92bbc0';
+      g.fillRect(cabW + 9, cabH * 0.35, 3, cabH * 0.30);
+      g.fillRect(7, cabH * 0.35, 3, cabH * 0.30);
+      // Walk-in doorway with Dutch door & glowing interior hint
+      g.fillStyle = '#1e293b';
+      g.fillRect(cabW * 0.28, cabH + 7, cabW * 0.38, 5);
+      g.fillStyle = '#fef08a';
+      g.beginPath(); g.arc(cabW * 0.40, cabH + 5, 3, 0, 7); g.fill();
+      // Stone chimney at rear
+      g.fillStyle = '#64748b';
+      g.fillRect(cabW * 0.70, 5, 8, 7);
+      g.fillStyle = '#c2410c';
+      g.fillRect(cabW * 0.72, 4, 4, 3);
+
+      // 6. Observation Viewing Deck Appointments
+      // Brass telescope on tripod
+      g.strokeStyle = '#78350f'; g.lineWidth = 1.5;
+      g.beginPath();
+      g.moveTo(W * 0.75, H * 0.22); g.lineTo(W * 0.71, H * 0.26);
+      g.moveTo(W * 0.75, H * 0.22); g.lineTo(W * 0.79, H * 0.26);
+      g.moveTo(W * 0.75, H * 0.22); g.lineTo(W * 0.75, H * 0.18);
+      g.stroke();
+      g.fillStyle = '#eab308';
+      g.save();
+      g.translate(W * 0.75, H * 0.22);
+      g.rotate(-0.4);
+      g.fillRect(-2, -7, 4, 14);
+      g.restore();
+
+      // Ship's wheel / helm mounted to right railing
+      g.strokeStyle = '#9a5826'; g.lineWidth = 1.5;
+      g.beginPath(); g.arc(W - 13, H * 0.50, 5, 0, 7); g.stroke();
+      g.fillStyle = '#5c3317';
+      g.beginPath(); g.arc(W - 13, H * 0.50, 2, 0, 7); g.fill();
+
+      // Bucket hoist & davit projecting past deck edge
+      g.strokeStyle = '#78350f'; g.lineWidth = 2;
+      g.beginPath(); g.moveTo(W - 14, H * 0.30); g.lineTo(W - 2, H * 0.30); g.stroke();
+      g.fillStyle = '#854d24';
+      g.fillRect(W - 4, H * 0.27, 5, 6);
+
+      // Planter box with bright flower blossoms
+      g.fillStyle = '#78350f';
+      g.fillRect(W * 0.18, H - 10, W * 0.28, 4);
+      const flwCols = ['#ec4899', '#facc15', '#38bdf8', '#f43f5e'];
+      flwCols.forEach((fc, i) => {
+        g.fillStyle = fc;
+        g.beginPath(); g.arc(W * 0.22 + i * (W * 0.06), H - 8, 2, 0, 7); g.fill();
+      });
+
+      // 7. Lush Towering Foliage Canopy Clusters around and above
+      const canopyClusters = [
+        { cx: W * 0.18, cy: H * 0.18, r: W * 0.20, c: '#15803d' },
+        { cx: W * 0.82, cy: H * 0.20, r: W * 0.18, c: '#14532d' },
+        { cx: W * 0.50, cy: H * 0.12, r: W * 0.22, c: '#16a34a' },
+        { cx: W * 0.15, cy: H * 0.80, r: W * 0.18, c: '#166534' },
+        { cx: W * 0.82, cy: H * 0.78, r: W * 0.16, c: '#15803d' },
+        { cx: W * 0.50, cy: H * 0.50, r: W * 0.18, c: '#22c55e' }
+      ];
+      canopyClusters.forEach(cl => {
+        g.beginPath(); g.arc(cl.cx, cl.cy, cl.r, 0, 7);
+        g.fillStyle = cl.c; g.fill();
+        g.strokeStyle = HP.shade(cl.c, 0.7); g.lineWidth = 1; g.stroke();
+      });
     } },
+
   { id: 'ridemower', name: 'Ride-on Mower', cat: 'Garage', w: 1, h: 2, colors: ['#5d8a5d', '#e8b04a', '#a03a3a'],
     draw(g, W, H, v) {
       const p = P(), c = this.colors[v];
@@ -4054,8 +4564,8 @@ HP.CATALOG = [
   { id: 'miroval', name: 'Oval Mirror', cat: 'Decor', brand: 'Heritage', w: 1, h: 2, colors: ['#c9a44e', '#3a3f47', '#8a6844', '#e8e2d6'], draw: mirrorDeco('oval') },
   { id: 'mirarch', name: 'Arch Mirror', cat: 'Decor', brand: 'Aria', w: 1, h: 2, colors: ['#3a3f47', '#c9a44e', '#8a6844', '#8b939c'], draw: mirrorDeco('arch') },
   { id: 'mirwavy', name: 'Wavy Mirror', cat: 'Decor', brand: 'CasaModa', w: 1, h: 2, colors: ['#e8a0b8', '#a8c8d8', '#c9a44e', '#3a3f47'], draw: mirrorDeco('wavy') },
-  { id: 'clkround', name: 'Wall Clock', cat: 'Decor', brand: 'CasaModa', w: 1, h: 1, colors: ['#3a3f47', '#e8e2d6', '#c9a44e', '#8a6844'], draw: clockDeco('round') },
-  { id: 'clkroman', name: 'Roman Clock', cat: 'Decor', brand: 'Heritage', w: 1, h: 1, colors: ['#8a6844', '#3a3f47', '#a06558'], draw: clockDeco('roman') },
+  { id: 'clkround', name: 'Wall Clock', cat: 'Decor', brand: 'CasaModa', w: 1, h: 1, hangs: true, colors: ['#3a3f47', '#e8e2d6', '#c9a44e', '#8a6844'], draw: clockDeco('round') },
+  { id: 'clkroman', name: 'Roman Clock', cat: 'Decor', brand: 'Heritage', w: 1, h: 1, hangs: true, colors: ['#8a6844', '#3a3f47', '#a06558'], draw: clockDeco('roman') },
   { id: 'clkgrand', name: 'Grandfather Clock', cat: 'Decor', brand: 'Heritage', w: 1, h: 2, colors: ['#6b4f33', '#8a6844', '#3a3f47'], draw: clockDeco('grand') },
 
   /* ---------------- DECOR — rugs ---------------- */
@@ -4068,17 +4578,17 @@ HP.CATALOG = [
   { id: 'rugplay', name: 'Road Play Rug', cat: 'Decor', brand: 'Softline', w: 4, h: 3, walkable: true, colors: ['#8fb8d8', '#a8c8a8', '#d8b8b8'], draw: rugDeco('play') },
 
   /* ---------------- DECOR — tabletop ---------------- */
-  { id: 'topvase', name: 'Flower Vase', cat: 'Decor', brand: 'Velluto', w: 1, h: 1, colors: ['#a8c8d8', '#e8a0b8', '#5d8a5d', '#3a3f47', '#e8e2d6'], draw: topDeco('vase') },
-  { id: 'topcandles', name: 'Candle Trio', cat: 'Decor', brand: 'TerraHome', w: 1, h: 1, colors: ['#8a6844', '#3a3f47', '#c9a44e'], draw: topDeco('candles') },
-  { id: 'topbooks', name: 'Book Stack', cat: 'Decor', brand: 'Nordvik', w: 1, h: 1, colors: ['#a03a3a', '#3a5f8a', '#5d8a5d'], draw: topDeco('books') },
-  { id: 'topbowl', name: 'Fruit Bowl', cat: 'Decor', brand: 'TerraHome', w: 1, h: 1, colors: ['#8a6844', '#e8e2d6', '#3a3f47', '#a8c8d8'], draw: topDeco('bowl') },
-  { id: 'topterra', name: 'Terrarium', cat: 'Decor', brand: 'Aria', w: 1, h: 1, colors: GRE, draw: topDeco('terra') },
-  { id: 'topdiffuser', name: 'Reed Diffuser', cat: 'Decor', brand: 'Velluto', w: 1, h: 1, colors: ['#b8a8c8', '#a8c8d8', '#c9a44e', '#5d8a5d'], draw: topDeco('diffuser') },
-  { id: 'topframe', name: 'Photo Frame', cat: 'Decor', brand: 'CasaModa', w: 1, h: 1, colors: ['#6b4f33', '#3a3f47', '#c9a44e'], draw: topDeco('frame') },
-  { id: 'topsucculent', name: 'Succulent', cat: 'Decor', brand: 'TerraHome', w: 1, h: 1, colors: GRE, draw: topDeco('succulent') },
-  { id: 'topalarm', name: 'Alarm Clock', cat: 'Decor', brand: 'Nordvik', w: 1, h: 1, colors: ['#e8c832', '#3a3f47', '#e8a0b8', '#a8c8d8'], draw: topDeco('alarm') },
-  { id: 'topknot', name: 'Knot Sculpture', cat: 'Decor', brand: 'Aria', w: 1, h: 1, colors: ['#c9a44e', '#3a3f47', '#8b939c', '#a06558'], draw: topDeco('knot') },
-  { id: 'topincense', name: 'Incense Holder', cat: 'Decor', brand: 'Aria', w: 1, h: 1, colors: ['#8a6844', '#3a3f47'], draw: topDeco('incense') },
+  { id: 'topvase', name: 'Flower Vase', cat: 'Decor', brand: 'Velluto', w: 1, h: 1, onTop: true, colors: ['#a8c8d8', '#e8a0b8', '#5d8a5d', '#3a3f47', '#e8e2d6'], draw: topDeco('vase') },
+  { id: 'topcandles', name: 'Candle Trio', cat: 'Decor', brand: 'TerraHome', w: 1, h: 1, onTop: true, colors: ['#8a6844', '#3a3f47', '#c9a44e'], draw: topDeco('candles') },
+  { id: 'topbooks', name: 'Book Stack', cat: 'Decor', brand: 'Nordvik', w: 1, h: 1, onTop: true, colors: ['#a03a3a', '#3a5f8a', '#5d8a5d'], draw: topDeco('books') },
+  { id: 'topbowl', name: 'Fruit Bowl', cat: 'Decor', brand: 'TerraHome', w: 1, h: 1, onTop: true, colors: ['#8a6844', '#e8e2d6', '#3a3f47', '#a8c8d8'], draw: topDeco('bowl') },
+  { id: 'topterra', name: 'Terrarium', cat: 'Decor', brand: 'Aria', w: 1, h: 1, onTop: true, colors: GRE, draw: topDeco('terra') },
+  { id: 'topdiffuser', name: 'Reed Diffuser', cat: 'Decor', brand: 'Velluto', w: 1, h: 1, onTop: true, colors: ['#b8a8c8', '#a8c8d8', '#c9a44e', '#5d8a5d'], draw: topDeco('diffuser') },
+  { id: 'topframe', name: 'Photo Frame', cat: 'Decor', brand: 'CasaModa', w: 1, h: 1, onTop: true, colors: ['#6b4f33', '#3a3f47', '#c9a44e'], draw: topDeco('frame') },
+  { id: 'topsucculent', name: 'Succulent', cat: 'Decor', brand: 'TerraHome', w: 1, h: 1, onTop: true, colors: GRE, draw: topDeco('succulent') },
+  { id: 'topalarm', name: 'Alarm Clock', cat: 'Decor', brand: 'Nordvik', w: 1, h: 1, onTop: true, colors: ['#e8c832', '#3a3f47', '#e8a0b8', '#a8c8d8'], draw: topDeco('alarm') },
+  { id: 'topknot', name: 'Knot Sculpture', cat: 'Decor', brand: 'Aria', w: 1, h: 1, onTop: true, colors: ['#c9a44e', '#3a3f47', '#8b939c', '#a06558'], draw: topDeco('knot') },
+  { id: 'topincense', name: 'Incense Holder', cat: 'Decor', brand: 'Aria', w: 1, h: 1, onTop: true, colors: ['#8a6844', '#3a3f47'], draw: topDeco('incense') },
 
   /* ---------------- DECOR — floor pieces ---------------- */
   { id: 'flbasket', name: 'Blanket Basket', cat: 'Decor', brand: 'TerraHome', w: 1, h: 1, colors: ['#c9b48f', '#a89885', '#8f8578', '#6b4f33'], draw: floorDeco('basket') },
@@ -4193,7 +4703,7 @@ HP.CATALOG = [
     } },
 
   /* ---------------- KITCHEN APPLIANCES (countertop) ---------------- */
-  { id: 'toaster', name: 'Toaster', cat: 'Kitchen', brand: 'CasaModa', w: 1, h: 1, colors: ['#dfe5ea', '#a8b8c8', '#e8963c', '#3a3f47'],
+  { id: 'toaster', name: 'Toaster', cat: 'Kitchen', brand: 'CasaModa', w: 1, h: 1, onTop: true, colors: ['#dfe5ea', '#a8b8c8', '#e8963c', '#3a3f47'],
     draw(g, W, H, v) {
       const p = P(), c = this.colors[v];
       p.box(g, W * 0.2, H * 0.3, W * 0.6, H * 0.5, 8,
@@ -4205,7 +4715,7 @@ HP.CATALOG = [
       g.fillRect(W * 0.31, H * 0.26, W * 0.12, H * 0.14);
       g.fillStyle = '#555c66'; g.fillRect(W * 0.82, H * 0.4, 4, H * 0.2);         // lever
     } },
-  { id: 'kettle', name: 'Kettle', cat: 'Kitchen', brand: 'Nordvik', w: 1, h: 1, colors: ['#dfe5ea', '#a06558', '#3a3f47', '#8fb8a0'],
+  { id: 'kettle', name: 'Kettle', cat: 'Kitchen', brand: 'Nordvik', w: 1, h: 1, onTop: true, colors: ['#dfe5ea', '#a06558', '#3a3f47', '#8fb8a0'],
     draw(g, W, H, v) {
       const p = P(), c = this.colors[v];
       g.beginPath(); g.ellipse(W / 2, H * 0.55, W * 0.24, H * 0.3, 0, 0, 7);      // body
@@ -4217,7 +4727,7 @@ HP.CATALOG = [
       g.beginPath(); g.arc(W * 0.36, H * 0.5, W * 0.14, Math.PI * 0.5, Math.PI * 1.5); g.stroke();
       g.fillStyle = '#2c2f33'; g.fillRect(W * 0.42, H * 0.2, W * 0.16, 4);        // lid
     } },
-  { id: 'coffeemach', name: 'Coffee Machine', cat: 'Kitchen', brand: 'Velluto', w: 1, h: 1, colors: ['#3a3f47', '#dfe5ea', '#a06558', '#5b5f6b'],
+  { id: 'coffeemach', name: 'Coffee Machine', cat: 'Kitchen', brand: 'Velluto', w: 1, h: 1, onTop: true, colors: ['#3a3f47', '#dfe5ea', '#a06558', '#5b5f6b'],
     draw(g, W, H, v) {
       const p = P(), c = this.colors[v];
       p.box(g, W * 0.22, H * 0.08, W * 0.56, H * 0.5, 4,
@@ -4229,7 +4739,7 @@ HP.CATALOG = [
       g.beginPath(); g.arc(W / 2, H * 0.78, W * 0.13, 0, 7); g.fillStyle = '#3a2a1a'; g.fill(); // coffee
       g.fillStyle = '#555c66'; g.fillRect(W * 0.46, H * 0.56, W * 0.08, H * 0.08); // spout
     } },
-  { id: 'blender', name: 'Blender', cat: 'Kitchen', brand: 'CasaModa', w: 1, h: 1, colors: ['#dfe5ea', '#e8963c', '#a06558', '#3a3f47'],
+  { id: 'blender', name: 'Blender', cat: 'Kitchen', brand: 'CasaModa', w: 1, h: 1, onTop: true, colors: ['#dfe5ea', '#e8963c', '#a06558', '#3a3f47'],
     draw(g, W, H, v) {
       const p = P(), c = this.colors[v];
       p.box(g, W * 0.28, H * 0.62, W * 0.44, H * 0.3, 4,
@@ -4240,7 +4750,7 @@ HP.CATALOG = [
       g.fillStyle = '#e8963c'; g.fillRect(W * 0.38, H * 0.34, W * 0.24, H * 0.22); // juice
       g.fillStyle = '#3a3f47'; g.fillRect(W * 0.36, H * 0.08, W * 0.28, H * 0.06); // lid
     } },
-  { id: 'airfryer', name: 'Air Fryer', cat: 'Kitchen', brand: 'UrbanForm', w: 1, h: 1, colors: ['#3a3f47', '#dfe5ea', '#a06558'],
+  { id: 'airfryer', name: 'Air Fryer', cat: 'Kitchen', brand: 'UrbanForm', w: 1, h: 1, onTop: true, colors: ['#3a3f47', '#dfe5ea', '#a06558'],
     draw(g, W, H, v) {
       const p = P(), c = this.colors[v];
       p.box(g, W * 0.2, H * 0.15, W * 0.6, H * 0.7, 10,
@@ -4251,7 +4761,7 @@ HP.CATALOG = [
       g.fillStyle = '#22252a'; g.fillRect(W * 0.3, H * 0.2, W * 0.4, H * 0.12);   // panel
       g.fillStyle = '#4fc3f7'; g.fillRect(W * 0.38, H * 0.23, W * 0.24, H * 0.05);
     } },
-  { id: 'mixer', name: 'Stand Mixer', cat: 'Kitchen', brand: 'Heritage', w: 1, h: 1, colors: ['#a03a3a', '#dfe5ea', '#3a5f8a', '#5d8a5d', '#e8c832'],
+  { id: 'mixer', name: 'Stand Mixer', cat: 'Kitchen', brand: 'Heritage', w: 1, h: 1, onTop: true, colors: ['#a03a3a', '#dfe5ea', '#3a5f8a', '#5d8a5d', '#e8c832'],
     draw(g, W, H, v) {
       const p = P(), c = this.colors[v];
       p.box(g, W * 0.22, H * 0.6, W * 0.56, H * 0.28, 4, HP.shade(c, 0.8));       // base
@@ -4263,7 +4773,7 @@ HP.CATALOG = [
       g.strokeStyle = '#555c66'; g.lineWidth = 2;
       g.beginPath(); g.moveTo(W * 0.6, H * 0.42); g.lineTo(W * 0.68, H * 0.55); g.stroke(); // arm
     } },
-  { id: 'ricecooker', name: 'Rice Cooker', cat: 'Kitchen', brand: 'Aria', w: 1, h: 1, colors: ['#f0f2f4', '#dfe5ea', '#e8a0b8'],
+  { id: 'ricecooker', name: 'Rice Cooker', cat: 'Kitchen', brand: 'Aria', w: 1, h: 1, onTop: true, colors: ['#f0f2f4', '#dfe5ea', '#e8a0b8'],
     draw(g, W, H, v) {
       const p = P(), c = this.colors[v];
       g.beginPath(); g.ellipse(W / 2, H * 0.55, W * 0.3, H * 0.32, 0, 0, 7);
@@ -4274,7 +4784,7 @@ HP.CATALOG = [
       g.fillStyle = '#3a3f47'; g.fillRect(W * 0.4, H * 0.66, W * 0.2, H * 0.1);   // panel
       g.fillStyle = '#4fc3f7'; g.fillRect(W * 0.44, H * 0.69, W * 0.12, H * 0.04);
     } },
-  { id: 'rangehood', name: 'Range Hood', cat: 'Kitchen', brand: 'UrbanForm', w: 2, h: 1, colors: ['#c9ced4', '#3a3f47', '#dfe5ea'],
+  { id: 'rangehood', name: 'Range Hood', cat: 'Kitchen', brand: 'UrbanForm', w: 2, h: 1, walkable: true, colors: ['#c9ced4', '#3a3f47', '#dfe5ea'],
     draw(g, W, H, v) {
       const p = P(), c = this.colors[v];
       g.fillStyle = HP.shade(c, 0.9); g.fillRect(W * 0.4, 4, W * 0.2, H * 0.3);   // chimney
@@ -4397,7 +4907,7 @@ HP.CATALOG = [
     } },
 
   /* ---------------- BATHROOM extras ---------------- */
-  { id: 'towelwarmer', name: 'Towel Warmer', cat: 'Bathroom', brand: 'Nordvik', w: 1, h: 1, colors: ['#c9ced4', '#3a3f47', '#c9a44e'],
+  { id: 'towelwarmer', name: 'Towel Warmer', cat: 'Bathroom', brand: 'Nordvik', w: 1, h: 1, hangs: true, colors: ['#c9ced4', '#3a3f47', '#c9a44e'],
     draw(g, W, H, v) {
       const c = this.colors[v];
       g.strokeStyle = c; g.lineWidth = 4;                                         // rails
@@ -4434,7 +4944,7 @@ HP.CATALOG = [
       g.fillStyle = '#a03a3a'; g.fillRect(W * 0.55, H * 0.42, W * 0.2, H * 0.16); // book
       g.fillStyle = '#8fa4b0'; g.beginPath(); g.arc(W * 0.82, H * 0.5, 4, 0, 7); g.fill(); // wine glass
     } },
-  { id: 'mirrorcab', name: 'Mirror Cabinet', cat: 'Bathroom', brand: 'Aria', w: 1, h: 1, colors: ['#dfe5ea', '#c9ced4', '#8b939c'],
+  { id: 'mirrorcab', name: 'Mirror Cabinet', cat: 'Bathroom', brand: 'Aria', w: 1, h: 1, hangs: true, colors: ['#dfe5ea', '#c9ced4', '#8b939c'],
     draw(g, W, H, v) {
       const p = P(), c = this.colors[v];
       p.box(g, 8, 6, W - 16, H - 12, 4, c);
@@ -4463,7 +4973,7 @@ HP.CATALOG = [
         g.lineTo(x + 9, H * 0.88); g.lineTo(x - 9, H * 0.88); g.fill();
       }
     } },
-  { id: 'coathooks', name: 'Coat Hooks', cat: 'Living', brand: 'Nordvik', w: 2, h: 1, colors: ['#8a6844', '#3a3f47', '#e8e2d6'],
+  { id: 'coathooks', name: 'Coat Hooks', cat: 'Living', brand: 'Nordvik', w: 2, h: 1, hangs: true, colors: ['#8a6844', '#3a3f47', '#e8e2d6'],
     draw(g, W, H, v) {
       const p = P(), c = this.colors[v];
       p.wood(g, 6, H * 0.25, W - 12, H * 0.3, c);                                 // rail
@@ -4851,16 +5361,27 @@ HP.CATALOG = [
   { id: 'cornershelf', name: 'Corner Shelf', cat: 'Living', brand: 'Nordvik', w: 1, h: 1, colors: ['#9a774f', '#3a3f47', '#e8e2d6'],
     draw(g, W, H, v) {
       const p = P(), c = this.colors[v];
-      for (let i = 0; i < 3; i++) {                                               // quarter shelves
+      const ox = 4, oy = 4, maxR = Math.min(W, H) - 8;
+      // 1. Back corner wall uprights
+      g.fillStyle = HP.shade(c, 0.7);
+      g.fillRect(ox, oy, maxR, 3);
+      g.fillRect(ox, oy, 3, maxR);
+      // 2. 4 radial quarter-round shelves from bottom to top
+      for (let i = 0; i < 4; i++) {
+        const r = maxR * (1 - i * 0.18);
         g.beginPath();
-        g.moveTo(6, H * (0.3 + i * 0.28)); g.lineTo(W * (0.9 - i * 0.2), H * (0.3 + i * 0.28));
-        g.lineTo(6, H * (0.3 + i * 0.28) + (W * (0.9 - i * 0.2) - 6));
+        g.moveTo(ox, oy);
+        g.arc(ox, oy, r, 0, Math.PI / 2);
         g.closePath();
-        g.fillStyle = HP.shade(c, 0.95 - i * 0.05); g.fill();
+        g.fillStyle = p.lg(g, ox, oy, r, r, HP.shade(c, 1.08 - i * 0.05), HP.shade(c, 0.88 - i * 0.05));
+        g.fill();
         g.strokeStyle = HP.shade(c, 0.6); g.lineWidth = 1; g.stroke();
       }
-      g.fillStyle = '#8fb8a0'; g.beginPath(); g.arc(W * 0.2, H * 0.34, 4, 0, 7); g.fill(); // small pot
-      g.fillStyle = '#a03a3a'; g.fillRect(W * 0.14, H * 0.62, 5, 8);              // book
+      // 3. Decor: succulent pot + hardback books
+      g.fillStyle = '#f4ede4'; g.beginPath(); g.arc(ox + 8, oy + 8, 3.5, 0, 7); g.fill();
+      g.fillStyle = '#4ade80'; g.beginPath(); g.arc(ox + 9, oy + 9, 2.5, 0, 7); g.fill();
+      g.fillStyle = '#dc2626'; g.fillRect(ox + maxR * 0.28, oy + 5, 3, 7);
+      g.fillStyle = '#2563eb'; g.fillRect(ox + maxR * 0.28 + 4, oy + 5, 2.5, 7);
     } },
   { id: 'sectional5', name: 'U-Sectional 5', cat: 'Living', brand: 'Softline', w: 5, h: 4, colors: FABC,
     draw(g, W, H, v) {
@@ -4875,6 +5396,65 @@ HP.CATALOG = [
       p.pillow(g, aw + 10, H * 0.14, 14, HP.shade(c, 1.3), -0.2);
       p.pillow(g, W - aw - 24, H * 0.14, 14, HP.shade(c, 1.3), 0.2);
       p.pillow(g, W * 0.4, H * 0.2, 13, HP.shade(c, 1.25), 0);
+    } },
+
+  /* ---------------- WALL-MOUNTED (hang on wall edges, share the floor cell) ------- */
+  { id: 'walltv', name: 'Wall TV 55"', cat: 'Living', brand: 'VoltEdge', w: 2, h: 1, hangs: true, colors: ['#1c2126', '#3a3f47', '#8b939c'],
+    draw(g, W, H, v) {
+      const p = P(), c = this.colors[v];
+      p.box(g, W * 0.06, H * 0.14, W * 0.88, H * 0.62, 4, HP.shade(c, 0.75));      // bezel
+      p.box(g, W * 0.09, H * 0.18, W * 0.82, H * 0.54, 2, '#10151c');              // screen
+      g.fillStyle = 'rgba(120,170,220,.28)';
+      g.beginPath(); g.moveTo(W * 0.09, H * 0.72); g.lineTo(W * 0.38, H * 0.18);
+      g.lineTo(W * 0.58, H * 0.18); g.lineTo(W * 0.09, H * 0.72); g.fill();        // glare
+      p.box(g, W * 0.42, H * 0.78, W * 0.16, H * 0.1, 2, '#4a4f57');               // mount
+    } },
+  { id: 'wallcab', name: 'Wall Cabinet', cat: 'Kitchen', brand: 'Nordvik', w: 2, h: 1, hangs: true, colors: ['#c8bfae', '#8a6844', '#6e5844', '#dfe5ea'],
+    draw(g, W, H, v) {
+      const p = P(), c = this.colors[v];
+      p.box(g, W * 0.04, H * 0.12, W * 0.92, H * 0.74, 3, c);                      // carcass
+      for (const sx of [0.055, 0.525]) {
+        p.box(g, W * sx, H * 0.16, W * 0.42, H * 0.66, 2, p.lg(g, W * sx, H * 0.16, W * 0.42, H * 0.66, HP.shade(c, 1.1), HP.shade(c, 0.88)));
+        g.fillStyle = HP.shade(c, 0.55); g.fillRect(W * (sx + 0.36), H * 0.42, W * 0.035, H * 0.16);   // handles
+      }
+    } },
+  { id: 'wallshelf', name: 'Wall Shelves', cat: 'Living', brand: 'CasaModa', w: 1, h: 1, hangs: true, colors: ['#9a774f', '#6b4f33', '#e8e2d6', '#3a3f47'],
+    draw(g, W, H, v) {
+      const p = P(), c = this.colors[v];
+      for (let i = 0; i < 3; i++)
+        p.wood(g, W * 0.1, H * (0.14 + i * 0.3), W * 0.8, H * 0.12, c);            // boards
+      g.fillStyle = '#b8a07b'; g.beginPath(); g.arc(W * 0.3, H * 0.2, 5, 0, 7); g.fill();  // pot
+      g.fillStyle = '#a03a3a'; g.fillRect(W * 0.55, H * 0.42, W * 0.12, H * 0.12); // book
+      g.fillStyle = '#4a6b8a'; g.fillRect(W * 0.6, H * 0.44, W * 0.1, H * 0.1);    // book 2
+      g.fillStyle = '#8fb8a0'; g.beginPath(); g.arc(W * 0.4, H * 0.8, 4, 0, 7); g.fill();  // small plant
+    } },
+  { id: 'sconce', name: 'Wall Sconce', cat: 'Decor', brand: 'Lumia', w: 1, h: 1, hangs: true, colors: ['#3a3f47', '#c9a44e', '#8b939c'],
+    draw(g, W, H, v) {
+      const p = P(), c = this.colors[v];
+      p.box(g, W * 0.42, H * 0.2, W * 0.16, H * 0.3, 2, c);                        // backplate
+      g.strokeStyle = c; g.lineWidth = 4;
+      g.beginPath(); g.moveTo(W * 0.5, H * 0.5); g.lineTo(W * 0.5, H * 0.62); g.stroke();  // arm
+      const gr = g.createRadialGradient(W * 0.5, H * 0.66, 2, W * 0.5, H * 0.66, 14);
+      gr.addColorStop(0, '#fff3cf'); gr.addColorStop(1, 'rgba(255,220,150,0)');
+      g.fillStyle = gr; g.fillRect(W * 0.2, H * 0.42, W * 0.6, H * 0.5);           // glow
+      g.fillStyle = '#ffe9b0'; g.beginPath(); g.arc(W * 0.5, H * 0.66, 7, 0, 7); g.fill(); // shade
+      g.strokeStyle = HP.shade(c, 0.8); g.lineWidth = 1.5; g.stroke();
+    } },
+  { id: 'acsplit', name: 'AC Split Unit', cat: 'Office', brand: 'VoltEdge', w: 2, h: 1, hangs: true, colors: ['#e8eaec', '#dfe5ea', '#c9ced4'],
+    draw(g, W, H, v) {
+      const p = P(), c = this.colors[v];
+      p.box(g, W * 0.06, H * 0.18, W * 0.88, H * 0.6, 8, p.lg(g, W * 0.06, H * 0.18, W * 0.88, H * 0.6, '#ffffff', c));
+      g.fillStyle = HP.shade(c, 0.72); g.fillRect(W * 0.1, H * 0.62, W * 0.8, H * 0.06);   // vent line
+      g.fillStyle = '#7be0a3'; g.beginPath(); g.arc(W * 0.86, H * 0.34, 3.5, 0, 7); g.fill(); // LED
+    } },
+  /* ---------------- TABLETOP (sit on counters, tables, dressers…) ---------------- */
+  { id: 'laptop', name: 'Laptop', cat: 'Office', brand: 'VoltEdge', w: 1, h: 1, onTop: true, colors: ['#3a3f47', '#8b939c', '#1c2126'],
+    draw(g, W, H, v) {
+      const p = P(), c = this.colors[v];
+      p.box(g, W * 0.34, H * 0.28, W * 0.32, H * 0.2, 2, HP.shade(c, 0.8));        // lid (open, behind)
+      p.box(g, W * 0.36, H * 0.3, W * 0.28, H * 0.15, 1, '#10151c');               // screen
+      p.box(g, W * 0.32, H * 0.5, W * 0.36, H * 0.22, 2, c);                       // base
+      g.fillStyle = '#5b6068'; g.fillRect(W * 0.36, H * 0.54, W * 0.28, H * 0.1);  // keys
     } },
 ];
 })();
