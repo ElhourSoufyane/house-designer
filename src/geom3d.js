@@ -70,6 +70,106 @@ function wallInset(hang, f, walls, env) {
   return wallFace + 0.8;
 }
 
+/* Clearance for floor furniture placed adjacent to solid walls:
+   Computes intrusion of touching wall solids on N, S, W, E edges of footprint f.
+   Returns { dx, dz, w, d, inN, inS, inW, inE } adjustments so the 3D model sits
+   cleanly against the wall face without intersecting solid wall geometry. */
+function floorClearance(f, walls, env, initW, initD, rot) {
+  const C = (env && env.C) || (HP && HP.CELL) || 28;
+  env = env || { C, rAt: () => -1, rsz: () => 1e9 };
+  let inN = 0, inS = 0, inW = 0, inE = 0;
+  if (!f || !walls) return { dx: 0, dz: 0, w: initW, d: initD, inN: 0, inS: 0, inW: 0, inE: 0 };
+
+  const fx0 = f.x, fx1 = f.x + f.w;
+  const fy0 = f.y, fy1 = f.y + f.h;
+  const startX = Math.floor(fx0), endX = Math.ceil(fx1);
+  const startY = Math.floor(fy0), endY = Math.ceil(fy1);
+
+  // North edge (y = fy0)
+  const ny = Math.round(fy0);
+  if (Math.abs(fy0 - ny) < 0.1) {
+    for (let cx = startX; cx < endX; cx++) {
+      const wk = 'h,' + cx + ',' + ny;
+      if (walls[wk] && walls[wk].f !== 'door') {
+        const z = segZone({ d: 'h', x: cx, y: ny }, env);
+        if (z.w1 > inN) inN = z.w1;
+      }
+    }
+  }
+
+  // South edge (y = fy1)
+  const sy = Math.round(fy1);
+  if (Math.abs(fy1 - sy) < 0.1) {
+    for (let cx = startX; cx < endX; cx++) {
+      const wk = 'h,' + cx + ',' + sy;
+      if (walls[wk] && walls[wk].f !== 'door') {
+        const z = segZone({ d: 'h', x: cx, y: sy }, env);
+        if (-z.w0 > inS) inS = -z.w0;
+      }
+    }
+  }
+
+  // West edge (x = fx0)
+  const wx = Math.round(fx0);
+  if (Math.abs(fx0 - wx) < 0.1) {
+    for (let cy = startY; cy < endY; cy++) {
+      const wk = 'v,' + wx + ',' + cy;
+      if (walls[wk] && walls[wk].f !== 'door') {
+        const z = segZone({ d: 'v', x: wx, y: cy }, env);
+        if (z.w1 > inW) inW = z.w1;
+      }
+    }
+  }
+
+  // East edge (x = fx1)
+  const ex = Math.round(fx1);
+  if (Math.abs(fx1 - ex) < 0.1) {
+    for (let cy = startY; cy < endY; cy++) {
+      const wk = 'v,' + ex + ',' + cy;
+      if (walls[wk] && walls[wk].f !== 'door') {
+        const z = segZone({ d: 'v', x: ex, y: cy }, env);
+        if (-z.w0 > inE) inE = -z.w0;
+      }
+    }
+  }
+
+  let dx = 0, dz = 0;
+  let w = initW, d = initD;
+  const isRot = (rot || 0) % 2 !== 0;
+
+  // Z axis clearance (North / South)
+  if (inN > 0 && inS > 0) {
+    const availD = f.h * C - inN - inS - 0.6;
+    if (isRot) {
+      if (w > availD) w = Math.max(2, availD);
+    } else {
+      if (d > availD) d = Math.max(2, availD);
+    }
+    dz = (inN - inS) / 2;
+  } else if (inN > 1.2) {
+    dz = inN - 1.2;
+  } else if (inS > 1.2) {
+    dz = -(inS - 1.2);
+  }
+
+  // X axis clearance (West / East)
+  if (inW > 0 && inE > 0) {
+    const availW = f.w * C - inW - inE - 0.6;
+    if (isRot) {
+      if (d > availW) d = Math.max(2, availW);
+    } else {
+      if (w > availW) w = Math.max(2, availW);
+    }
+    dx = (inW - inE) / 2;
+  } else if (inW > 1.2) {
+    dx = inW - 1.2;
+  } else if (inE > 1.2) {
+    dx = -(inE - 1.2);
+  }
+
+  return { dx, dz, w, d, inN, inS, inW, inE };
+}
+
 const W = (walls, d, x, y) => walls[d + ',' + x + ',' + y];
 const F = (walls, d, x, y) => { const w = W(walls, d, x, y); return w ? w.f : null; };
 
@@ -601,5 +701,5 @@ function audit(walls, env) {
   return { checks, boxes, doors, apertures };
 }
 
-HP.geom3d = { build, audit, WALL_H, DOOR_H, WIN_SILL, WIN_TOP, segZone, wallInset };
+HP.geom3d = { build, audit, WALL_H, DOOR_H, WIN_SILL, WIN_TOP, segZone, wallInset, floorClearance };
 })();

@@ -274,6 +274,18 @@ F.builder = function (group) {
       q.setFromAxisAngle(axis, -rot * Math.PI / 2);
       pos.set((f.x + f.w / 2) * HP.CELL, baseY || 0, (f.y + f.h / 2) * HP.CELL);
       fp = { x0: f.x * HP.CELL, z0: f.y * HP.CELL, x1: (f.x + f.w) * HP.CELL, z1: (f.y + f.h) * HP.CELL };
+      if (!def.hangs && !isScreen && HP.geom3d && HP.geom3d.floorClearance) {
+        const lvl = (HP.cur && HP.cur()) || (HP.state && HP.state.levels && HP.state.levels[HP.state.level || 0]) || null;
+        const lvlWalls = (lvl && lvl.walls) || {};
+        const cl = HP.geom3d.floorClearance(f, lvlWalls, getGeomEnv(), width, depth, rot);
+        if (cl.dx || cl.dz || cl.w !== width || cl.d !== depth) {
+          pos.x += cl.dx;
+          pos.z += cl.dz;
+          width = cl.w;
+          depth = cl.d;
+          fp = { x0: pos.x - width / 2, z0: pos.z - depth / 2, x1: pos.x + width / 2, z1: pos.z + depth / 2 };
+        }
+      }
       small = f.w * f.h < 4;
       root.compose(pos, q, new THREE.Vector3(1, 1, 1));
       const t = it.type.toLowerCase();
