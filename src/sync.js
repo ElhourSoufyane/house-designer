@@ -410,14 +410,22 @@ function mkCode() {
   let s = ''; for (let i = 0; i < 4; i++) s += A[Math.floor(Math.random() * A.length)];
   return s;
 }
-function hostGame() {
+function hostGame(customCode) {
   leavePeer();
-  roomCode = mkCode();
+  const clean = customCode ? customCode.trim().toUpperCase() : null;
+  roomCode = clean || mkCode();
+  try { sessionStorage.setItem('hd_room', roomCode); } catch (e) {}
   HP.status('Creating room ' + roomCode + '…');
   peer = new Peer(PREFIX + roomCode);             // claim the room code as our id
   peer.on('error', e => {
-    if (e && e.type === 'unavailable-id') hostGame();   // code collision → retry
-    else HP.status('Co-op error: ' + (e && e.type));
+    if (e && e.type === 'unavailable-id') {
+      if (clean) {
+        HP.status('Room ' + clean + ' is active — connecting…');
+        joinGame(clean, false);
+      } else {
+        hostGame();   // code collision → retry
+      }
+    } else HP.status('Co-op error: ' + (e && e.type));
   });
   peer.on('open', () => {
     mode = 'host';
@@ -428,23 +436,31 @@ function hostGame() {
   });
   peer.on('connection', setupConn);
 }
-function joinGame(code) {
+function joinGame(code, autoHostFallback) {
   leavePeer();
+  const clean = (code || '').trim().toUpperCase();
+  if (!clean) return;
   const cur = localStorage.getItem(LS_KEY);       // back up solo house first
-  if (cur) localStorage.setItem(LS_BACKUP, cur);
-  roomCode = code;
-  HP.status('Joining room ' + code + '…');
+  if (cur && !localStorage.getItem(LS_BACKUP)) localStorage.setItem(LS_BACKUP, cur);
+  roomCode = clean;
+  try { sessionStorage.setItem('hd_room', roomCode); } catch (e) {}
+  HP.status('Joining room ' + clean + '…');
   peer = new Peer();
   peer.on('error', e => {
     const t = e && e.type;
     if (t === 'peer-unavailable') {
-      HP.status('No room with that code — check it and try again');
-      mode = null; renderPanel();
+      if (autoHostFallback) {
+        HP.status('Hosting room ' + clean + '…');
+        hostGame(clean);
+      } else {
+        HP.status('No room with that code — check it and try again');
+        mode = null; renderPanel();
+      }
     } else HP.status('Co-op error: ' + t);
   });
   peer.on('open', () => {
     mode = 'guest';
-    const c = peer.connect(PREFIX + code, { reliable: true });
+    const c = peer.connect(PREFIX + clean, { reliable: true });
     setupConn(c);
   });
   peer.on('connection', setupConn);               // peers may dial in too
@@ -460,6 +476,7 @@ function leavePeer() {
 function leaveGame() {
   leavePeer();
   roomCode = null;
+  try { sessionStorage.removeItem('hd_room'); } catch (e) {}
   coopStatus('Solo', false);
   renderPanel();
   HP.status('Left co-op — house is saved on this device');
@@ -512,19 +529,30 @@ function hookWalk() {
 hookWalk();
 window.addEventListener('beforeunload', leavePeer);
 
-/* ---------- invite link: ?room=CODE auto-joins ---------- */
+/* ---------- invite link & seamless 2D<->3D room continuity ---------- */
 (function inviteLink() {
-  const code = new URLSearchParams(location.search).get('room');
+  const urlCode = new URLSearchParams(location.search).get('room');
+  const savedRoom = sessionStorage.getItem('hd_room');
+  const code = (urlCode || savedRoom || '').trim().toUpperCase();
   if (!code) return;
   setTimeout(() => {
     showPanel();
     const inp = $('#coop-code');
-    if (inp) inp.value = code.toUpperCase();
-    if (myName) joinGame(code.toUpperCase());        // name saved → straight in
-    else HP.status('Enter your name and tap Join — you were invited to a shared house');
-  }, 600);                                            // let the app boot first
+    if (inp) inp.value = code;
+    joinGame(code, true);        // auto-connect with fallback
+  }, 600);                       // let the app boot first
 })();
 
 /* ---------- public ---------- */
-HP.coop = { show: showPanel, hide: hidePanel, leave: leaveGame, online: () => conns.length };
+HP.coop = {
+  show: showPanel,
+  hide: hidePanel,
+  leave: leaveGame,
+  online: () => conns.length,
+  get roomCode() { return roomCode; },
+  get mode() { return mode; },
+  host: hostGame,
+  join: joinGame
+};
+HP.sync = HP.coop;
 })();

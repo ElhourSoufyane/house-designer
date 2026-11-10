@@ -101,38 +101,59 @@
     const clothesMat = new THREE.MeshLambertMaterial({ color: color });
     const darkMat = new THREE.MeshLambertMaterial({ color: '#1e293b' });
     const shoeMat = new THREE.MeshLambertMaterial({ color: '#0f172a' });
-    const hairMat = new THREE.MeshLambertMaterial({ color: '#3b2f2f' });
+    const hairMat = new THREE.MeshLambertMaterial({ color: '#292524' });
 
-    // 1. Torso / Hoodie
-    const torso = new THREE.Mesh(new THREE.BoxGeometry(7.2, 11.5, 4.2), clothesMat);
+    // 1. Torso / Hoodie (spans y from 20.75 to 32.25)
+    const torso = new THREE.Group();
     torso.position.y = 26.5;
-    g.add(torso);
+
+    const torsoMesh = new THREE.Mesh(new THREE.BoxGeometry(7.2, 11.5, 4.4), clothesMat);
+    torso.add(torsoMesh);
+
+    // Hoodie collar ring: connects top of torso smoothly to neck
+    const collar = new THREE.Mesh(new THREE.CylinderGeometry(2.0, 2.4, 1.2, 12), clothesMat);
+    collar.position.y = 5.6;
+    torso.add(collar);
 
     // Hoodie pocket & zipper detail
     const pocket = new THREE.Mesh(new THREE.BoxGeometry(5.2, 3.8, 0.4), new THREE.MeshStandardMaterial({ color: HP.shade ? HP.shade(color, 0.85) : color, roughness: 0.6 }));
-    pocket.position.set(0, 24.2, 2.2);
-    g.add(pocket);
+    pocket.position.set(0, -2.3, 2.3);
+    torso.add(pocket);
 
-    // 2. Head Group (Rotates in pitch)
+    g.add(torso);
+
+    // 2. Head Group: pivot placed at neck-shoulder junction (y=32.2) so pitching tilts naturally without floating
     const headGroup = new THREE.Group();
-    headGroup.position.set(0, 34.5, 0);
+    headGroup.position.set(0, 32.2, 0);
 
-    const neck = new THREE.Mesh(new THREE.CylinderGeometry(1.4, 1.4, 2.2, 10), skinMat);
-    neck.position.y = 1.0;
+    // Neck: extends from y=-0.2 to y=1.8 (sits snugly inside collar)
+    const neck = new THREE.Mesh(new THREE.CylinderGeometry(1.3, 1.4, 2.0, 10), skinMat);
+    neck.position.y = 0.8;
     headGroup.add(neck);
 
-    const head = new THREE.Mesh(new THREE.BoxGeometry(5.4, 5.6, 5.2), skinMat);
-    head.position.y = 4.6;
+    // Head: sits directly on top of neck (y=1.4 to 6.6)
+    const head = new THREE.Mesh(new THREE.BoxGeometry(5.2, 5.2, 5.0), skinMat);
+    head.position.y = 4.0;
     headGroup.add(head);
 
-    // Hair cap
-    const hair = new THREE.Mesh(new THREE.BoxGeometry(5.8, 2.2, 5.6), hairMat);
-    hair.position.set(0, 6.8, -0.2);
+    // Hair cap & stylish bangs
+    const hair = new THREE.Mesh(new THREE.BoxGeometry(5.6, 2.2, 5.4), hairMat);
+    hair.position.set(0, 5.9, -0.2);
     headGroup.add(hair);
 
-    // Stylized eyes/sunglasses visor
-    const glasses = new THREE.Mesh(new THREE.BoxGeometry(4.4, 1.2, 0.6), darkMat);
-    glasses.position.set(0, 5.0, 2.65);
+    const bangs = new THREE.Mesh(new THREE.BoxGeometry(5.2, 1.1, 1.2), hairMat);
+    bangs.position.set(0, 5.7, 2.2);
+    headGroup.add(bangs);
+
+    for (const sx of [-2.6, 2.6]) {
+      const sideburn = new THREE.Mesh(new THREE.BoxGeometry(0.5, 2.2, 2.4), hairMat);
+      sideburn.position.set(sx, 4.2, 0.2);
+      headGroup.add(sideburn);
+    }
+
+    // Stylized sunglasses / eyes
+    const glasses = new THREE.Mesh(new THREE.BoxGeometry(4.2, 1.1, 0.5), darkMat);
+    glasses.position.set(0, 4.2, 2.55);
     headGroup.add(glasses);
 
     g.add(headGroup);
@@ -160,31 +181,49 @@
     legR.add(shoeR);
     g.add(legR);
 
-    // Left Arm
+    // Left Arm: Shoulder pivot at x=-4.3, y=30.5
     const armL = new THREE.Group();
-    armL.position.set(-4.6, 31.0, 0);
-    const armLMesh = new THREE.Mesh(new THREE.BoxGeometry(2.2, 11.0, 2.6), clothesMat);
-    armLMesh.position.y = -5.5;
-    armL.add(armLMesh);
-    const handL = new THREE.Mesh(new THREE.BoxGeometry(1.8, 2.2, 2.0), skinMat);
-    handL.position.y = -11.5;
+    armL.position.set(-4.3, 30.5, 0);
+    const shoulderL = new THREE.Mesh(new THREE.SphereGeometry(1.3, 8, 8), clothesMat);
+    shoulderL.position.set(0, 0, 0);
+    armL.add(shoulderL);
+    const armLUpper = new THREE.Mesh(new THREE.BoxGeometry(2.2, 5.8, 2.4), clothesMat);
+    armLUpper.position.y = -2.9;
+    armL.add(armLUpper);
+    const armLLower = new THREE.Mesh(new THREE.BoxGeometry(1.9, 5.0, 2.1), clothesMat);
+    armLLower.position.y = -7.5;
+    armL.add(armLLower);
+    const handL = new THREE.Mesh(new THREE.BoxGeometry(1.7, 2.2, 1.8), skinMat);
+    handL.position.y = -10.5;
     armL.add(handL);
+    const thumbL = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.9, 0.7), skinMat);
+    thumbL.position.set(0.7, -10.2, 0.35);
+    armL.add(thumbL);
     g.add(armL);
 
-    // Right Arm
+    // Right Arm: Shoulder pivot at x=4.3, y=30.5
     const armR = new THREE.Group();
-    armR.position.set(4.6, 31.0, 0);
-    const armRMesh = new THREE.Mesh(new THREE.BoxGeometry(2.2, 11.0, 2.6), clothesMat);
-    armRMesh.position.y = -5.5;
-    armR.add(armRMesh);
-    const handR = new THREE.Mesh(new THREE.BoxGeometry(1.8, 2.2, 2.0), skinMat);
-    handR.position.y = -11.5;
+    armR.position.set(4.3, 30.5, 0);
+    const shoulderR = new THREE.Mesh(new THREE.SphereGeometry(1.3, 8, 8), clothesMat);
+    shoulderR.position.set(0, 0, 0);
+    armR.add(shoulderR);
+    const armRUpper = new THREE.Mesh(new THREE.BoxGeometry(2.2, 5.8, 2.4), clothesMat);
+    armRUpper.position.y = -2.9;
+    armR.add(armRUpper);
+    const armRLower = new THREE.Mesh(new THREE.BoxGeometry(1.9, 5.0, 2.1), clothesMat);
+    armRLower.position.y = -7.5;
+    armR.add(armRLower);
+    const handR = new THREE.Mesh(new THREE.BoxGeometry(1.7, 2.2, 1.8), skinMat);
+    handR.position.y = -10.5;
     armR.add(handR);
+    const thumbR = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.9, 0.7), skinMat);
+    thumbR.position.set(-0.7, -10.2, 0.35);
+    armR.add(thumbR);
     g.add(armR);
 
     // 4. Floating Name Tag Billboard
     const nameplate = createNameplate(name, color);
-    nameplate.position.y = 44.0;
+    nameplate.position.y = 42.0;
     g.add(nameplate);
 
     return {
@@ -267,41 +306,45 @@
       const renderY = cur.s ? (cur.y > 15 ? 0 : cur.y) : cur.y;
       av.root.position.set(cur.x, renderY, cur.z);
       av.root.rotation.y = cur.yaw;
-      av.headGroup.rotation.x = Math.max(-0.9, Math.min(0.9, cur.pitch * 0.65));
+      av.headGroup.rotation.x = Math.max(-0.85, Math.min(0.85, cur.pitch * 0.65));
 
       // Walking & Running Animation Cycle
       if (cur.s) {
-        // Sitting Pose
+        // Sitting Pose: body drops to seat height, arms rest naturally on lap
         av.torso.position.y = 15.0;
-        av.headGroup.position.y = 23.0;
-        av.nameplate.position.y = 33.0;
-        av.legL.position.set(-2.0, 12.0, 2.0);
-        av.legR.position.set(2.0, 12.0, 2.0);
-        av.legL.rotation.x = -Math.PI / 2;
-        av.legR.rotation.x = -Math.PI / 2;
-        av.armL.rotation.x = -0.4;
-        av.armR.rotation.x = -0.4;
+        av.headGroup.position.y = 20.75;
+        av.nameplate.position.y = 30.5;
+        av.legL.position.set(-2.0, 10.0, 2.5);
+        av.legR.position.set(2.0, 10.0, 2.5);
+        av.legL.rotation.set(-Math.PI / 2, 0, 0);
+        av.legR.rotation.set(-Math.PI / 2, 0, 0);
+        av.armL.position.set(-4.3, 19.0, 1.2);
+        av.armR.position.set(4.3, 19.0, 1.2);
+        av.armL.rotation.set(-0.82, 0, 0.14);
+        av.armR.rotation.set(-0.82, 0, -0.14);
       } else {
         // Standing / Walking
         av.torso.position.y = 26.5;
-        av.headGroup.position.y = 34.5;
-        av.nameplate.position.y = 44.0;
+        av.headGroup.position.y = 32.25;
+        av.nameplate.position.y = 42.0;
         av.legL.position.set(-2.0, 21.0, 0);
         av.legR.position.set(2.0, 21.0, 0);
+        av.armL.position.set(-4.3, 30.5, 0);
+        av.armR.position.set(4.3, 30.5, 0);
 
         if (cur.v > 3.0) {
           const freq = cur.v > 90 ? 15.0 : 10.0;
           av.phase += dt * freq;
-          const swing = Math.sin(av.phase) * (cur.v > 90 ? 0.75 : 0.52);
-          av.legL.rotation.x = swing;
-          av.legR.rotation.x = -swing;
-          av.armL.rotation.x = -swing * 0.85;
-          av.armR.rotation.x = swing * 0.85;
+          const swing = Math.sin(av.phase) * (cur.v > 90 ? 0.72 : 0.50);
+          av.legL.rotation.set(swing, 0, 0);
+          av.legR.rotation.set(-swing, 0, 0);
+          av.armL.rotation.set(-swing * 0.82, 0, 0.08);
+          av.armR.rotation.set(swing * 0.82, 0, -0.08);
         } else {
-          av.legL.rotation.x = 0;
-          av.legR.rotation.x = 0;
-          av.armL.rotation.x = 0;
-          av.armR.rotation.x = 0;
+          av.legL.rotation.set(0, 0, 0);
+          av.legR.rotation.set(0, 0, 0);
+          av.armL.rotation.set(0, 0, 0.08);
+          av.armR.rotation.set(0, 0, -0.08);
         }
       }
     }
@@ -467,6 +510,7 @@
     S3.leave();
     const clean = (typeof customCode === 'string' && customCode.trim()) ? customCode.trim().toUpperCase() : null;
     S3.roomCode = clean || mkCode();
+    try { sessionStorage.setItem('hd_room', S3.roomCode); } catch (e) {}
     notify(`Creating room ${S3.roomCode}…`);
     try {
       S3.peer = new Peer(PREFIX + S3.roomCode);
@@ -499,6 +543,7 @@
     const cleanCode = (code || '').trim().toUpperCase();
     if (cleanCode.length < 3) { notify('Please enter a room code'); return; }
     S3.roomCode = cleanCode;
+    try { sessionStorage.setItem('hd_room', S3.roomCode); } catch (e) {}
     notify(`Joining room ${cleanCode}…`);
     try {
       S3.peer = new Peer();
@@ -534,6 +579,7 @@
     for (const [id] of S3.peers) removePeer(id);
     S3.mode = null;
     S3.roomCode = null;
+    try { sessionStorage.removeItem('hd_room'); } catch (e) {}
     updateCoopPill();
     renderModal();
   };
@@ -701,8 +747,8 @@
       sendAll(msg);
     }, 50);
 
-    // Bind Auto-Join from URL query parameter ?room=CODE (with auto-host fallback if empty)
-    const urlCode = new URLSearchParams(location.search).get('room');
+    // Bind Auto-Join from URL query parameter ?room=CODE or saved session (with auto-host fallback if empty)
+    const urlCode = new URLSearchParams(location.search).get('room') || sessionStorage.getItem('hd_room');
     if (urlCode && urlCode.length >= 3) {
       setTimeout(() => S3.join(urlCode, true), 400);
     }

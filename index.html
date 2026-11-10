@@ -134,7 +134,7 @@
     <button id="btn-zoomin" aria-label="Zoom in"><svg class="ic"><use href="#i-plus"/></svg></button>
   </div>
   <button class="tbtn primary" id="btn-play"><svg class="ic"><use href="#i-play"/></svg>Play</button>
-  <button class="tbtn primary" id="btn-3d" title="Walk your house in 3D" onclick="try{localStorage.setItem('homeplanner_save_v1',JSON.stringify({state:HP.state,nextId:HP.nextId}))}catch(e){}var u='play3d.html'+(window.HP&&HP.sync&&HP.sync.roomCode?'?room='+HP.sync.roomCode:'');location.href=u"><svg class="ic"><use href="#i-play"/></svg>Play 3D</button>
+  <button class="tbtn primary" id="btn-3d" title="Walk your house in 3D" onclick="try{localStorage.setItem('homeplanner_save_v1',JSON.stringify({state:HP.state,nextId:HP.nextId}))}catch(e){}var r=(window.HP&&HP.sync&&HP.sync.roomCode)||(window.HP&&HP.coop&&HP.coop.roomCode)||(new URLSearchParams(location.search).get('room'))||sessionStorage.getItem('hd_room')||'';location.href='play3d.html'+(r?'?room='+encodeURIComponent(r):'');"><svg class="ic"><use href="#i-play"/></svg>Play 3D</button>
   <script>fetch('play3d.html',{method:'HEAD'}).then(r=>{if(r.ok)document.getElementById('btn-3d').hidden=false}).catch(()=>{})</script>
 </header>
 
