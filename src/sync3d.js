@@ -698,8 +698,7 @@
         localStorage.setItem(LS_NAME, S3.myName);
       };
       modal.querySelector('#coop3d-host-btn').onclick = () => {
-        const c = modal.querySelector('#coop3d-code-input').value;
-        S3.host(c);
+        S3.host();
       };
       modal.querySelector('#coop3d-join-btn').onclick = () => {
         const c = modal.querySelector('#coop3d-code-input').value;
@@ -747,10 +746,10 @@
       sendAll(msg);
     }, 50);
 
-    // Bind Auto-Join from URL query parameter ?room=CODE or saved session (with auto-host fallback if empty)
-    const urlCode = new URLSearchParams(location.search).get('room') || sessionStorage.getItem('hd_room');
-    if (urlCode && urlCode.length >= 3) {
-      setTimeout(() => S3.join(urlCode, true), 400);
+    // Bind Auto-Join from URL query parameter ?room=CODE (with auto-host fallback if empty)
+    const urlCode = new URLSearchParams(location.search).get('room');
+    if (urlCode && urlCode.trim().length >= 3) {
+      setTimeout(() => S3.join(urlCode.trim().toUpperCase(), true), 400);
     }
   };
 

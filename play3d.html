@@ -64,7 +64,7 @@
 <canvas id="gl"></canvas>
 
 <div id="topbar" class="hud">
-  <button class="btn" onclick="var r=(window.HP&&HP.sync3d&&HP.sync3d.roomCode)||(new URLSearchParams(location.search).get('room'))||sessionStorage.getItem('hd_room')||'';location.href='index.html'+(r?'?room='+encodeURIComponent(r):'');">← Editor</button>
+  <button class="btn" onclick="var r=(window.HP&&HP.sync3d&&HP.sync3d.roomCode)||(new URLSearchParams(location.search).get('room'))||'';location.href='index.html'+(r?'?room='+encodeURIComponent(r):'');">← Editor</button>
   <button class="btn" id="btn-showroom"></button>
   <button class="btn" id="btn-coop" onclick="HP.sync3d && HP.sync3d.toggleModal()">👥 Online</button>
   <button class="btn" id="btn-audit">Wall check</button>

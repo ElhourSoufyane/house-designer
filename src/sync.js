@@ -65,10 +65,10 @@ function renderPanel() {
       <div class="hint" id="coop-hint">Host shares the code — your partner opens Co-op and joins. Joining loads THEIR house (yours is backed up first).</div>`;
     $('#coop-name').value = myName;
     $('#coop-name').oninput = e => { myName = e.target.value.trim(); localStorage.setItem('hd_name', myName); };
-    $('#coop-host').onclick = hostGame;
+    $('#coop-host').onclick = () => hostGame();
     $('#coop-join').onclick = () => {
-      const code = $('#coop-code').value.trim().toUpperCase();
-      if (code.length < 4) { $('#coop-hint').textContent = 'Enter the 4-letter code your partner sees.'; return; }
+      const code = ($('#coop-code').value || '').trim().toUpperCase();
+      if (code.length < 3) { $('#coop-hint').textContent = 'Enter the room code your partner sees.'; return; }
       joinGame(code);
     };
     const rb = $('#coop-restore');
@@ -412,7 +412,7 @@ function mkCode() {
 }
 function hostGame(customCode) {
   leavePeer();
-  const clean = customCode ? customCode.trim().toUpperCase() : null;
+  const clean = (typeof customCode === 'string' && customCode.trim()) ? customCode.trim().toUpperCase() : null;
   roomCode = clean || mkCode();
   try { sessionStorage.setItem('hd_room', roomCode); } catch (e) {}
   HP.status('Creating room ' + roomCode + '…');
@@ -438,7 +438,7 @@ function hostGame(customCode) {
 }
 function joinGame(code, autoHostFallback) {
   leavePeer();
-  const clean = (code || '').trim().toUpperCase();
+  const clean = (typeof code === 'string' ? code.trim() : '').toUpperCase();
   if (!clean) return;
   const cur = localStorage.getItem(LS_KEY);       // back up solo house first
   if (cur && !localStorage.getItem(LS_BACKUP)) localStorage.setItem(LS_BACKUP, cur);
@@ -532,9 +532,9 @@ window.addEventListener('beforeunload', leavePeer);
 /* ---------- invite link & seamless 2D<->3D room continuity ---------- */
 (function inviteLink() {
   const urlCode = new URLSearchParams(location.search).get('room');
-  const savedRoom = sessionStorage.getItem('hd_room');
-  const code = (urlCode || savedRoom || '').trim().toUpperCase();
-  if (!code) return;
+  if (!urlCode) return;
+  const code = urlCode.trim().toUpperCase();
+  if (code.length < 3) return;
   setTimeout(() => {
     showPanel();
     const inp = $('#coop-code');
