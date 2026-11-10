@@ -58,6 +58,8 @@ function standUp() {
   feetY = s.standFeetY;
   clearMotion();
 }
+K.sitDown = sitDown;
+K.standUp = standUp;
 
 function waterAt(x, z) {                         /* pool basin at a point */
   for (const a of (HP.world3d.waterAreas || []))
