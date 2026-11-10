@@ -34,41 +34,107 @@ const box = (w, h, d, m) => new THREE.Mesh(new THREE.BoxGeometry(w, h, d), m);
 /* ---------- per-item working parts ---------- */
 function addFan(cx, cz) {
   const g = new THREE.Group();
-  const m = std('#6d5b45');
-  const rod = new THREE.Mesh(new THREE.CylinderGeometry(0.6, 0.6, 8, 6), m);
-  rod.position.y = -4;
+  const m = std('#1e293b', { roughness: 0.4, metalness: 0.3 });
+  const wood = std('#8a6844', { roughness: 0.6 });
+  const glow = glowMat('#fef08a');
+
+  // 1. Flush ceiling canopy
+  const canopy = new THREE.Mesh(new THREE.CylinderGeometry(2.4, 2.8, 1.2, 16), m);
+  canopy.position.y = 1.0;
+  g.add(canopy);
+
+  // 2. Downrod
+  const rod = new THREE.Mesh(new THREE.CylinderGeometry(0.5, 0.5, 7, 10), m);
+  rod.position.y = -2.6;
   g.add(rod);
+
+  // 3. Stationary Motor Housing & Warm LED Light Disc
+  const housing = new THREE.Mesh(new THREE.CylinderGeometry(3.2, 3.2, 1.8, 18), m);
+  housing.position.y = -6.5;
+  g.add(housing);
+
+  const lightDisc = new THREE.Mesh(new THREE.CylinderGeometry(2.2, 2.2, 0.35, 16), glow);
+  lightDisc.position.y = -7.5;
+  g.add(lightDisc);
+
+  // 4. Aerodynamic Spinning Blades
   const blades = new THREE.Group();
   for (let i = 0; i < 4; i++) {
-    const b = box(26, 0.7, 5, m);
-    b.position.set(13, 0, 0);
+    const b = box(25, 0.6, 4.2, wood);
+    b.position.set(13.5, 0, 0);
     const holder = new THREE.Group();
     holder.add(b); holder.rotation.y = i * Math.PI / 2;
     blades.add(holder);
   }
-  blades.position.y = -8;
+  blades.position.y = -6.5;
   g.add(blades);
+
   g.position.set(cx, HP.geom3d.WALL_H - 2, cz);
   group.add(g);
   spinners.push({ obj: blades, speed: 7 });
 }
-function addClock(cx, cz, rot, w, off) {
+function addClock(cx, cz, rot, w, off, isHung) {
   const g = new THREE.Group();
   const r = Math.min(w, 26) * 0.42;
-  const face = new THREE.Mesh(new THREE.CircleGeometry(r, 20), std('#f4efe4'));
-  const rim = new THREE.Mesh(new THREE.TorusGeometry(r, r * 0.09, 6, 20), std('#4a3b2c'));
-  const hour = box(r * 0.55, r * 0.09, 0.4, std('#33291f'));
-  const minute = box(r * 0.85, r * 0.07, 0.4, std('#33291f'));
-  hour.geometry.translate(r * 0.27, 0, 0); hour.position.z = 0.6;
-  minute.geometry.translate(r * 0.42, 0, 0); minute.position.z = 0.9;
-  g.add(face, rim, hour, minute);
-  g.position.set(cx, 44, cz);
+  const darkCase = std('#2c221e');
+  const woodCase = std('#5c3e26', { roughness: 0.5 });
+  const goldMetal = std('#c9a44e', { metalness: 0.8, roughness: 0.25 });
+  const faceMat = std('#fcfaf2', { roughness: 0.4 });
+  const handMat = std('#1a1a1a', { roughness: 0.2 });
+  const secMat = std('#dc2626', { roughness: 0.3 });
+
+  // 1. Backing case / bezel mounting box for wall clock
+  if (isHung) {
+    const bezel = new THREE.Mesh(new THREE.CylinderGeometry(r + 0.9, r + 0.9, 1.4, 28), woodCase);
+    bezel.rotation.x = Math.PI / 2;
+    bezel.position.z = 0.7;
+    g.add(bezel);
+    // Inner brass accent ring
+    const brassRim = new THREE.Mesh(new THREE.TorusGeometry(r + 0.2, 0.35, 8, 28), goldMetal);
+    brassRim.position.z = 1.35;
+    g.add(brassRim);
+  }
+
+  // 2. Clock dial face
+  const face = new THREE.Mesh(new THREE.CircleGeometry(r, 28), faceMat);
+  face.position.z = isHung ? 1.4 : 0;
+
+  // Outer rim
+  const rim = new THREE.Mesh(new THREE.TorusGeometry(r, r * 0.08, 8, 28), darkCase);
+  rim.position.z = isHung ? 1.4 : 0;
+
+  // 3. 12 Hour Marker studs around the perimeter
+  for (let h = 0; h < 12; h++) {
+    const ang = h * (Math.PI / 6);
+    const isMajor = h % 3 === 0;
+    const dotR = isMajor ? 0.45 : 0.25;
+    const marker = new THREE.Mesh(new THREE.CircleGeometry(dotR, 8), isMajor ? goldMetal : handMat);
+    marker.position.set(Math.sin(ang) * (r * 0.82), Math.cos(ang) * (r * 0.82), (isHung ? 1.41 : 0.01));
+    g.add(marker);
+  }
+
+  // 4. Center brass spindle cap
+  const centerCap = new THREE.Mesh(new THREE.CylinderGeometry(0.8, 0.8, 0.6, 12), goldMetal);
+  centerCap.rotation.x = Math.PI / 2;
+  centerCap.position.z = isHung ? 1.8 : 0.4;
+  g.add(centerCap);
+
+  // 5. Hour, minute & second hands
+  const hour = box(r * 0.55, r * 0.09, 0.3, handMat);
+  const minute = box(r * 0.82, r * 0.06, 0.3, handMat);
+  const second = box(r * 0.88, r * 0.03, 0.2, secMat);
+  hour.geometry.translate(r * 0.27, 0, 0); hour.position.z = isHung ? 1.6 : 0.2;
+  minute.geometry.translate(r * 0.41, 0, 0); minute.position.z = isHung ? 1.7 : 0.3;
+  second.geometry.translate(r * 0.38, 0, 0); second.position.z = isHung ? 1.8 : 0.4;
+
+  g.add(face, rim, hour, minute, second);
+  g.position.set(cx, isHung ? 46 : 44, cz);
   g.rotation.y = -rot * Math.PI / 2;
-  /* wall clocks sit proud of the wall face; floor clocks on their case */
+
   const fwd = new THREE.Vector3(0, 0, off === undefined ? 2.6 : off).applyEuler(g.rotation);
   g.position.add(fwd);
   group.add(g);
-  clockHands.push({ hour, minute });
+  clockHands.push({ hour, minute, second });
 }
 function addFish(cx, cz, w, dep, tankY) {
   const species = [
@@ -421,12 +487,34 @@ L.build = function (g, entries) {
     const dep = Math.max(3, f.h * C() - 3);
     if (/ceilingfan/.test(t)) { addFan(cx, cz); L.ambience.fan.push({ x: cx, z: cz }); }
     else if (/clock|^clk/.test(t)) {
-      /* hung clocks face out of the wall they hang on                 */
-      const hang = it.hang || (HP.state && HP.itemDef(it.type).hangs &&
+      /* hung clocks face out of the wall they hang on */
+      const isHung = (HP.state && HP.itemDef(it.type).hangs) || it.hang;
+      const hang = it.hang || (HP.state && isHung &&
         HP.hangSide(it.type, it.x, it.y, it.rot || 0, { w: it.w || f.w, h: it.h || f.h }));
       const rot = hang === 'n' ? 0 : hang === 's' ? 2 :
         hang === 'w' ? 3 : hang === 'e' ? 1 : it.rot || 0;
-      addClock(cx, cz, rot, w, hang ? w / 2 - 3 : dep * 0.275 + 0.3);
+      if (hang) {
+        const lvl = (HP.state && HP.cur && HP.cur()) || null;
+        const lvlWalls = (lvl && lvl.walls) || {};
+        let geomEnv = null;
+        if (HP.state && HP.computeRegions) {
+          try {
+            const cr = HP.computeRegions();
+            if (cr && cr.regionOf && cr.regions) {
+              geomEnv = { C: C(), rAt: (x, y) => (x < 0 || y < 0 || x >= HP.GRID_W || y >= HP.GRID_H) ? -1 : cr.regionOf[y * HP.GRID_W + x], rsz: id => id >= 0 && cr.regions[id] ? cr.regions[id].cells.length : 1e9 };
+            }
+          } catch (err) {}
+        }
+        const IN = HP.geom3d && HP.geom3d.wallInset ? HP.geom3d.wallInset(hang, f, lvlWalls, geomEnv) : 7.0;
+        let mx = cx, mz = cz;
+        if (hang === 'n') mz = f.y * C() + IN;
+        else if (hang === 's') mz = (f.y + f.h) * C() - IN;
+        else if (hang === 'w') mx = f.x * C() + IN;
+        else if (hang === 'e') mx = (f.x + f.w) * C() - IN;
+        addClock(mx, mz, rot, w, 0.4, true);
+      } else {
+        addClock(cx, cz, rot, w, dep * 0.275 + 0.3, false);
+      }
     }
     else if (/walltv|sconce/.test(t)) {
       /* wall-mounted screen / sconce — mount on the wall face          */
@@ -494,6 +582,10 @@ L.tick = function (dt, t, s, cam) {
     const hFrac = (hour % 12) / 12, mFrac = (hour % 1);
     ch.hour.rotation.z = -hFrac * Math.PI * 2;
     ch.minute.rotation.z = -mFrac * Math.PI * 2;
+    if (ch.second) {
+      const sFrac = (t % 60) / 60;
+      ch.second.rotation.z = -sFrac * Math.PI * 2;
+    }
   }
   for (const f of fish) {
     const a = t * f.sp + f.ph;

@@ -449,7 +449,7 @@ F.builder = function (group) {
         if (!hang) box('wood', 0, 20, -2.4, 3, 40, 3, '#5b5148');  // freestanding post
         return;
       }
-      if (h > 3 && !/pool$|pond/.test(t)) part('shadow', '', 0, 0.12 / height, 0, 1.18, 1, 1.18);
+      if (h > 3 && !/pool$|pond|^ceilingfan$/i.test(t)) part('shadow', '', 0, 0.12 / height, 0, 1.18, 1, 1.18);
       if (def.onTop) {
         /* small appliance/decor sitting on a surface — models are a
            fraction of the cell, not the whole footprint               */
@@ -5935,11 +5935,8 @@ F.builder = function (group) {
         cyl('metal', 0.475, 0.50, -0.405, 0.006, 0.86, 0.006, '#94a3b8', true); // right tension cable
 
       } else if (/^ceilingfan$/i.test(t)) {
-        // Modern Aerodynamic Ceiling Fan with Warm LED Light Disc (Mounted at ceiling height; blades spin via life3d)
-        cyl('metal', 0, 0.98, 0, 0.22, 0.04, 0.22, '#1e293b', true);          // ceiling mounting canopy
-        cyl('metal', 0, 0.92, 0, 0.04, 0.10, 0.04, '#1e293b', true);          // downrod
-        cyl('metal', 0, 0.86, 0, 0.24, 0.06, 0.24, color || '#1e293b', true);  // motor housing
-        cyl('glow', 0, 0.835, 0, 0.20, 0.015, 0.20, '#fef08a');                 // warm LED light disc
+        // Ceiling Fan is mounted at ceiling height and animated via life3d
+        return;
 
       } else if (/^birdcage$/i.test(t)) {
         // Victorian Ornate Wrought-Iron Hanging Bird Cage on Stand with Singing Canary (1x1 footprint)

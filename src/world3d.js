@@ -406,7 +406,7 @@ const H3D = [
   [/offchair/i, 34],
   [/treadmill/i, 36],
   [/whiteboard/i, 44],
-  [/fan$/i, 38],
+  [/^fan$|standing.*fan/i, 38],
   [/watercooler/i, 38],
   [/drafting/i, 34],
   [/telescope/i, 44],
@@ -492,7 +492,7 @@ const H3D = [
   [/stairs/i, 36],
   [/^clock$|clkgrand|grandfather/i, 52],
   [/rangehood/i, 72],
-  [/ceilingfan|fan$/i, 74],
+  [/ceilingfan/i, 74],
   [/pool|pond/i, 4],
 ];
 function itemH3D(def, it) {

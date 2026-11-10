@@ -141,7 +141,12 @@ HP.markDirty = () => {}; HP.resetLayers = () => {}; HP.updateUndoButtons = () =>
 <script>
 (function () {
   /* ---------- state: same house as the editor (localStorage) or Showroom ---------- */
-  const isShowroom = location.search.includes('showroom');
+  const isGitHub = location.hostname.includes('github.io');
+  if (isGitHub && location.search.includes('showroom')) {
+    location.replace('play3d.html');
+    return;
+  }
+  const isShowroom = !isGitHub && location.search.includes('showroom');
   const isFixed = isShowroom && location.search.includes('fixed');
   const urlMatch = location.search.match(/batch(\d+)/i) || (!isFixed && location.search.match(/showroom=(\d+)/i));
   let showroomBatch = urlMatch ? Math.max(1, Math.min(42, parseInt(urlMatch[1], 10))) : 1;
@@ -151,10 +156,14 @@ HP.markDirty = () => {}; HP.resetLayers = () => {}; HP.updateUndoButtons = () =>
   let spawn = { x: HP.GRID_W * HP.CELL / 2, y: HP.GRID_H * HP.CELL / 2, yaw: Math.PI };
   const btnShowroom = document.getElementById('btn-showroom');
   if (btnShowroom) {
-    btnShowroom.textContent = isShowroom ? '🏠 My House' : '✨ 3D Showroom';
-    btnShowroom.onclick = () => {
-      location.href = isShowroom ? 'play3d.html' : 'play3d.html?showroom=all';
-    };
+    if (isGitHub) {
+      btnShowroom.style.display = 'none';
+    } else {
+      btnShowroom.textContent = isShowroom ? '🏠 My House' : '✨ 3D Showroom';
+      btnShowroom.onclick = () => {
+        location.href = isShowroom ? 'play3d.html' : 'play3d.html?showroom=all';
+      };
+    }
   }
 
   if (isShowroom) {
@@ -888,6 +897,8 @@ HP.markDirty = () => {}; HP.resetLayers = () => {}; HP.updateUndoButtons = () =>
       { type: 'sofa3', x: 22, y: 20, rot: 0, id: 1 },
       { type: 'tableDin', x: 26, y: 22, rot: 0, id: 2 },
       { type: 'bedDouble', x: 27, y: 19, rot: 0, id: 3 },
+      { type: 'clkround', x: 25, y: 18, rot: 0, hang: 'n', id: 4 },
+      { type: 'ceilingfan', x: 24, y: 21, rot: 0, id: 5 },
     ];
     HP.applyGridSize();
   }
