@@ -97,11 +97,11 @@
     const g = new THREE.Group();
     const color = nameColor(name);
 
-    const skinMat = new THREE.MeshStandardMaterial({ color: '#fcd3b6', roughness: 0.6, metalness: 0.05 });
-    const clothesMat = new THREE.MeshStandardMaterial({ color: color, roughness: 0.5, metalness: 0.1 });
-    const darkMat = new THREE.MeshStandardMaterial({ color: '#1e293b', roughness: 0.7, metalness: 0.1 });
-    const shoeMat = new THREE.MeshStandardMaterial({ color: '#0f172a', roughness: 0.8 });
-    const hairMat = new THREE.MeshStandardMaterial({ color: '#3b2f2f', roughness: 0.9 });
+    const skinMat = new THREE.MeshLambertMaterial({ color: '#fcd3b6' });
+    const clothesMat = new THREE.MeshLambertMaterial({ color: color });
+    const darkMat = new THREE.MeshLambertMaterial({ color: '#1e293b' });
+    const shoeMat = new THREE.MeshLambertMaterial({ color: '#0f172a' });
+    const hairMat = new THREE.MeshLambertMaterial({ color: '#3b2f2f' });
 
     // 1. Torso / Hoodie
     const torso = new THREE.Mesh(new THREE.BoxGeometry(7.2, 11.5, 4.2), clothesMat);
@@ -469,8 +469,12 @@
       S3.peer = new Peer(PREFIX + S3.roomCode);
       S3.peer.on('error', e => {
         if (e && e.type === 'unavailable-id') {
-          if (clean) notify(`Room ${clean} is already hosted`);
-          else S3.host();
+          if (clean) {
+            notify(`Room ${clean} is active — joining partner…`);
+            S3.join(clean);
+          } else {
+            S3.host();
+          }
         } else {
           notify(`Co-op error: ${e && e.type}`);
         }
@@ -679,7 +683,7 @@
     setInterval(() => {
       if (!S3.conns.length || !walk3d || !walk3d.playerPos) return;
       const pos = walk3d.playerPos();
-      if (!pos) return;
+      if (!pos || (pos.x === 0 && pos.z === 0)) return;
       const msg = {
         t: 'pos',
         x: Math.round(pos.x * 10) / 10,
