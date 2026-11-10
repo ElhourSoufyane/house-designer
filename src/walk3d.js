@@ -737,10 +737,15 @@ function tick(t) {
       }
     }
     let mx = moveT.x, mz = moveT.y;
-    if (keys.KeyW || keys.ArrowUp) mz -= 1;
-    if (keys.KeyS || keys.ArrowDown) mz += 1;
-    if (keys.KeyA || keys.ArrowLeft) mx -= 1;
-    if (keys.KeyD || keys.ArrowRight) mx += 1;
+    if (keys.KeyW) mz -= 1;
+    if (keys.KeyS) mz += 1;
+    if (keys.KeyA) mx -= 1;
+    if (keys.KeyD) mx += 1;
+    if (keys.ArrowLeft) yaw += dt * 2.4;
+    if (keys.ArrowRight) yaw -= dt * 2.4;
+    if (keys.ArrowUp) pitch = Math.min(1.45, pitch + dt * 1.8);
+    if (keys.ArrowDown) pitch = Math.max(-1.45, pitch - dt * 1.8);
+    yaw = Math.atan2(Math.sin(yaw), Math.cos(yaw));
     const len = Math.hypot(mx, mz) || 1;
     if (len > 1) { mx /= len; mz /= len; }
     const sp = (keys.ShiftLeft || keys.ShiftRight) ? RUN : SPEED;
