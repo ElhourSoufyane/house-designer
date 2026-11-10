@@ -66,10 +66,18 @@
 <div id="topbar" class="hud">
   <button class="btn" onclick="location.href='index.html'">← Editor</button>
   <button class="btn" id="btn-showroom"></button>
+  <button class="btn" id="btn-coop" onclick="HP.sync3d && HP.sync3d.toggleModal()">👥 Online</button>
   <button class="btn" id="btn-audit">Wall check</button>
   <button class="btn" id="btn-rebuild">Rebuild</button>
   <button class="btn" id="btn-sound" title="Toggle sound">Sound: On</button>
   <button class="btn" id="btn-graphics" aria-expanded="false" aria-controls="graphics">Graphics</button>
+</div>
+<div id="coop3d-modal" class="hud" style="display:none;position:fixed;top:52px;right:16px;z-index:60;background:rgba(15,23,42,.92);border:1px solid rgba(255,255,255,.2);border-radius:12px;padding:14px;max-width:320px;width:calc(100vw - 32px);backdrop-filter:blur(12px);box-shadow:0 12px 36px rgba(0,0,0,.6);color:#f8fafc"></div>
+<div id="coop-emotes" class="hud" style="position:fixed;bottom:14px;left:50%;transform:translateX(-50%);z-index:40;display:flex;gap:6px;background:rgba(15,23,42,.75);padding:4px 8px;border-radius:20px;border:1px solid rgba(255,255,255,.15);backdrop-filter:blur(8px)">
+  <button class="btn" onclick="HP.sync3d && HP.sync3d.sendEmote('👋')" style="padding:3px 7px;font-size:14px;border:none;background:none" title="Wave (Key 1)">👋</button>
+  <button class="btn" onclick="HP.sync3d && HP.sync3d.sendEmote('❤️')" style="padding:3px 7px;font-size:14px;border:none;background:none" title="Heart (Key 2)">❤️</button>
+  <button class="btn" onclick="HP.sync3d && HP.sync3d.sendEmote('✨')" style="padding:3px 7px;font-size:14px;border:none;background:none" title="Sparkle (Key 3)">✨</button>
+  <button class="btn" onclick="HP.sync3d && HP.sync3d.sendEmote('☕')" style="padding:3px 7px;font-size:14px;border:none;background:none" title="Coffee (Key 4)">☕</button>
 </div>
 <div id="showroom-guide" class="hud" style="display:none;position:fixed;top:48px;left:50%;transform:translateX(-50%);z-index:40;background:rgba(15,23,42,.92);border:1px solid rgba(255,255,255,.18);border-radius:10px;padding:6px 10px;flex-direction:column;gap:6px;max-width:96vw;backdrop-filter:blur(10px);box-shadow:0 8px 30px rgba(0,0,0,.5)"></div>
 <section id="graphics" hidden aria-label="Graphics settings">
@@ -139,6 +147,8 @@ HP.markDirty = () => {}; HP.resetLayers = () => {}; HP.updateUndoButtons = () =>
 <script src="src/sound3d.js?v=1794093466650"></script>
 <script src="src/world3d.js?v=1794093466650"></script>
 <script src="src/walk3d.js?v=1794093466650"></script>
+<script src="lib/peerjs.min.js"></script>
+<script src="src/sync3d.js"></script>
 <script>
 (function () {
   /* ---------- state: same house as the editor (localStorage) or Showroom ---------- */
@@ -962,6 +972,7 @@ HP.markDirty = () => {}; HP.resetLayers = () => {}; HP.updateUndoButtons = () =>
   }
 
   HP.walk3d.boot();
+  if (HP.sync3d && HP.sync3d.hook) HP.sync3d.hook(W3, HP.walk3d);
 
   const overlay = document.getElementById('overlay');
   if (isShowroom) {

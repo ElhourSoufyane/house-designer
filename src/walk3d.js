@@ -159,6 +159,18 @@ K.teleport = function (x, z, targetYaw, targetY, targetPitch, targetElevate) {
   K.syncCamera();
 };
 
+K.playerPos = function () {
+  return {
+    x: px,
+    y: sitting ? (HP.world3d.EYE - 12 + groundY) : feetY,
+    z: pz,
+    yaw: yaw,
+    pitch: pitch,
+    sitting: !!sitting,
+    speed: Math.hypot(velX, velZ)
+  };
+};
+
 function clearMotion() {
   keys = {}; moveT.x = moveT.y = 0; lookT.id = -1;
   velX = velZ = 0;
@@ -691,11 +703,19 @@ function interact() {
     sitDown(d);
     return;
   }
-  if (d.kind) { HP.life3d.toggle(d); return; }    // lamp/TV/fireplace
+  if (d.kind) {
+    HP.life3d.toggle(d);
+    if (HP.sync3d && d.it) HP.sync3d.broadcastLamp(d.it.id, d.it.on);
+    return;
+  }
   /* latch the whole door (both leaves of a double) — a latched door
      stays open until E again; unlatching lets the spring shut it    */
   const open = !(d.latched || d.holdT > 0.2 || d.open > 0.5);
   for (const o of HP.world3d.doorPivots) if (o.a === d.a) { o.latched = open; if (!open) o.holdT = 0; }
+  if (HP.sync3d && HP.world3d && HP.world3d.doorPivots) {
+    const idx = HP.world3d.doorPivots.indexOf(d);
+    if (idx >= 0) HP.sync3d.broadcastDoor(idx, open ? 1.0 : 0.0, 0);
+  }
 }
 
 /* ---------- main loop ---------- */
@@ -776,6 +796,7 @@ function tick(t) {
       cam.rotation.z = Math.sin(stride) * 0.011 * Math.min(1, speed / RUN);  // sprint sway
       cam.rotation.order = 'YXZ';
     }
+    if (HP.sync3d && HP.sync3d.tick) HP.sync3d.tick(dt, t / 1000, cam);
 
     /* interact prompt — doors, gates, windows and gadgets           */
     const d = nearestThing();
