@@ -25,7 +25,7 @@ for (const p of HP.PRESETS) {
 }
 
 // --- cozy apartment regions ---
-load(HP.PRESETS[0].build());
+load(HP.PRESETS.find(p => p.id === 'cozy').build());
 t('levels model', Array.isArray(HP.state.levels) && HP.cur().walls);
 let { regionOf, regions } = HP.computeRegions();
 t('cozy has 4 rooms', regions.length === 4);

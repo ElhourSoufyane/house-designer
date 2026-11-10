@@ -2268,7 +2268,14 @@ function boot() {
   if (window.visualViewport) window.visualViewport.addEventListener('resize', resize);
   resize();
 
-  if (!HP.loadState()) HP.state = HP.migrate(HP.PRESETS[0].build());   // first run → cozy apartment
+  if (!HP.loadState()) {
+    if (HP.DEFAULT_HOUSE && HP.DEFAULT_HOUSE.state) {
+      HP.state = HP.migrate(JSON.parse(JSON.stringify(HP.DEFAULT_HOUSE.state)));
+      HP.nextId = HP.DEFAULT_HOUSE.nextId || HP.maxFurnitureId() + 1;
+    } else {
+      HP.state = HP.migrate(HP.PRESETS[0].build());   // first run → fallback preset
+    }
+  }
   HP.nextId = Math.max(HP.nextId, HP.maxFurnitureId() + 1);
 
   // fit camera to the grid

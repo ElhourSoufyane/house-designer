@@ -216,7 +216,15 @@ function duplex() {
   return { bg: null, level: 0, levels: [L0, L1] };
 }
 
+function defaultHousePreset() {
+  if (typeof HP !== 'undefined' && HP.DEFAULT_HOUSE && HP.DEFAULT_HOUSE.state) {
+    return JSON.parse(JSON.stringify(HP.DEFAULT_HOUSE.state));
+  }
+  return cozy();
+}
+
 HP.PRESETS = [
+  { id: 'myhouse', name: 'My House (Default)', desc: '2-floor luxury residence with pool, garden & full interior', build: defaultHousePreset },
   { id: 'cozy', name: 'Cozy Apartment', desc: '1 suite · bath · office · open living/kitchen — 12×10 m, furnished', build: cozy },
   { id: 'family', name: 'Family House', desc: '2 suites · bath · big living/kitchen — 20×13 m, furnished', build: family },
   { id: 'duplex', name: 'Duplex', desc: '2 floors · stairs · 2 suites · living + family room — 18×10 m each', build: duplex },
