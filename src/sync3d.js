@@ -305,8 +305,8 @@
 
       const renderY = cur.s ? (cur.y > 15 ? 0 : cur.y) : cur.y;
       av.root.position.set(cur.x, renderY, cur.z);
-      av.root.rotation.y = cur.yaw;
-      av.headGroup.rotation.x = Math.max(-0.85, Math.min(0.85, cur.pitch * 0.65));
+      av.root.rotation.y = cur.yaw + Math.PI;
+      av.headGroup.rotation.x = -Math.max(-0.85, Math.min(0.85, cur.pitch * 0.65));
 
       // Walking & Running Animation Cycle
       if (cur.s) {

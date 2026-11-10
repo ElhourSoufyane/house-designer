@@ -34,7 +34,7 @@ function sitDown(target) {
   if (sitting) return;
   const it = target.it, def = target.def;
   const rot = (it.rot || 0) % 4;
-  const sitYaw = rot === 0 ? 0 : rot === 1 ? Math.PI / 2 : rot === 2 ? Math.PI : -Math.PI / 2;
+  const sitYaw = rot === 0 ? Math.PI : rot === 1 ? -Math.PI / 2 : rot === 2 ? 0 : Math.PI / 2;
   sitting = {
     it,
     px, pz, yaw, pitch,
