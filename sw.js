@@ -1,5 +1,5 @@
 /* sw.js — House Designer Service Worker for Complete Offline & Standalone App Support */
-const CACHE_NAME = 'housedesigner-v2';
+const CACHE_NAME = 'housedesigner-v3';
 const ASSETS = [
   './',
   './index.html',
@@ -39,8 +39,13 @@ const ASSETS = [
 self.addEventListener('install', event => {
   self.skipWaiting();
   event.waitUntil(
-    caches.open(CACHE_NAME).then(cache => {
-      return cache.addAll(ASSETS).catch(() => {});
+    caches.open(CACHE_NAME).then(async cache => {
+      for (const url of ASSETS) {
+        try {
+          const res = await fetch(url, { cache: 'reload' });
+          if (res && res.status === 200) await cache.put(url, res);
+        } catch (e) {}
+      }
     })
   );
 });
