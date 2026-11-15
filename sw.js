@@ -1,5 +1,5 @@
-/* sw.js — House Designer Service Worker for Instant Loading & Standalone App Mode */
-const CACHE_NAME = 'housedesigner-v1';
+/* sw.js — House Designer Service Worker for Complete Offline & Standalone App Support */
+const CACHE_NAME = 'housedesigner-v2';
 const ASSETS = [
   './',
   './index.html',
@@ -23,7 +23,17 @@ const ASSETS = [
   './src/input.js',
   './src/ui.js',
   './src/main.js',
-  './src/sync.js'
+  './src/sync.js',
+  './src/geom3d.js',
+  './src/graphics3d.js',
+  './src/cull3d.js',
+  './src/sky3d.js',
+  './src/furniture3d.js',
+  './src/life3d.js',
+  './src/sound3d.js',
+  './src/world3d.js',
+  './src/walk3d.js',
+  './src/sync3d.js'
 ];
 
 self.addEventListener('install', event => {
@@ -44,17 +54,36 @@ self.addEventListener('activate', event => {
 });
 
 self.addEventListener('fetch', event => {
+  if (event.request.method === 'HEAD') {
+    event.respondWith(
+      fetch(event.request).catch(async () => {
+        const cached = await caches.match(event.request, { ignoreSearch: true });
+        if (cached) return new Response(null, { status: 200, statusText: 'OK', headers: cached.headers });
+        return new Response(null, { status: 404, statusText: 'Not Found' });
+      })
+    );
+    return;
+  }
+
   if (event.request.method !== 'GET') return;
-  // Network first, falling back to cache
+
   event.respondWith(
-    fetch(event.request).then(response => {
-      if (response && response.status === 200 && response.type === 'basic') {
-        const copy = response.clone();
-        caches.open(CACHE_NAME).then(cache => cache.put(event.request, copy));
-      }
-      return response;
-    }).catch(() => {
-      return caches.match(event.request);
-    })
+    fetch(event.request)
+      .then(response => {
+        if (response && response.status === 200 && (response.type === 'basic' || response.type === 'cors')) {
+          const copy = response.clone();
+          caches.open(CACHE_NAME).then(cache => cache.put(event.request, copy));
+        }
+        return response;
+      })
+      .catch(() => {
+        return caches.match(event.request, { ignoreSearch: true }).then(cached => {
+          if (cached) return cached;
+          if (event.request.mode === 'navigate') {
+            return caches.match('./index.html');
+          }
+          return new Response('Offline and not cached', { status: 503, statusText: 'Offline' });
+        });
+      })
   );
 });
