@@ -107,7 +107,11 @@ HP.initInput = function () {
           HP.saveState(); HP.status('Placed ' + HP.pending.def.name + ' — tap again for more, or Esc/right-click to stop');
           HP.refreshContext();
         } else if (HP.ghost) {
-          HP.status('Can\'t place here — blocked or out of bounds');
+          if (HP.pending && HP.pending.def.id === 'rangehood') {
+            HP.status('Range Hood must be placed over a stove');
+          } else {
+            HP.status('Can\'t place here — blocked or out of bounds');
+          }
         }
         placing = false;
       }

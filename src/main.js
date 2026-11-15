@@ -2095,9 +2095,10 @@ HP.drawFenceSeg = drawFenceSeg;
 /* ================= DYNAMIC ================= */
 function drawItems(g) {
   const list = HP.cur().furniture;
-  for (const it of list) { const d = HP.itemDef(it.type); if (!d.onTop && !d.hangs && !(HP.canSitOnSurface && HP.canSitOnSurface(it.type))) HP.drawItem(g, it); }
+  for (const it of list) { const d = HP.itemDef(it.type); if (!d.onTop && !d.hangs && it.type !== 'rangehood' && !(HP.canSitOnSurface && HP.canSitOnSurface(it.type))) HP.drawItem(g, it); }
   for (const it of list) { const d = HP.itemDef(it.type); if (!d.onTop && !d.hangs && (HP.canSitOnSurface && HP.canSitOnSurface(it.type))) HP.drawItem(g, it); }
   for (const it of list) { const d = HP.itemDef(it.type); if (d.onTop) HP.drawItem(g, it); }
+  for (const it of list) { if (it.type === 'rangehood') HP.drawItem(g, it); }
   for (const it of list) { const d = HP.itemDef(it.type); if (d.hangs) HP.drawItem(g, it); }
 }
 

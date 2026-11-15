@@ -365,6 +365,7 @@ HP.itemAt = function (cx, cy, px, py) {
       return it;
     }
     if (d && (d.onTop || (HP.canSitOnSurface && HP.canSitOnSurface(it.type)))) return it;
+    if (it.type === 'rangehood') return it;
     if (!floorHit) floorHit = it;
   }
   return floorHit;
@@ -441,6 +442,28 @@ HP.canPlace = function (type, x, y, rot, ignore, sz) {
   for (let cy = Math.floor(y); cy < Math.ceil(y + h); cy++)
     for (let cx = Math.floor(x); cx < Math.ceil(x + w); cx++)
       if (dc[cx + ',' + cy]) return false;
+  if (type === 'rangehood') {
+    /* range hood is an overhead extractor that mounts strictly above a stove */
+    let host = false;
+    for (const it of HP.cur().furniture) {
+      if (it.type !== 'stove') continue;
+      const f = HP.footprint(it);
+      if (f.x === x && f.y === y && f.w === w && f.h === h) {
+        host = true;
+        break;
+      }
+    }
+    if (!host) return false;
+    // ensure no other rangehood already occupies this stove
+    for (const it of HP.cur().furniture) {
+      if (Array.isArray(ignore) ? ignore.includes(it) : it === ignore) continue;
+      if (it.type === 'rangehood') {
+        const f = HP.footprint(it);
+        if (f.x === x && f.y === y && f.w === w && f.h === h) return false;
+      }
+    }
+    return true;
+  }
   if (d.onTop) {
     /* tabletop items must sit on a flat surface — and only that.
        ignored items (a moving set) still qualify: the host may be
@@ -473,6 +496,7 @@ HP.canPlace = function (type, x, y, rot, ignore, sz) {
     if (Array.isArray(ignore) ? ignore.includes(it) : it === ignore) continue;
     const fd = HP.itemDef(it.type);
     if (fd && (fd.hangs || (isSurf && fd.onTop) || (isSurf && HP.canSitOnSurface && HP.canSitOnSurface(it.type)))) continue;  // wall/top items share the cell with their surface
+    if ((type === 'stove' && it.type === 'rangehood') || (type === 'rangehood' && it.type === 'stove')) continue; // stove & overhead range hood share the cell
     const f = HP.footprint(it);
     if (x < f.x + f.w && x + w > f.x && y < f.y + f.h && y + h > f.y) {
       if (canSit && HP.isSurface(it)) continue; // small plants/decor sit happily on surface furniture
@@ -784,6 +808,8 @@ HP.itemsClash = function (a, b) {
   const aSurf = HP.isSurface(a);
   const bSurf = HP.isSurface(b);
   if ((aCanSit && bSurf) || (bCanSit && aSurf)) return false;
+  // Range hood hangs overhead above stove — no floor clash
+  if ((at === 'rangehood' && bt === 'stove') || (at === 'stove' && bt === 'rangehood')) return false;
   // Allow garden/plant/flower/tree/potting items inside greenhouse
   if (at === 'greenhouse' || bt === 'greenhouse') {
     const other = at === 'greenhouse' ? b : a;
