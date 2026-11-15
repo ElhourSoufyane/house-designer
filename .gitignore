@@ -35,6 +35,9 @@ test-shot-*.js
 test-showroom-*.js
 test-*.png
 *.png
+!assets/*.png
+!android/**/*.png
+!ios/**/*.png
 
 # ---- dev junk / OS accidents ----
 NUL
@@ -48,3 +51,6 @@ grass-options.html
 open-port.bat
 start-server.bat
 node_modules/
+dist/
+dist-src/
+www/

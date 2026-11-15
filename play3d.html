@@ -5,6 +5,14 @@
 <script>window.onerror = function(msg, url, line, col, err) { console.error('CLIENT_ERROR: ' + msg + ' at ' + url + ':' + line + ':' + col); };</script>
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
 <title>House — 3D Walk</title>
+<meta name="theme-color" content="#0e1216">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="HouseDesigner">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
+<link rel="icon" type="image/png" sizes="32x32" href="assets/icon-32.png">
+<link rel="icon" type="image/png" sizes="192x192" href="assets/icon-192.png">
 <style>
   html,body{margin:0;height:100%;overflow:hidden;background:#0e1216;font-family:"Segoe UI",system-ui,sans-serif;-webkit-user-select:none;user-select:none;touch-action:none}
   #gl{position:fixed;inset:0;width:100%;height:100%;display:block}
@@ -1003,6 +1011,11 @@ HP.markDirty = () => {}; HP.resetLayers = () => {}; HP.updateUndoButtons = () =>
   if (location.search.includes('audit=1')) document.getElementById('btn-audit').click();
   if (isShowroom || location.search.includes('autoenter=1')) { overlay.style.display = 'none'; HP.walk3d.resume(spawn); }
 })();
+</script>
+<script>
+if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
+  window.addEventListener('load', () => navigator.serviceWorker.register('./sw.js').catch(() => {}));
+}
 </script>
 </body>
 </html>

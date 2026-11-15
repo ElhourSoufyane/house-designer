@@ -1,0 +1,31 @@
+{
+  "name": "house-designer",
+  "productName": "House Designer",
+  "version": "1.0.0",
+  "description": "Cozy 2D & 3D Architectural Home Designer with Live Co-op",
+  "main": "electron-main.js",
+  "scripts": {
+    "start": "electron .",
+    "serve": "node server.js",
+    "test": "node test-geom3d.js && node test-physics.js && node test-graphics.js && node test-smoke.js && node test-floors.js && node test-render.js",
+    "build:icons": "node scripts/generate-app-icons.js",
+    "build:pc": "electron-packager . \"House Designer\" --platform=win32 --arch=x64 --icon=assets/icon.ico --out=dist --overwrite --ignore=\"(^/(android|ios|dist|test-.*|scripts))\"",
+    "cap:sync": "cap sync",
+    "cap:open:android": "cap open android",
+    "cap:open:ios": "cap open ios"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ElhourSoufyane/housedesigner.git"
+  },
+  "author": "Elhour Soufyane",
+  "license": "MIT",
+  "devDependencies": {
+    "@capacitor/cli": "^6.2.0",
+    "@capacitor/core": "^6.2.0",
+    "@capacitor/android": "^6.2.0",
+    "@capacitor/ios": "^6.2.0",
+    "electron": "^33.2.1",
+    "electron-packager": "^17.1.2"
+  }
+}

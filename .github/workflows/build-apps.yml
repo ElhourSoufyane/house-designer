@@ -1,0 +1,83 @@
+name: Build Android APK & Windows PC App
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  build-apk:
+    name: Build Android APK
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup Java JDK
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'zulu'
+          java-version: '17'
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install Dependencies
+        run: npm ci
+
+      - name: Build Web Assets & App Icons
+        run: |
+          node scripts/generate-app-icons.js
+          node scripts/prepare-www.js
+          npx cap sync android
+
+      - name: Build Android Debug APK
+        run: |
+          cd android
+          chmod +x gradlew
+          ./gradlew assembleDebug
+
+      - name: Rename & Prepare APK
+        run: |
+          cp android/app/build/outputs/apk/debug/app-debug.apk HouseDesigner.apk
+
+      - name: Upload Android APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: HouseDesigner-Android-APK
+          path: HouseDesigner.apk
+
+  build-pc:
+    name: Build Windows PC Application
+    runs-on: windows-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install Dependencies
+        run: npm ci
+
+      - name: Build Icons & Package PC App
+        run: |
+          node scripts/generate-app-icons.js
+          npm run build:pc
+
+      - name: Zip Windows App
+        shell: pwsh
+        run: |
+          Compress-Archive -Path "dist/House Designer-win32-x64/*" -DestinationPath "dist/HouseDesigner-Windows-x64.zip"
+
+      - name: Upload Windows PC App
+        uses: actions/upload-artifact@v4
+        with:
+          name: HouseDesigner-Windows-PC
+          path: dist/HouseDesigner-Windows-x64.zip

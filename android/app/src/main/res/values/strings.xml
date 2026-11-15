@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">House Designer</string>
+    <string name="title_activity_main">House Designer</string>
+    <string name="package_name">com.elhoursoufyane.housedesigner</string>
+    <string name="custom_url_scheme">com.elhoursoufyane.housedesigner</string>
+</resources>

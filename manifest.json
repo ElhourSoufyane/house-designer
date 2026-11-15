@@ -1,0 +1,26 @@
+{
+  "name": "House Designer — 2D & 3D Home Planner",
+  "short_name": "HouseDesigner",
+  "description": "Cozy 2D & 3D Architectural Home Designer with Live Co-op Multiplayer",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#1e1b4b",
+  "theme_color": "#312e81",
+  "categories": ["games", "lifestyle", "productivity"],
+  "icons": [
+    {
+      "src": "assets/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "assets/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}

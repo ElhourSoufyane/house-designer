@@ -1,0 +1,164 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <!-- Background Gradient -->
+    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#1e1b4b" />
+      <stop offset="50%" stop-color="#312e81" />
+      <stop offset="100%" stop-color="#4338ca" />
+    </linearGradient>
+
+    <!-- Roof Left Gradient -->
+    <linearGradient id="roofLeft" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#f97316" />
+      <stop offset="100%" stop-color="#ea580c" />
+    </linearGradient>
+
+    <!-- Roof Right Gradient -->
+    <linearGradient id="roofRight" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#ea580c" />
+      <stop offset="100%" stop-color="#c2410c" />
+    </linearGradient>
+
+    <!-- Wall Left Gradient (Lit) -->
+    <linearGradient id="wallLeft" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#fef3c7" />
+      <stop offset="100%" stop-color="#fde68a" />
+    </linearGradient>
+
+    <!-- Wall Right Gradient (Shaded) -->
+    <linearGradient id="wallRight" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#f59e0b" />
+      <stop offset="100%" stop-color="#d97706" />
+    </linearGradient>
+
+    <!-- Foundation Plinth -->
+    <linearGradient id="foundationLeft" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#e2e8f0" />
+      <stop offset="100%" stop-color="#cbd5e1" />
+    </linearGradient>
+    <linearGradient id="foundationRight" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#94a3b8" />
+      <stop offset="100%" stop-color="#64748b" />
+    </linearGradient>
+
+    <!-- Golden Window Glow -->
+    <linearGradient id="windowGlow" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#fef08a" />
+      <stop offset="100%" stop-color="#facc15" />
+    </linearGradient>
+
+    <!-- Ambient Shadow -->
+    <radialGradient id="plinthShadow" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="rgba(15, 23, 42, 0.75)" />
+      <stop offset="70%" stop-color="rgba(15, 23, 42, 0.35)" />
+      <stop offset="100%" stop-color="rgba(15, 23, 42, 0)" />
+    </radialGradient>
+
+    <!-- Filter for soft glow -->
+    <filter id="softGlow" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="6" result="blur" />
+      <feComposite in="SourceGraphic" in2="blur" operator="over" />
+    </filter>
+  </defs>
+
+  <!-- App Squircle Card Base -->
+  <rect x="16" y="16" width="480" height="480" rx="108" fill="url(#bgGrad)" />
+  <rect x="16" y="16" width="480" height="480" rx="108" fill="none" stroke="rgba(255,255,255,0.18)" stroke-width="4" />
+
+  <!-- Isometric Ground Grid (Blueprint / Design aesthetic) -->
+  <g opacity="0.25" stroke="#a5b4fc" stroke-width="2" fill="none">
+    <!-- Grid diamonds -->
+    <polygon points="256,330 380,400 256,470 132,400" />
+    <polygon points="256,360 340,408 256,456 172,408" />
+    <line x1="256" y1="330" x2="256" y2="470" />
+    <line x1="132" y1="400" x2="380" y2="400" />
+    <line x1="194" y1="365" x2="318" y2="435" />
+    <line x1="318" y1="365" x2="194" y2="435" />
+  </g>
+
+  <!-- Soft Ground Drop Shadow under building -->
+  <ellipse cx="256" cy="405" rx="150" ry="48" fill="url(#plinthShadow)" />
+
+  <!-- 3D Isometric Architectural House Structure -->
+  <!-- Foundation Plinth -->
+  <!-- Top face of foundation -->
+  <polygon points="256,350 366,288 256,226 146,288" fill="#f8fafc" />
+  <!-- Left face of foundation -->
+  <polygon points="146,288 256,350 256,372 146,310" fill="url(#foundationLeft)" />
+  <!-- Right face of foundation -->
+  <polygon points="256,350 366,288 366,310 256,372" fill="url(#foundationRight)" />
+
+  <!-- House Main Walls -->
+  <!-- Left Wall (Facing South-West) -->
+  <polygon points="160,278 256,334 256,206 160,150" fill="url(#wallLeft)" />
+  <!-- Right Wall (Facing South-East) -->
+  <polygon points="256,334 352,278 352,150 256,206" fill="url(#wallRight)" />
+
+  <!-- Front Gable Face (Peak) -->
+  <polygon points="160,150 256,206 256,92" fill="#fed7aa" />
+  <polygon points="256,206 352,150 256,92" fill="#fdba74" />
+
+  <!-- Architectural Overhanging Roof -->
+  <!-- Left Roof Plane -->
+  <polygon points="256,76 138,144 148,154 256,92" fill="url(#roofLeft)" filter="url(#softGlow)" />
+  <polygon points="256,76 138,144 234,200 352,132" fill="url(#roofLeft)" />
+  <!-- Right Roof Plane -->
+  <polygon points="256,76 352,132 374,144 256,92" fill="url(#roofRight)" />
+  <polygon points="256,76 374,144 256,212 234,200" fill="url(#roofRight)" />
+
+  <!-- Roof Ridge Beam -->
+  <polygon points="256,74 256,78 376,146 376,142" fill="#ffedd5" />
+
+  <!-- Architectural Chimney -->
+  <polygon points="310,102 330,113 330,76 310,65" fill="#c2410c" />
+  <polygon points="330,113 344,105 344,68 330,76" fill="#9a3412" />
+  <polygon points="310,65 330,76 344,68 324,57" fill="#fed7aa" />
+  <!-- Chimney Cap -->
+  <polygon points="307,64 329,76 346,67 324,55" fill="#f8fafc" />
+
+  <!-- Warm Cozy Lit Windows (Left Wall) -->
+  <g filter="url(#softGlow)">
+    <!-- Window 1 (Upper) -->
+    <polygon points="182,176 218,197 218,228 182,207" fill="url(#windowGlow)" />
+    <!-- Window frame -->
+    <polygon points="180,174 220,197 220,230 180,207" fill="none" stroke="#78350f" stroke-width="2" />
+    <line x1="200" y1="186" x2="200" y2="218" stroke="#78350f" stroke-width="1.5" />
+    <line x1="181" y1="191" x2="219" y2="213" stroke="#78350f" stroke-width="1.5" />
+  </g>
+
+  <!-- Modern Front Door (Right Wall) -->
+  <polygon points="274,310 304,293 304,228 274,245" fill="#451a03" />
+  <polygon points="277,306 301,292 301,232 277,246" fill="#78350f" />
+  <!-- Glass Inset in Door (Glowing) -->
+  <polygon points="280,276 298,266 298,236 280,246" fill="url(#windowGlow)" opacity="0.9" />
+  <!-- Door Brass Handle -->
+  <circle cx="282" cy="285" r="2.5" fill="#fef08a" />
+
+  <!-- Modern Large Picture Window (Right Wall) -->
+  <g filter="url(#softGlow)">
+    <polygon points="316,270 342,255 342,205 316,220" fill="url(#windowGlow)" opacity="0.95" />
+    <polygon points="314,268 344,253 344,203 314,218" fill="none" stroke="#78350f" stroke-width="2" />
+    <line x1="329" y1="212" x2="329" y2="262" stroke="#78350f" stroke-width="1.5" />
+  </g>
+
+  <!-- Potted Topiary Plant / Architectural Greenery (Porch) -->
+  <!-- Pot -->
+  <polygon points="234,352 248,360 248,346 234,338" fill="#b45309" />
+  <polygon points="248,360 256,355 256,341 248,346" fill="#92400e" />
+  <polygon points="234,338 248,346 256,341 242,333" fill="#d97706" />
+  <!-- Lush Spherical Foliage -->
+  <circle cx="245" cy="326" r="14" fill="#15803d" />
+  <circle cx="243" cy="324" r="12" fill="#22c55e" />
+  <circle cx="240" cy="321" r="7" fill="#86efac" />
+
+  <!-- Cute Floating Little Sparkles (Magic / Co-op building feel) -->
+  <g fill="#fef08a" opacity="0.9" filter="url(#softGlow)">
+    <!-- Sparkle 1 Top Left -->
+    <path d="M 120 100 Q 120 115 105 115 Q 120 115 120 130 Q 120 115 135 115 Q 120 115 120 100 Z" />
+    <!-- Sparkle 2 Right -->
+    <path d="M 395 185 Q 395 195 385 195 Q 395 195 395 205 Q 395 195 405 195 Q 395 195 395 185 Z" />
+    <!-- Small star -->
+    <circle cx="365" cy="110" r="3" fill="#ffffff" />
+    <circle cx="150" cy="85" r="2.5" fill="#ffffff" />
+  </g>
+</svg>
