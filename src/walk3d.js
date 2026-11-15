@@ -30,14 +30,30 @@ Object.defineProperty(HP, 'pushFurniture', {
   }
 });
 
+function clampSittingYaw(targetYaw, baseYaw, maxDelta = 1.45) {
+  let diff = Math.atan2(Math.sin(targetYaw - baseYaw), Math.cos(targetYaw - baseYaw));
+  diff = Math.max(-maxDelta, Math.min(maxDelta, diff));
+  return baseYaw + diff;
+}
+
 function sitDown(target) {
   if (sitting) return;
   const it = target.it, def = target.def;
   const rot = (it.rot || 0) % 4;
-  const sitYaw = rot === 0 ? Math.PI : rot === 1 ? -Math.PI / 2 : rot === 2 ? 0 : Math.PI / 2;
+  // Three.js world forward: rot=0 -> +z (PI), rot=1 -> -x (PI/2), rot=2 -> -z (0), rot=3 -> +x (-PI/2)
+  const sitYaw = rot === 0 ? Math.PI : rot === 1 ? Math.PI / 2 : rot === 2 ? 0 : -Math.PI / 2;
+  const type = (it.type || '').toLowerCase();
+  let seatOffset = -12;
+  if (/barstool|counterstool|stool/i.test(type)) seatOffset = -5;
+  else if (/beanbag|cushion|pouf|tatami|floor/i.test(type)) seatOffset = -19;
+  else if (/bunk|daybed/i.test(type)) seatOffset = -10;
+  else if (/bed/i.test(type)) seatOffset = -14;
+
   sitting = {
     it,
     px, pz, yaw, pitch,
+    sitYaw,
+    seatOffset,
     standFeetY: feetY
   };
   px = target.spot.x;
@@ -45,16 +61,23 @@ function sitDown(target) {
   yaw = sitYaw;
   pitch = 0;
   clearMotion();
-  feetY = -12;
+  feetY = seatOffset;
 }
 
 function standUp() {
   if (!sitting) return;
   const s = sitting;
+  const sitYaw = s.sitYaw !== undefined ? s.sitYaw : s.yaw;
   sitting = null;
-  px = s.px;
-  pz = s.pz;
-  yaw = s.yaw;
+  // Step slightly forward away from chair center so player doesn't spawn inside chair geometry
+  const fx = -Math.sin(sitYaw), fz = -Math.cos(sitYaw);
+  const distSq = Math.hypot(s.px - px, s.pz - pz);
+  if (distSq > 12) {
+    px = s.px; pz = s.pz;
+  } else {
+    px += fx * 14; pz += fz * 14;
+  }
+  yaw = sitYaw;
   feetY = s.standFeetY;
   clearMotion();
 }
@@ -135,7 +158,7 @@ K.syncCamera = function () {
   const cam = HP.world3d.camera;
   if (!K.fly) {
     const elev = K.camElevate || 0;
-    cam.position.set(px, (sitting ? (HP.world3d.EYE - 12 + groundY) : (HP.world3d.EYE + feetY)) + elev, pz);
+    cam.position.set(px, (sitting ? (HP.world3d.EYE + feetY + groundY) : (HP.world3d.EYE + feetY)) + elev, pz);
     cam.rotation.y = yaw; cam.rotation.x = pitch;
     cam.rotation.z = 0;
     cam.rotation.order = 'YXZ';
@@ -226,6 +249,7 @@ K.boot = function () {
     lastDx = dx; lastDy = dy; lastMoveT = now;
     yaw   -= dx * 0.0023;
     yaw    = Math.atan2(Math.sin(yaw), Math.cos(yaw));
+    if (sitting) yaw = clampSittingYaw(yaw, sitting.sitYaw);
     pitch -= dy * 0.0023;
     pitch  = Math.max(-1.45, Math.min(1.45, pitch));
   });
@@ -261,6 +285,8 @@ K.boot = function () {
         if (e.type === 'touchstart') { lookT.id = t.identifier; lookT.lx = t.clientX; lookT.ly = t.clientY; }
         else {
           yaw   -= (t.clientX - lookT.lx) * 0.0045;
+          yaw    = Math.atan2(Math.sin(yaw), Math.cos(yaw));
+          if (sitting) yaw = clampSittingYaw(yaw, sitting.sitYaw);
           pitch -= (t.clientY - lookT.ly) * 0.0045;
           pitch = Math.max(-1.45, Math.min(1.45, pitch));
           lookT.lx = t.clientX; lookT.ly = t.clientY;
@@ -730,8 +756,7 @@ function tick(t) {
   /* move */
   if (started) {
     if (sitting) {
-      if (keys.KeyW || keys.ArrowUp || keys.KeyS || keys.ArrowDown ||
-          keys.KeyA || keys.ArrowLeft || keys.KeyD || keys.ArrowRight ||
+      if (keys.KeyW || keys.KeyS || keys.KeyA || keys.KeyD ||
           keys.Space || Math.hypot(moveT.x, moveT.y) > 0.1) {
         standUp();
       }
@@ -746,6 +771,7 @@ function tick(t) {
     if (keys.ArrowUp) pitch = Math.min(1.45, pitch + dt * 1.8);
     if (keys.ArrowDown) pitch = Math.max(-1.45, pitch - dt * 1.8);
     yaw = Math.atan2(Math.sin(yaw), Math.cos(yaw));
+    if (sitting) yaw = clampSittingYaw(yaw, sitting.sitYaw);
     const len = Math.hypot(mx, mz) || 1;
     if (len > 1) { mx /= len; mz /= len; }
     const sp = (keys.ShiftLeft || keys.ShiftRight) ? RUN : SPEED;
@@ -798,7 +824,7 @@ function tick(t) {
     const cam = HP.world3d.camera;
     if (!K.fly) {                                        /* debug: free camera */
       const elev = K.camElevate || 0;
-      cam.position.set(px, (sitting ? (HP.world3d.EYE - 12 + groundY) : (HP.world3d.EYE + feetY + bobY)) + elev, pz);
+      cam.position.set(px, (sitting ? (HP.world3d.EYE + feetY + groundY) : (HP.world3d.EYE + feetY + bobY)) + elev, pz);
       cam.rotation.y = yaw; cam.rotation.x = pitch;
       cam.rotation.z = Math.sin(stride) * 0.011 * Math.min(1, speed / RUN);  // sprint sway
       cam.rotation.order = 'YXZ';

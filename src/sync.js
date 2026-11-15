@@ -20,7 +20,26 @@ const $ = s => document.querySelector(s);
 function coopStatus(txt, on) {
   const el = $('#st-coop');
   if (el) { el.textContent = txt; el.classList.toggle('on', !!on); }
+  const btn = $('#btn-coop');
+  if (btn) {
+    if (conns.length > 0) {
+      btn.textContent = 'Co-op (' + (conns.length + 1) + ')';
+      btn.classList.add('online');
+      btn.classList.remove('hosting');
+    } else if (mode === 'host') {
+      btn.textContent = 'Room ' + roomCode;
+      btn.classList.add('hosting');
+      btn.classList.remove('online');
+    } else if (mode === 'guest') {
+      btn.textContent = 'Connecting…';
+      btn.classList.remove('online', 'hosting');
+    } else {
+      btn.textContent = 'Co-op';
+      btn.classList.remove('online', 'hosting');
+    }
+  }
 }
+
 function showPanel() { $('#coop-panel').classList.remove('hidden'); renderPanel(); }
 function hidePanel() { $('#coop-panel').classList.add('hidden'); }
 
@@ -92,27 +111,71 @@ function setConnected() {
   renderPanel();
 }
 
+let lsSaveTimer = null;
+function scheduleLSSave() {
+  clearTimeout(lsSaveTimer);
+  lsSaveTimer = setTimeout(() => {
+    try { localStorage.setItem(LS_KEY, JSON.stringify({ state: HP.state, nextId: HP.nextId })); } catch (e) {}
+  }, 1000);
+}
+
 /* ---------- state broadcast (hooked into saveState) ---------- */
-/* house state can exceed WebRTC's per-message limit — gzip it when we can */
+/* Only gzip very large payloads (>1500 chars) — cursors, positions and deltas flow raw */
 async function packMsg(obj) {
   const s = JSON.stringify(obj);
-  if (!window.CompressionStream) return obj;
-  const buf = await new Response(
-    new Blob([s]).stream().pipeThrough(new CompressionStream('gzip'))
-  ).arrayBuffer();
-  return { t: 'z', d: buf };
+  if (s.length < 1500 || !window.CompressionStream) return obj;
+  try {
+    const buf = await new Response(
+      new Blob([s]).stream().pipeThrough(new CompressionStream('gzip'))
+    ).arrayBuffer();
+    return { t: 'z', d: buf };
+  } catch (e) {
+    return obj;
+  }
 }
 async function unpackMsg(d) {
-  if (d.t !== 'z') return d;
-  const s = await new Response(
-    new Blob([d.d]).stream().pipeThrough(new DecompressionStream('gzip'))
-  ).text();
-  return JSON.parse(s);
+  if (!d || d.t !== 'z') return d;
+  try {
+    const s = await new Response(
+      new Blob([d.d]).stream().pipeThrough(new DecompressionStream('gzip'))
+    ).text();
+    return JSON.parse(s);
+  } catch (e) {
+    return null;
+  }
 }
 async function sendTo(c, obj) {
   try { c.send(await packMsg(obj)); } catch (e) {}
 }
 function sendAll(obj) { for (const c of conns) sendTo(c, obj); }
+
+/* Live item drag broadcast (20 FPS) — partner sees furniture gliding in real time */
+let lastDragSent = 0;
+HP.syncDrag = function (members) {
+  if (!conns.length || !members || !members.length) return;
+  const now = performance.now();
+  if (now - lastDragSent < 48) return;
+  lastDragSent = now;
+  const list = members.map(m => ({ id: m.id, x: m.x, y: m.y }));
+  for (const c of conns) {
+    try { c.send({ t: 'f_drag', items: list }); } catch (e) {}
+  }
+};
+
+function onRemoteDrag(d) {
+  if (!d || !d.items) return;
+  const cur = HP.cur && HP.cur();
+  if (!cur || !cur.furniture) return;
+  for (const it of cur.furniture) {
+    const match = d.items.find(x => x.id === it.id);
+    if (match) {
+      it.x = match.x;
+      it.y = match.y;
+    }
+  }
+  HP.markDirty();
+}
+
 let lastSentSnap = '';
 function broadcastState() {
   if (applying || !conns.length) return;
@@ -124,7 +187,7 @@ function broadcastState() {
     stampDelta();                                 // stamp entities we changed since last send
     lastSentSnap = HP.snap();
     sendAll({ t: 'state', rev, origin: peer && peer.id, state: HP.state, stamps, nextId: HP.nextId });
-  }, 120);
+  }, 90);
 }
 const _saveState = HP.saveState;
 HP.saveState = function () { _saveState(); broadcastState(); };
@@ -194,8 +257,12 @@ function stampDelta() {
       otherwise our newer edit survives and the rebroadcast re-converges. */
 const peerBase = {};                                   // originPeerId -> last received state
 function mergeRemote(cur, base, inc, incStamps, baseStamps) {
-  while (cur.levels.length < inc.levels.length)
-    cur.levels.push({ walls: {}, floors: {}, roomNames: {}, furniture: [], fences: {} });
+  let staticChanged = false;
+  if (cur.levels.length < inc.levels.length) {
+    staticChanged = true;
+    while (cur.levels.length < inc.levels.length)
+      cur.levels.push({ walls: {}, floors: {}, roomNames: {}, furniture: [], fences: {} });
+  }
   for (let i = 0; i < inc.levels.length; i++) {
     const cl = cur.levels[i], bl = base && base.levels[i] || {}, il = inc.levels[i];
     const iS = incStamps && incStamps[i] || {}, bS = baseStamps && baseStamps[i] || {};
@@ -205,12 +272,13 @@ function mergeRemote(cur, base, inc, incStamps, baseStamps) {
       for (const k in bd)
         if (!(k in id) && k in cd && cmpStamp(md[k], bsd[k]) <= 0) {   // they deleted; we haven't re-edited
           delete cd[k]; delete md[k];
+          staticChanged = true;
         }
       for (const k in id) {
         if (k in bd && JSON.stringify(id[k]) === JSON.stringify(bd[k])) continue;  // unchanged
         observeStamp(isd[k]);
         if (cmpStamp(isd[k], md[k]) > 0 || !incStamps) {               // their stamp wins (or legacy peer)
-          if (JSON.stringify(cd[k]) !== JSON.stringify(id[k])) { cd[k] = id[k]; }
+          if (JSON.stringify(cd[k]) !== JSON.stringify(id[k])) { cd[k] = id[k]; staticChanged = true; }
           if (isd[k]) { md[k] = isd[k]; mergedTags.add(tag(i, d, k)); }
         }
       }
@@ -239,11 +307,14 @@ function mergeRemote(cur, base, inc, incStamps, baseStamps) {
     }
   }
   for (const k of ['bg', 'photoFloors', 'w', 'h'])
-    if (inc[k] !== undefined && (!base || JSON.stringify(inc[k]) !== JSON.stringify(base[k]))) cur[k] = inc[k];
+    if (inc[k] !== undefined && (!base || JSON.stringify(inc[k]) !== JSON.stringify(base[k]))) {
+      cur[k] = inc[k];
+      staticChanged = true;
+    }
   /* inc.level is deliberately NOT synced — the viewed floor is a personal
      view choice, not shared house data. Her climbing stairs shouldn't drag
      my screen to floor 2. (Adopted once on join in applyState.) */
-  return cur;
+  return staticChanged;
 }
 
 function applyState(msg, fromConn) {
@@ -264,8 +335,10 @@ function applyState(msg, fromConn) {
   if (prevLvl !== undefined && inc.level !== prevLvl && fromConn.name && HP.status)
     HP.status(fromConn.name + ' went to floor ' + (inc.level + 1));
   const baseStamps = peerStamps[origin];
+  let staticChanged = false;
   if (!peerBase[origin]) {
     HP.state = inc;                                // first state from them → adopt wholesale
+    staticChanged = true;
     HP.state.level = Math.min(HP.state.level, HP.state.levels.length - 1);
     if (msg.stamps) {                              // adopt their entity stamps
       for (const l in msg.stamps) {
@@ -278,7 +351,7 @@ function applyState(msg, fromConn) {
     }
     lastSentState = JSON.parse(JSON.stringify(inc));  // adopted = my baseline, not "my edits"
   } else {
-    mergeRemote(HP.state, peerBase[origin], inc, msg.stamps, baseStamps);  // apply only THEIR delta
+    staticChanged = mergeRemote(HP.state, peerBase[origin], inc, msg.stamps, baseStamps);  // apply only THEIR delta
   }
   peerBase[origin] = msg.state;
   peerStamps[origin] = msg.stamps || {};
@@ -292,11 +365,20 @@ function applyState(msg, fromConn) {
     for (const it of lvl.furniture)
       if (it.id === selId) { HP.selected = it; break outer; }
   HP.selectedRoom = keepRoom;
-  if (HP.state.w !== HP.GRID_W || HP.state.h !== HP.GRID_H) HP.applyGridSize();
-  HP.invalidateRegions(); HP.refreshContext(); HP.markDirty();
+  if (HP.state.w !== HP.GRID_W || HP.state.h !== HP.GRID_H) {
+    HP.applyGridSize();
+    staticChanged = true;
+  }
+  /* Only invalidate heavy static layer (wipes offscreen canvas) when structural elements change.
+     Furniture moves/adds do NOT invalidate static layers — zero white flash / reload look on tablets! */
+  if (staticChanged) {
+    HP.invalidateRegions();
+  }
+  HP.refreshContext();
+  HP.markDirty();
   if (HP.updateFloorUI) HP.updateFloorUI();
   if (HP.invalidateBlocked) HP.invalidateBlocked();
-  try { localStorage.setItem(LS_KEY, JSON.stringify({ state: HP.state, nextId: HP.nextId })); } catch (e) {}
+  scheduleLSSave();
   applying = false;
   /* converged rebroadcast: if the merge produced a state different from what we
      last sent (e.g. simultaneous same-item edits), send it so both sides settle */
@@ -393,6 +475,12 @@ function setupConn(c) {
     if (!d || !d.t) return;
     if (d.t === 'hello') { c.name = d.name; HP.status(d.name + ' joined the house'); setConnected(); }
     else if (d.t === 'state') applyState(d, c);
+    else if (d.t === 'f_drag') {
+      onRemoteDrag(d);
+      if (mode === 'host') {
+        for (const other of conns) if (other !== c) { try { other.send(d); } catch (e) {} }
+      }
+    }
     else if (d.t === 'cursor') onCursor(d, c.peer);
     else if (d.t === 'pos') onPos(d, c.peer);
   });
@@ -446,9 +534,21 @@ function joinGame(code, autoHostFallback) {
   try { sessionStorage.setItem('hd_room', roomCode); } catch (e) {}
   HP.status('Joining room ' + clean + '…');
   peer = new Peer();
+  let retryCount = 0;
   peer.on('error', e => {
     const t = e && e.type;
     if (t === 'peer-unavailable') {
+      if (autoHostFallback && retryCount < 2) {
+        retryCount++;
+        HP.status('Connecting to room ' + clean + ' (attempt ' + (retryCount + 1) + '/3)…');
+        setTimeout(() => {
+          if (peer && !peer.destroyed && mode === 'guest') {
+            const c = peer.connect(PREFIX + clean, { reliable: true });
+            setupConn(c);
+          }
+        }, 1200 * retryCount);
+        return;
+      }
       if (autoHostFallback) {
         HP.status('Hosting room ' + clean + '…');
         hostGame(clean);

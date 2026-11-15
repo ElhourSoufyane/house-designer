@@ -73,6 +73,7 @@ const selectTool = {
         drag.moved = true;
         drag.valid = drag.members.every(m =>
           HP.canPlace(m.type, m.x, m.y, m.rot, drag.members, m.w ? { w: m.w, h: m.h } : null));
+        if (HP.syncDrag) HP.syncDrag(drag.members);
         HP.markDirty();
       }
     } else if (drag.kind === 'marquee') {

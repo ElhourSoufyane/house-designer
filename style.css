@@ -445,6 +445,19 @@ button { font-family: inherit; color: inherit; }
 }
 #st-coop { color: var(--text-dim); }
 #st-coop.on { color: #46a35e; font-weight: 700; }
+#btn-coop.online {
+  background: #16a34a !important;
+  color: #fff !important;
+  border-color: #15803d !important;
+  font-weight: 600;
+  box-shadow: 0 0 10px rgba(22, 163, 74, 0.45);
+}
+#btn-coop.hosting {
+  background: #2563eb !important;
+  color: #fff !important;
+  border-color: #1d4ed8 !important;
+  font-weight: 600;
+}
 .panel-btn.danger { border-color: var(--danger); color: var(--danger); }
 .panel-btn.danger:hover { background: var(--danger-soft); color: var(--danger); }
 .panel-btn.primary {

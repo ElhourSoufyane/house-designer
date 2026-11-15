@@ -711,6 +711,21 @@ HP.initUI = function () {
 
   $('#btn-zoomin').onclick = () => HP.zoomBtn(1);
   $('#btn-zoomout').onclick = () => HP.zoomBtn(-1);
+  const zv = $('#zoom-val');
+  if (zv) {
+    zv.style.cursor = 'pointer';
+    zv.title = 'Click to center & fit house';
+    zv.onclick = () => {
+      const fit = Math.min(HP.canvas.clientWidth / (HP.GRID_W * HP.CELL + 120),
+                           HP.canvas.clientHeight / (HP.GRID_H * HP.CELL + 160));
+      HP.camera.zoom = Math.max(HP.MIN_ZOOM, Math.min(1.2, fit));
+      HP.camera.x = 0;
+      HP.camera.y = 0;
+      HP.markDirty();
+      HP.updateZoomUI();
+      HP.status('Centered house');
+    };
+  }
   $('#floor-up').onclick = () => HP.setLevel(HP.state.level + 1);
   $('#floor-down').onclick = () => HP.setLevel(HP.state.level - 1);
   $('#floor-add').onclick = () => HP.addLevel();
