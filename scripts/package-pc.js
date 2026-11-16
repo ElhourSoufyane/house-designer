@@ -1,8 +1,27 @@
 const fs = require('fs');
 const path = require('path');
+const crypto = require('crypto');
 const { execSync } = require('child_process');
 
 const root = path.join(__dirname, '..');
+
+// Automatically compute fresh file hashes into version.json
+const vFile = path.join(root, 'version.json');
+if (fs.existsSync(vFile)) {
+  const vData = JSON.parse(fs.readFileSync(vFile, 'utf8'));
+  const hFiles = vData.files || [];
+  const hashes = {};
+  for (const f of hFiles) {
+    if (f === 'version.json') continue;
+    const p = path.join(root, f);
+    if (fs.existsSync(p)) {
+      hashes[f] = crypto.createHash('md5').update(fs.readFileSync(p)).digest('hex').slice(0, 12);
+    }
+  }
+  vData.hashes = hashes;
+  fs.writeFileSync(vFile, JSON.stringify(vData, null, 2));
+}
+
 const stage = path.join(root, 'dist-src');
 
 // Clean staging directory

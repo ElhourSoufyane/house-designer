@@ -407,7 +407,11 @@
 
         window.electronAPI.onUpdateProgress((data) => {
           if (pFill) pFill.style.width = data.percent + '%';
-          if (pLabel) pLabel.textContent = `Downloading ${data.file} (${data.percent}%)...`;
+          if (pLabel) {
+            pLabel.textContent = (data.file.startsWith('Diff check') || data.file.startsWith('Reloading'))
+              ? data.file
+              : `Updating ${data.file} (${data.percent}%)...`;
+          }
         });
 
         const res = await window.electronAPI.applyUpdate();

@@ -103,12 +103,23 @@ function createWindow() {
   mainWindow.loadFile(path.join(__dirname, 'index.html'));
 }
 
+const httpsAgent = new https.Agent({ keepAlive: true, maxSockets: 8, timeout: 8000 });
+
+function getLocalHash(filePath) {
+  try {
+    const crypto = require('crypto');
+    return crypto.createHash('md5').update(fs.readFileSync(filePath)).digest('hex').slice(0, 12);
+  } catch (e) {
+    return null;
+  }
+}
+
 function downloadFile(url, destPath) {
   return new Promise((resolve, reject) => {
     const dir = path.dirname(destPath);
     if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
 
-    const req = https.get(url, (res) => {
+    const req = https.get(url, { agent: httpsAgent }, (res) => {
       if (res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
         return downloadFile(res.headers.location, destPath).then(resolve).catch(reject);
       }
@@ -126,19 +137,19 @@ function downloadFile(url, destPath) {
       });
     });
     req.on('error', reject);
-    req.setTimeout(12000, () => {
+    req.setTimeout(8000, () => {
       req.destroy();
       reject(new Error(`Timeout downloading ${url}`));
     });
   });
 }
 
-// In-app updater for standalone desktop application
+// In-app updater for standalone desktop application — Differential, Parallel & Blazing Fast
 ipcMain.handle('apply-update', async (event) => {
   const baseUrl = 'https://elhoursoufyane.github.io/housedesigner/';
   try {
     const vRes = await new Promise((resolve, reject) => {
-      https.get(`${baseUrl}version.json?_t=${Date.now()}`, (res) => {
+      https.get(`${baseUrl}version.json?_t=${Date.now()}`, { agent: httpsAgent }, (res) => {
         let body = '';
         res.on('data', chunk => body += chunk);
         res.on('end', () => {
@@ -147,34 +158,63 @@ ipcMain.handle('apply-update', async (event) => {
       }).on('error', reject);
     });
 
-    const fileList = vRes.files || [
-      'version.json', 'index.html', 'play3d.html', 'style.css', 'manifest.json', 'sw.js',
-      'src/catalog.js', 'src/cull3d.js', 'src/default-house.js', 'src/furniture3d.js',
-      'src/geom3d.js', 'src/graphics3d.js', 'src/grid.js', 'src/input.js', 'src/life3d.js',
-      'src/main.js', 'src/presets.js', 'src/rooms.js', 'src/save.js', 'src/sky3d.js',
-      'src/sound3d.js', 'src/sprites.js', 'src/sync.js', 'src/sync3d.js', 'src/tools.js',
-      'src/ui.js', 'src/walk.js', 'src/walk3d.js', 'src/world3d.js'
-    ];
+    const fileList = vRes.files || [];
+    const remoteHashes = vRes.hashes || {};
 
-    const total = fileList.length;
-    for (let i = 0; i < total; i++) {
-      const relPath = fileList[i];
-      const fileUrl = `${baseUrl}${relPath}?_t=${Date.now()}`;
+    // 1. Identify only files that actually changed or are missing
+    const toDownload = [];
+    for (const relPath of fileList) {
+      if (relPath === 'version.json') continue;
       const destPath = path.join(__dirname, relPath);
-      event.sender.send('update-progress', {
-        current: i + 1,
-        total,
-        percent: Math.round(((i + 1) / total) * 100),
-        file: relPath
-      });
-      await downloadFile(fileUrl, destPath);
+      const expectedHash = remoteHashes[relPath];
+      if (!fs.existsSync(destPath) || !expectedHash || getLocalHash(destPath) !== expectedHash) {
+        toDownload.push(relPath);
+      }
     }
+
+    // Always fetch latest version.json
+    toDownload.push('version.json');
+
+    const total = toDownload.length;
+    let completed = 0;
+
+    event.sender.send('update-progress', {
+      current: 0,
+      total,
+      percent: 10,
+      file: `Diff check: ${total} files need updating`
+    });
+
+    // 2. Download changed files concurrently in batches of 4
+    const BATCH_SIZE = 4;
+    for (let i = 0; i < total; i += BATCH_SIZE) {
+      const batch = toDownload.slice(i, i + BATCH_SIZE);
+      await Promise.all(batch.map(async (relPath) => {
+        const fileUrl = `${baseUrl}${relPath}?_t=${Date.now()}`;
+        const destPath = path.join(__dirname, relPath);
+        await downloadFile(fileUrl, destPath);
+        completed++;
+        event.sender.send('update-progress', {
+          current: completed,
+          total,
+          percent: Math.min(95, Math.round((completed / total) * 100)),
+          file: relPath
+        });
+      }));
+    }
+
+    event.sender.send('update-progress', {
+      current: total,
+      total,
+      percent: 100,
+      file: 'Reloading...'
+    });
 
     setTimeout(() => {
       if (mainWindow) mainWindow.reload();
-    }, 600);
+    }, 350);
 
-    return { success: true, version: vRes.version };
+    return { success: true, version: vRes.version, filesUpdated: total };
   } catch (err) {
     console.error('Update failed:', err);
     return { success: false, error: err.message };
