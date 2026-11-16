@@ -136,6 +136,10 @@ HP.initInput = function () {
 
   function onKey(e) {
     if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+    if (HP.in3D) {
+      if (e.key === 'Escape' && HP.exit3D) HP.exit3D();
+      return;
+    }
     const k = e.key.toLowerCase();
     if ((e.ctrlKey || e.metaKey) && k === 'z') { e.preventDefault(); e.shiftKey ? HP.redo() : HP.undo(); return; }
     if ((e.ctrlKey || e.metaKey) && k === 'y') { e.preventDefault(); HP.redo(); return; }

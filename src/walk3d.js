@@ -254,6 +254,7 @@ K.boot = function () {
     pitch  = Math.max(-1.45, Math.min(1.45, pitch));
   });
   document.addEventListener('keydown', e => {
+    if (!HP.in3D && !started) return;
     if (e.code === 'KeyP' && started && (typeof location === 'undefined' || !location.search.includes('showroom'))) { if (!e.repeat) K.pause(); return; }
     if (paused) return;
     keys[e.code] = true;
@@ -261,7 +262,10 @@ K.boot = function () {
     if (e.code === 'Space' && !e.defaultPrevented) { if (e.preventDefault) e.preventDefault(); doJump(); }
     if (e.code === 'KeyE') interact();
   });
-  document.addEventListener('keyup', e => keys[e.code] = false);
+  document.addEventListener('keyup', e => {
+    if (!HP.in3D && !started) return;
+    keys[e.code] = false;
+  });
   el.canvas.addEventListener('click', () => {
     if (HP.sound3d) HP.sound3d.start();
     if (!locked && started && !paused) requestLock();
@@ -582,7 +586,15 @@ function collide(nx, nz, vx, vz) {
         const pushSide = d.a.d === 'h'
           ? ((d.flip || 1) > 0 ? pz > d.a.z1 : pz < d.a.z0)
           : ((d.flip || 1) > 0 ? px > d.a.x1 : px < d.a.x0);
-        if (pushSide && d.open < 0.85) { d.vel = Math.min((d.vel || 0) + 0.55, 2.6); d.holdT = 3.5; }
+        if (pushSide && d.open < 0.85) {
+          d.vel = Math.min((d.vel || 0) + 0.55, 2.6);
+          d.holdT = 3.5;
+          const now = performance.now();
+          if (!d._lastPushSent || now - d._lastPushSent > 100) {
+            d._lastPushSent = now;
+            if (HP.sync3d && HP.sync3d.broadcastPush) HP.sync3d.broadcastPush(d);
+          }
+        }
         else if (d.open > 0.3) d.holdT = 3.5;     // already open — don't shut on you
       }
       nx = rx; nz = rz;
@@ -733,7 +745,8 @@ function interact() {
   }
   if (d.kind) {
     HP.life3d.toggle(d);
-    if (HP.sync3d && d.it) HP.sync3d.broadcastLamp(d.it.id, d.it.on);
+    if (HP.sync3d && HP.sync3d.broadcastInteract) HP.sync3d.broadcastInteract(d);
+    else if (HP.sync3d && d.it) HP.sync3d.broadcastLamp(d.it.id, d.it.on);
     return;
   }
   /* latch the whole door (both leaves of a double) — a latched door
@@ -741,8 +754,16 @@ function interact() {
   const open = !(d.latched || d.holdT > 0.2 || d.open > 0.5);
   for (const o of HP.world3d.doorPivots) if (o.a === d.a) { o.latched = open; if (!open) o.holdT = 0; }
   if (HP.sync3d && HP.world3d && HP.world3d.doorPivots) {
-    const idx = HP.world3d.doorPivots.indexOf(d);
-    if (idx >= 0) HP.sync3d.broadcastDoor(idx, open ? 1.0 : 0.0, 0);
+    const indices = [];
+    for (let i = 0; i < HP.world3d.doorPivots.length; i++) {
+      if (HP.world3d.doorPivots[i].a === d.a) indices.push(i);
+    }
+    if (HP.sync3d.broadcastDoorToggle) {
+      HP.sync3d.broadcastDoorToggle(indices, open);
+    } else {
+      const idx = HP.world3d.doorPivots.indexOf(d);
+      if (idx >= 0) HP.sync3d.broadcastDoor(idx, open ? 1.0 : 0.0, 0);
+    }
   }
 }
 

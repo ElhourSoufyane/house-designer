@@ -352,6 +352,10 @@
 
   /* ---------- Network Message Transport ---------- */
   function sendAll(msg) {
+    if (HP.sync && HP.sync.sendAll) {
+      HP.sync.sendAll(msg);
+      return;
+    }
     for (const c of S3.conns) {
       try { if (c.open) c.send(msg); } catch (e) {}
     }
@@ -360,51 +364,66 @@
   function handleData(raw, conn) {
     if (!raw || !raw.t) return;
     const d = raw;
-    const peerId = conn.peer;
+    const peerId = conn ? conn.peer : (d.origin || 'peer');
 
     if (d.t === 'hello') {
-      conn.name = d.name || 'Partner';
+      if (conn) conn.name = d.name || 'Partner';
       const p = getOrCreatePeer(peerId, d.name);
       notify(`${d.name} joined the 3D walk!`);
       // If host, send current house state and doors/lamps
-      if (S3.mode === 'host' && HP.state) {
-        conn.send({ t: 'house', state: HP.state, nextId: HP.nextId });
-        syncWorldStateTo(conn);
+      const isHost = S3.mode === 'host' || (HP.sync && HP.sync.mode === 'host');
+      if (isHost && HP.state) {
+        if (conn) {
+          conn.send({ t: 'house', state: HP.state, nextId: HP.nextId });
+          syncWorldStateTo(conn);
+        } else {
+          sendAll({ t: 'house', state: HP.state, nextId: HP.nextId });
+        }
       }
     } else if (d.t === 'pos') {
-      const p = getOrCreatePeer(peerId, d.name || conn.name);
+      const p = getOrCreatePeer(peerId, d.name || (conn && conn.name));
+      const posZ = d.z !== undefined ? d.z : (d.py2d !== undefined ? d.py2d : d.y);
+      const posY = d.y !== undefined && d.z !== undefined ? d.y : 32;
       if (!p.hasFirstPos) {
         p.hasFirstPos = true;
         p.current.x = d.x;
-        p.current.y = d.y || 0;
-        p.current.z = d.z;
-        p.current.yaw = d.yaw || 0;
+        p.current.y = posY;
+        p.current.z = posZ;
+        p.current.yaw = d.yaw !== undefined ? d.yaw : (d.a !== undefined ? -d.a - Math.PI / 2 : 0);
         p.current.pitch = d.pitch || 0;
         p.current.s = d.s ? 1 : 0;
         p.current.v = d.v || 0;
         if (p.avatar && p.avatar.root) {
-          p.avatar.root.position.set(d.x, d.y || 0, d.z);
+          p.avatar.root.position.set(d.x, posY, posZ);
         }
       }
       p.target.x = d.x;
-      p.target.y = d.y || 0;
-      p.target.z = d.z;
-      p.target.yaw = d.yaw || 0;
+      p.target.y = posY;
+      p.target.z = posZ;
+      p.target.yaw = d.yaw !== undefined ? d.yaw : (d.a !== undefined ? -d.a - Math.PI / 2 : 0);
       p.target.pitch = d.pitch || 0;
       p.target.s = d.s ? 1 : 0;
       p.target.v = d.v || 0;
       p.lastSeen = Date.now();
     } else if (d.t === 'door') {
       applyDoorState(d);
+    } else if (d.t === 'door_toggle') {
+      applyDoorToggle(d);
+    } else if (d.t === 'door_push') {
+      applyDoorPush(d);
+    } else if (d.t === 'interact') {
+      applyInteractState(d);
+    } else if (d.t === 'time') {
+      applyTimeState(d);
     } else if (d.t === 'lamp') {
       applyLampState(d);
     } else if (d.t === 'mover') {
       applyMoverState(d);
     } else if (d.t === 'emote') {
       applyEmote(peerId, d.emote);
-    } else if (d.t === 'house') {
+    } else if (d.t === 'house' || d.t === 'state') {
       if (d.state) {
-        notify('Loaded shared house from host');
+        notify('Synchronized house changes');
         HP.state = HP.migrate(d.state);
         HP.nextId = d.nextId || HP.nextId;
         if (HP.world3d && HP.world3d.buildLevel) {
@@ -414,6 +433,7 @@
       }
     }
   }
+  S3.handleData = (d, conn) => handleData(d, conn);
 
   function setupConn(c) {
     c.on('open', () => {
@@ -434,11 +454,25 @@
 
   /* ---------- World Interaction Syncing ---------- */
   function syncWorldStateTo(conn) {
-    // Sync doors
+    // Sync doors & windows
     if (HP.world3d && HP.world3d.doorPivots) {
       HP.world3d.doorPivots.forEach((d, idx) => {
-        if (d.open > 0.05) conn.send({ t: 'door', idx, open: d.open, vel: d.vel || 0 });
+        if (d.latched || d.open > 0.05) {
+          conn.send({ t: 'door_toggle', indices: [idx], latched: !!d.latched });
+        }
       });
+    }
+    // Sync interactables (lamps, fire, TVs)
+    if (HP.life3d && HP.life3d.interactables) {
+      HP.life3d.interactables.forEach((it, idx) => {
+        if (it.ref && !it.ref.on) {
+          conn.send({ t: 'interact', idx, kind: it.kind, x: Math.round(it.x), z: Math.round(it.z), on: false });
+        }
+      });
+    }
+    // Sync time of day
+    if (HP.world3d && HP.world3d.time) {
+      conn.send({ t: 'time', hour: Math.round(HP.world3d.time.hour * 100) / 100, flow: HP.world3d.time.flow });
     }
   }
 
@@ -452,12 +486,74 @@
     }
   }
 
+  function applyDoorToggle(d) {
+    if (!HP.world3d || !HP.world3d.doorPivots) return;
+    const indices = Array.isArray(d.indices) ? d.indices : [d.idx];
+    for (const idx of indices) {
+      const dp = HP.world3d.doorPivots[idx];
+      if (dp) {
+        dp.latched = !!d.latched;
+        if (!dp.latched) dp.holdT = 0;
+        else dp.holdT = 0;
+        // Start smooth spring swing without skipping
+        if (d.latched && dp.open < 0.1) dp.vel = 2.0;
+        else if (!d.latched && dp.open > 0.8) dp.vel = -2.0;
+      }
+    }
+  }
+
+  function applyDoorPush(d) {
+    if (!HP.world3d || !HP.world3d.doorPivots) return;
+    const dp = HP.world3d.doorPivots[d.idx];
+    if (dp) {
+      dp.vel = d.vel || 1.2;
+      dp.holdT = d.holdT || 3.5;
+    }
+  }
+
+  function applyInteractState(d) {
+    if (!HP.life3d || !HP.life3d.interactables) return;
+    let target = HP.life3d.interactables[d.idx];
+    if (!target || target.kind !== d.kind) {
+      target = HP.life3d.interactables.find(it => it.kind === d.kind && Math.hypot(it.x - d.x, it.z - d.z) < 15);
+    }
+    if (target && target.ref) {
+      target.ref.on = !!d.on;
+      if (target.kind === 'fire') {
+        if (target.ref.light) target.ref.light.intensity = d.on ? 1 : 0;
+        if (target.ref.cones) for (const c of target.ref.cones) c.visible = d.on;
+      } else if (target.kind === 'lamp') {
+        if (target.ref.src) target.ref.src.on = d.on;
+        if (target.ref.mesh) target.ref.mesh.visible = d.on;
+      } else if (target.kind === 'tv') {
+        if (!d.on && target.ref.mat) target.ref.mat.color.set(0x08090b);
+      }
+    }
+  }
+
+  function applyTimeState(d) {
+    if (!HP.world3d || !HP.world3d.setTime) return;
+    if (d.hour !== undefined) {
+      HP.world3d.setTime(d.hour);
+    }
+    if (d.flow !== undefined && HP.world3d.setTimeFlow) {
+      HP.world3d.setTimeFlow(d.flow);
+    }
+    const tod = document.getElementById('tod');
+    const todFlow = document.getElementById('tod-flow');
+    const todLabel = document.getElementById('tod-label');
+    if (tod && d.hour !== undefined) tod.value = d.hour;
+    if (todFlow && d.flow !== undefined) todFlow.checked = d.flow;
+    if (todLabel && HP.sky3d && d.hour !== undefined) todLabel.textContent = HP.sky3d.clock(d.hour);
+  }
+
   function applyLampState(d) {
     if (!HP.world3d || !HP.world3d.lamps) return;
     const lamp = HP.world3d.lamps.find(l => l.it && l.it.id === d.id);
     if (lamp) {
       lamp.on = d.on;
       if (lamp.light) lamp.light.visible = d.on;
+      if (lamp.lampRef) lamp.lampRef.on = d.on;
     }
   }
 
@@ -484,6 +580,33 @@
 
   S3.broadcastDoor = function (idx, open, vel) {
     sendAll({ t: 'door', idx, open, vel });
+  };
+
+  S3.broadcastDoorToggle = function (indices, latched) {
+    sendAll({ t: 'door_toggle', indices, latched });
+  };
+
+  S3.broadcastPush = function (d) {
+    if (!HP.world3d || !HP.world3d.doorPivots) return;
+    const idx = HP.world3d.doorPivots.indexOf(d);
+    if (idx >= 0) sendAll({ t: 'door_push', idx, vel: d.vel, holdT: d.holdT });
+  };
+
+  S3.broadcastInteract = function (d) {
+    if (!HP.life3d || !HP.life3d.interactables) return;
+    const idx = HP.life3d.interactables.indexOf(d);
+    sendAll({
+      t: 'interact',
+      idx,
+      kind: d.kind,
+      x: Math.round(d.x),
+      z: Math.round(d.z),
+      on: d.ref ? d.ref.on : true
+    });
+  };
+
+  S3.broadcastTime = function (hour, flow) {
+    sendAll({ t: 'time', hour, flow });
   };
 
   S3.broadcastLamp = function (id, on) {
@@ -729,22 +852,41 @@
 
     // Position Broadcast Loop (20Hz)
     setInterval(() => {
-      if (!S3.conns.length || !walk3d || !walk3d.playerPos) return;
+      const hasConns = (HP.sync && HP.sync.conns && HP.sync.conns.length) || S3.conns.length;
+      if (!hasConns || !walk3d || !walk3d.playerPos || !walk3d.started) return;
       const pos = walk3d.playerPos();
       if (!pos || (pos.x === 0 && pos.z === 0)) return;
+      const name = S3.myName || (HP.sync && HP.sync.myName) || localStorage.getItem(LS_NAME) || 'Player';
       const msg = {
         t: 'pos',
         x: Math.round(pos.x * 10) / 10,
         y: Math.round(pos.y * 10) / 10,
         z: Math.round(pos.z * 10) / 10,
+        py2d: Math.round(pos.z * 10) / 10,
         yaw: Math.round(pos.yaw * 100) / 100,
         pitch: Math.round(pos.pitch * 100) / 100,
         s: pos.sitting ? 1 : 0,
         v: Math.round((pos.speed || 0) * 10) / 10,
-        name: S3.myName
+        name,
+        in3d: true,
+        a: Math.round((-pos.yaw - Math.PI / 2) * 100) / 100,
+        lvl: (HP.state && HP.state.level) || 0
       };
       sendAll(msg);
     }, 50);
+
+    // Host Time Broadcast Loop (every 3s)
+    setInterval(() => {
+      const isHost = (HP.sync && HP.sync.mode === 'host') || S3.mode === 'host';
+      const hasConns = (HP.sync && HP.sync.conns && HP.sync.conns.length) || S3.conns.length;
+      if (isHost && hasConns && HP.world3d && HP.world3d.time) {
+        sendAll({
+          t: 'time',
+          hour: Math.round(HP.world3d.time.hour * 100) / 100,
+          flow: HP.world3d.time.flow
+        });
+      }
+    }, 3000);
 
     // Bind Auto-Join from URL query parameter ?room=CODE (with auto-host fallback if empty)
     const urlCode = new URLSearchParams(location.search).get('room');

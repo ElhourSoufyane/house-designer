@@ -134,7 +134,7 @@
 
 <!-- TOP BAR -->
 <header class="topbar">
-  <div class="logo"><svg class="ic"><use href="#i-logo"/></svg>House<span>Designer</span> <span class="ver-badge" id="btn-ver" title="Check for updates">v1.3.0 ✓</span></div>
+  <div class="logo"><svg class="ic"><use href="#i-logo"/></svg>House<span>Designer</span> <span class="ver-badge" id="btn-ver" title="Check for updates">v1.3.5 ✓</span></div>
   <button class="tbtn" id="btn-new">New</button>
   <button class="tbtn" id="btn-save" title="Download house as a backup file">Save</button>
   <button class="tbtn" id="btn-export">Export</button>
@@ -157,8 +157,7 @@
     <button id="btn-zoomin" aria-label="Zoom in"><svg class="ic"><use href="#i-plus"/></svg></button>
   </div>
   <button class="tbtn primary" id="btn-play"><svg class="ic"><use href="#i-play"/></svg>Play</button>
-  <button class="tbtn primary" id="btn-3d" title="Walk your house in 3D" onclick="if(window.HP&&HP.editingInterior)HP.exitInterior();try{localStorage.setItem('homeplanner_save_v1',JSON.stringify({state:HP.state,nextId:HP.nextId}))}catch(e){}var r=(window.HP&&HP.sync&&HP.sync.roomCode)||(window.HP&&HP.coop&&HP.coop.roomCode)||(new URLSearchParams(location.search).get('room'))||'';location.href='play3d.html'+(r?'?room='+encodeURIComponent(r):'');"><svg class="ic"><use href="#i-play"/></svg>Play 3D</button>
-  <script>fetch('play3d.html',{method:'HEAD'}).then(r=>{if(r.ok)document.getElementById('btn-3d').hidden=false}).catch(()=>{})</script>
+  <button class="tbtn primary" id="btn-3d" title="Walk your house in 3D" onclick="HP.enter3D()"><svg class="ic"><use href="#i-play"/></svg>Play 3D</button>
 </header>
 
 <div class="main">
@@ -282,6 +281,87 @@
   </div>
 </div>
 
+<!-- 3D IN-PAGE WALKTHROUGH VIEWPORT OVERLAY -->
+<div id="view3d-wrap" class="hidden">
+  <canvas id="gl"></canvas>
+
+  <div id="topbar" class="hud">
+    <div class="topbar-left">
+      <button class="hud-pill" id="btn-editor" onclick="HP.exit3D()" title="Back to 2D Editor">
+        <span class="icon">←</span>
+        <span class="lbl">Editor</span>
+      </button>
+      <button class="hud-pill" id="btn-showroom" style="display:none"></button>
+      <button class="hud-pill" id="btn-coop-3d" onclick="HP.coop && HP.coop.show()" title="Multiplayer Co-op">
+        <span class="icon">👥</span>
+        <span class="lbl">Online</span>
+      </button>
+    </div>
+    <div class="topbar-right">
+      <button class="hud-pill icon-only" id="btn-sound" title="Toggle sound">🔊</button>
+      <button class="hud-pill icon-only" id="btn-graphics" aria-expanded="false" aria-controls="graphics" title="Settings & Atmosphere">⚙️</button>
+    </div>
+  </div>
+
+  <div id="coop-emotes" class="hud">
+    <button class="btn" onclick="HP.sync3d && HP.sync3d.sendEmote('👋')" style="padding:3px 7px;font-size:14px;border:none;background:none" title="Wave (Key 1)">👋</button>
+    <button class="btn" onclick="HP.sync3d && HP.sync3d.sendEmote('❤️')" style="padding:3px 7px;font-size:14px;border:none;background:none" title="Heart (Key 2)">❤️</button>
+    <button class="btn" onclick="HP.sync3d && HP.sync3d.sendEmote('✨')" style="padding:3px 7px;font-size:14px;border:none;background:none" title="Sparkle (Key 3)">✨</button>
+    <button class="btn" onclick="HP.sync3d && HP.sync3d.sendEmote('☕')" style="padding:3px 7px;font-size:14px;border:none;background:none" title="Coffee (Key 4)">☕</button>
+  </div>
+
+  <section id="graphics" hidden aria-label="Settings and atmosphere">
+    <div class="graphics-header">
+      <h2>Settings & Atmosphere</h2>
+      <button id="graphics-close" type="button" aria-label="Close">×</button>
+    </div>
+    <label for="quality">Rendering quality</label>
+    <select id="quality">
+      <option value="auto">Auto (recommended)</option>
+      <option value="low">Low / battery saver</option>
+      <option value="medium">Balanced</option>
+      <option value="high">High</option>
+    </select>
+    <p>Auto starts lighter on phones and adjusts to sustained frame rate. All settings keep the same house and physics.</p>
+    <label for="tod">Time of day <span id="tod-label"></span></label>
+    <input type="range" id="tod" min="0" max="24" step="0.25">
+    <label class="check"><input type="checkbox" id="tod-flow"> Time passes (1 hour = 1 minute)</label>
+    <p>Starts at your real local time. Lamps and room lights switch on after sunset.</p>
+    <label class="check"><input type="checkbox" id="sound"> Sound — ambience, footsteps, doors</label>
+    <label class="check"><input type="checkbox" id="push-furniture"> Pushable furniture (bump to move chairs)</label>
+    <output id="quality-status" aria-live="polite"></output>
+    <p id="gpu-info"></p>
+    <div class="graphics-tools">
+      <div class="tools-title">Scene Tools</div>
+      <div class="tools-btns">
+        <button class="btn-tool" id="btn-audit" type="button">Wall check</button>
+        <button class="btn-tool" id="btn-rebuild" type="button">Rebuild</button>
+      </div>
+    </div>
+  </section>
+
+  <div id="fps" class="hud"></div>
+  <div id="clock" class="hud" aria-label="In-game time"></div>
+  <div id="cross" class="hud">+</div>
+  <div id="hint" class="hud">WASD move · mouse look · E interact · Shift run · Space jump · Esc leave</div>
+  <div id="prompt" class="hud"></div>
+
+  <div id="stickL"><div id="stickL-nub"></div></div>
+  <button id="jumpBtn" type="button">JUMP</button>
+
+  <div id="overlay">
+    <h1>Your Home</h1>
+    <p>click to explore your home in 3D</p>
+    <div class="keys">WASD to walk · Mouse to look · E to open doors & toggle lights<br>Shift to run · Space to jump · Esc to return to 2D Editor</div>
+  </div>
+
+  <div id="audit"></div>
+  <div id="gpu-warn" role="alert" hidden>
+    <strong>3D is running without your graphics card.</strong>
+    <button id="gpu-warn-close" class="btn" type="button">Dismiss</button>
+  </div>
+</div>
+
 <script src="lib/peerjs.min.js"></script>
 <script src="src/grid.js?v=1794093466650"></script>
 <script src="src/catalog.js?v=1794093466650"></script>
@@ -296,10 +376,22 @@
 <script src="src/ui.js?v=1794093466650"></script>
 <script src="src/main.js?v=1794093466650"></script>
 <script src="src/sync.js?v=1794093466650"></script>
+<script src="lib/three.min.js"></script>
+<script src="src/geom3d.js?v=1794093466650"></script>
+<script src="src/graphics3d.js?v=1794093466650"></script>
+<script src="src/cull3d.js?v=1794093466650"></script>
+<script src="src/sky3d.js?v=1794093466650"></script>
+<script src="src/furniture3d.js?v=1794093466650"></script>
+<script src="src/life3d.js?v=1794093466650"></script>
+<script src="src/sound3d.js?v=1794093466650"></script>
+<script src="src/world3d.js?v=1794093466650"></script>
+<script src="src/walk3d.js?v=1794329900000"></script>
+<script src="src/sync3d.js?v=1794329900000"></script>
+<script src="src/play3d-inpage.js?v=1794329900000"></script>
 <script>
 (async function initAppLifecycle() {
-  const CURRENT_VERSION = '1.3.0';
-  const CURRENT_BUILD = 1794846000000;
+  const CURRENT_VERSION = '1.3.5';
+  const CURRENT_BUILD = 1794849000000;
 
   const splash = document.getElementById('splash-screen');
   const bar = document.getElementById('splash-progress');

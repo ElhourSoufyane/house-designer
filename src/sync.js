@@ -380,6 +380,10 @@ function applyState(msg, fromConn) {
   if (HP.invalidateBlocked) HP.invalidateBlocked();
   scheduleLSSave();
   applying = false;
+  if (HP.world3d && HP.world3d.scene && HP.world3d.levelGroup && HP.walk3d && HP.walk3d.started) {
+    HP.invalidateRegions();
+    HP.world3d.buildLevel();
+  }
   /* converged rebroadcast: if the merge produced a state different from what we
      last sent (e.g. simultaneous same-item edits), send it so both sides settle */
   broadcastState();
@@ -408,18 +412,36 @@ function onCursor(d, key) {
 }
 
 /* ---------- remote walk avatars ---------- */
-const avatars = {};                        // name -> {x, y, a, lvl, at, color}
+const avatars = {};                        // name -> {x, y, a, lvl, at, color, in3d}
 function onPos(d, key) {
   if (d.off) { delete avatars[key]; HP.markDirty(); return; }
-  avatars[key] = { x: d.x, y: d.y, a: d.a, lvl: d.lvl, s: d.s, name: d.name, color: nameColor(d.name), at: Date.now() };
+  const y2d = (d.in3d && d.z !== undefined) ? d.z : (d.py2d !== undefined ? d.py2d : d.y);
+  const ang = d.a !== undefined ? d.a : (d.yaw !== undefined ? -d.yaw - Math.PI / 2 : 0);
+  avatars[key] = {
+    x: d.x,
+    y: y2d,
+    a: ang,
+    lvl: d.lvl !== undefined ? d.lvl : (HP.state && HP.state.level || 0),
+    s: d.s,
+    name: d.name,
+    color: nameColor(d.name),
+    in3d: !!d.in3d,
+    at: Date.now()
+  };
   HP.markDirty();
 }
-function nameTag(g, n, x, y, color) {
+function nameTag(g, n, x, y, color, in3d) {
   g.font = '600 11px "Segoe UI", sans-serif'; g.textAlign = 'center';
-  const w = g.measureText(n).width + 12;
-  g.fillStyle = 'rgba(20,23,28,.85)';
+  const label = in3d ? n + ' 🚶3D' : n;
+  const w = g.measureText(label).width + 14;
+  g.fillStyle = in3d ? 'rgba(15,23,42,.92)' : 'rgba(20,23,28,.85)';
   g.fillRect(x - w / 2, y - 30, w, 18);
-  g.fillStyle = '#fff'; g.fillText(n, x, y - 17);
+  if (in3d) {
+    g.strokeStyle = '#38bdf8'; g.lineWidth = 1.5;
+    g.strokeRect(x - w / 2, y - 30, w, 18);
+  }
+  g.fillStyle = in3d ? '#38bdf8' : '#fff';
+  g.fillText(label, x, y - 17);
 }
 /* top-down person — same shape as drawPlayer, colored per peer */
 function drawPeerAvatar(g, n, p) {
@@ -431,13 +453,13 @@ function drawPeerAvatar(g, n, p) {
   g.rotate(p.a || 0);
   g.beginPath(); g.arc(0, 0, r, 0, 7);
   g.fillStyle = p.color; g.fill();
-  g.strokeStyle = 'rgba(0,0,0,.45)'; g.lineWidth = 2; g.stroke();
+  g.strokeStyle = p.in3d ? '#38bdf8' : 'rgba(0,0,0,.45)'; g.lineWidth = p.in3d ? 2.5 : 2; g.stroke();
   if (!p.s) {
-    g.fillStyle = '#e8eaf0';
-    g.beginPath(); g.moveTo(r + 3, 0); g.lineTo(r - 4, -4); g.lineTo(r - 4, 4); g.closePath(); g.fill();
+    g.fillStyle = p.in3d ? '#38bdf8' : '#e8eaf0';
+    g.beginPath(); g.moveTo(r + 4, 0); g.lineTo(r - 4, -4); g.lineTo(r - 4, 4); g.closePath(); g.fill();
   }
   g.restore();
-  nameTag(g, n, p.x, p.y, p.color);
+  nameTag(g, n, p.x, p.y, p.color, p.in3d);
 }
 /* prune stale peers + draw cursors & walk avatars — called from drawOverlays */
 HP.drawPeerCursors = function (g) {
@@ -482,7 +504,19 @@ function setupConn(c) {
       }
     }
     else if (d.t === 'cursor') onCursor(d, c.peer);
-    else if (d.t === 'pos') onPos(d, c.peer);
+    else if (d.t === 'pos') {
+      onPos(d, c.peer);
+      if (HP.sync3d && HP.sync3d.handleData) HP.sync3d.handleData(d, c);
+      if (mode === 'host') {
+        for (const other of conns) if (other !== c) { try { other.send(d); } catch (e) {} }
+      }
+    }
+    else if (d.t === 'door' || d.t === 'door_toggle' || d.t === 'door_push' || d.t === 'interact' || d.t === 'time' || d.t === 'lamp' || d.t === 'mover' || d.t === 'emote') {
+      if (HP.sync3d && HP.sync3d.handleData) HP.sync3d.handleData(d, c);
+      if (mode === 'host') {
+        for (const other of conns) if (other !== c) { try { other.send(d); } catch (e) {} }
+      }
+    }
   });
   const drop = () => {
     conns = conns.filter(x => x !== c);
@@ -651,6 +685,9 @@ HP.coop = {
   online: () => conns.length,
   get roomCode() { return roomCode; },
   get mode() { return mode; },
+  get myName() { return myName; },
+  get conns() { return conns; },
+  sendAll,
   host: hostGame,
   join: joinGame
 };

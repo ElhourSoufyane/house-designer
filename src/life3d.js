@@ -668,6 +668,14 @@ L.label = function (g2) {
 L.toggle = function (g2) {
   const r = g2.ref;
   r.on = !r.on;
-  if (g2.kind === 'fire') { r.light.intensity = r.on ? 1 : 0; for (const c of r.cones) c.visible = r.on; }
+  if (g2.kind === 'fire') {
+    if (r.light) r.light.intensity = r.on ? 1 : 0;
+    if (r.cones) for (const c of r.cones) c.visible = r.on;
+  } else if (g2.kind === 'lamp') {
+    if (r.src) r.src.on = r.on;
+    if (r.mesh) r.mesh.visible = r.on;
+  } else if (g2.kind === 'tv') {
+    if (!r.on && r.mat) r.mat.color.set(0x08090b);
+  }
 };
 })();

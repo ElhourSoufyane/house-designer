@@ -33,7 +33,8 @@ const ASSETS = [
   './src/sound3d.js',
   './src/world3d.js',
   './src/walk3d.js',
-  './src/sync3d.js'
+  './src/sync3d.js',
+  './src/play3d-inpage.js'
 ];
 
 self.addEventListener('install', event => {

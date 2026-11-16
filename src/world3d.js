@@ -523,6 +523,13 @@ function pushable(it, d, f, h) {
 /* ---------- level build ---------- */
 W3.buildLevel = function () {
   if (HP.graphics3d) HP.graphics3d.resetTiming();
+  const oldDoors = (W3.doorPivots || []).map(d => ({
+    cx: d.a && d.a.cx,
+    cz: d.a && d.a.cz,
+    open: d.open,
+    latched: d.latched,
+    vel: d.vel
+  }));
   /* wipe previous level group */
   if (W3.levelGroup) { scene.remove(W3.levelGroup); disposeGroup(W3.levelGroup); }
   const g = W3.levelGroup = new THREE.Group();
@@ -1684,6 +1691,15 @@ W3.buildLevel = function () {
       doorPivots.push({ pivot, a, open: 0, target: 0, leaf, knob, lw, li, dep,
                         vel: 0, holdT: 0, latched: false, flip: a.flip,
                         ly0: 0, ly1: lh });
+    }
+  }
+  for (const dp of doorPivots) {
+    if (!dp.a) continue;
+    const prev = oldDoors.find(o => Math.abs(o.cx - dp.a.cx) < 2 && Math.abs(o.cz - dp.a.cz) < 2);
+    if (prev && prev.latched) {
+      dp.open = prev.open;
+      dp.latched = prev.latched;
+      dp.vel = prev.vel;
     }
   }
   V.setWalls(lvl.walls, doorPivots);
