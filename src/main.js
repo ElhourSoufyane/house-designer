@@ -1720,12 +1720,11 @@ function drawWalls(g) {
     else g.fillRect(s.x * C - t / 2, s.y * C, t, C + 0.6);
     drawWallCore(g, s, t, lvl.walls[k]);
     if (feat) drawGap(g, s, t, false);       // cut opening after body
-    if (feat === 'window') drawWindow(g, s, t);
   }
 }
 
-/* doors draw every frame, not baked into the static layer — toggling open/closed
-   must not rebuild the whole cached scene (that was the split-second freeze) */
+/* doors and windows draw every frame, not baked into the static layer — toggling open/closed
+   or inside/outside swing must not rebuild the whole cached scene (that was the split-second freeze) */
 function drawDoors(g) {
   const C = HP.CELL, lvl = HP.cur();
   const isDoor = (d, x, y) => { const w = lvl.walls[d + ',' + x + ',' + y]; return w && w.f === 'door'; };
@@ -1920,6 +1919,17 @@ function drawWindow(g, s, t) {
       g.stroke();
       g.setLineDash([]);
     }
+  }
+}
+
+function drawWindows(g) {
+  const C = HP.CELL, lvl = HP.cur();
+  if (!lvl || !lvl.walls) return;
+  for (const k in lvl.walls) {
+    if (lvl.walls[k].f !== 'window') continue;
+    const s = HP.parseWallKey(k);
+    const t = wallThick(s) * C;
+    drawWindow(g, s, t);
   }
 }
 
@@ -2312,6 +2322,7 @@ HP.renderAll = function (g, cam, layer) {
     drawGround(g); drawFloors(g); drawLabels(g); drawWalls(g); drawFences(g);
   }
   drawDoors(g);
+  drawWindows(g);
   drawLights(g);
   drawItems(g);
   if (!cam.export) drawOverlays(g);

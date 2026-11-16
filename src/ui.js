@@ -682,10 +682,10 @@ function featureSelectedUI(feat) {
         HP.pushUndo();
         const sw = b.dataset.s;
         setFeatureSwing(feat.k, sw);
-        HP.saveState(); HP.invalidateRegions();
-        HP.status(kindName + ' set to open: ' + (sw === 'out' ? 'Outside' : 'Inside'));
-        refreshInspector();
+        HP.saveState();
         HP.markDirty();
+        featureSelectedUI(feat);
+        HP.status(kindName + ' set to open: ' + (sw === 'out' ? 'Outside' : 'Inside'));
       };
     });
   }
@@ -696,10 +696,10 @@ function featureSelectedUI(feat) {
       HP.pushUndo();
       const newSwing = curSwing === 'out' ? 'in' : 'out';
       setFeatureSwing(feat.k, newSwing);
-      HP.saveState(); HP.invalidateRegions();
-      HP.status(kindName + ' flipped to open ' + (newSwing === 'out' ? 'Outside' : 'Inside'));
-      refreshInspector();
+      HP.saveState();
       HP.markDirty();
+      featureSelectedUI(feat);
+      HP.status(kindName + ' flipped to open ' + (newSwing === 'out' ? 'Outside' : 'Inside'));
     };
   }
   
@@ -707,11 +707,23 @@ function featureSelectedUI(feat) {
   if (closedBtn) {
     closedBtn.onclick = () => {
       HP.pushUndo();
-      w.c = !w.c;
-      HP.saveState(); HP.invalidateRegions();
-      HP.status('Door leaf in 2D: ' + (w.c ? 'Closed' : 'Open'));
-      refreshInspector();
+      const nextC = !w.c;
+      w.c = nextC;
+      const s = HP.parseWallKey(feat.k);
+      const adjKeys = [
+        s.d === 'h' ? 'h,' + (s.x + 1) + ',' + s.y : 'v,' + s.x + ',' + (s.y + 1),
+        s.d === 'h' ? 'h,' + (s.x - 1) + ',' + s.y : 'v,' + s.x + ',' + (s.y - 1)
+      ];
+      const lvl = HP.cur();
+      for (const ak of adjKeys) {
+        if (lvl.walls[ak] && lvl.walls[ak].f === 'door') {
+          lvl.walls[ak].c = nextC;
+        }
+      }
+      HP.saveState();
       HP.markDirty();
+      featureSelectedUI(feat);
+      HP.status('Door leaf in 2D: ' + (nextC ? 'Closed' : 'Open'));
     };
   }
   
@@ -723,7 +735,8 @@ function featureSelectedUI(feat) {
       delete w.swing;
       delete w.c;
       HP.selectedFeature = null;
-      HP.saveState(); HP.invalidateRegions();
+      HP.invalidateRegions();
+      HP.saveState();
       HP.status(kindName + ' removed');
       refreshInspector();
       HP.markDirty();

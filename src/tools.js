@@ -257,7 +257,7 @@ function featureTool(kind) {
         if (HP.setFeatureSwing) HP.setFeatureSwing(k, newSwing);
         else w.swing = newSwing;
         HP.selectedFeature = { k, kind, wall: w };
-        HP.saveState(); HP.invalidateRegions();
+        HP.saveState();
         HP.status((kind === 'door' ? 'Door' : 'Window') + ' swing flipped: opens ' + (newSwing === 'out' ? 'Outside' : 'Inside'));
       } else {
         w.f = kind;
