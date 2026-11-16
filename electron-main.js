@@ -147,9 +147,9 @@ function downloadFile(url, destPath) {
 ipcMain.handle('get-version', () => {
   try {
     const v = JSON.parse(fs.readFileSync(path.join(__dirname, 'version.json'), 'utf8'));
-    return v.version || '1.3.7';
+    return v.version || '1.3.8';
   } catch (e) {
-    return '1.3.7';
+    return '1.3.8';
   }
 });
 

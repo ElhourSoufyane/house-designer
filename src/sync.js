@@ -289,6 +289,8 @@ function stampDelta() {
 const peerBase = {};                                   // originPeerId -> last received state
 function mergeRemote(cur, base, inc, incStamps, baseStamps) {
   let staticChanged = false;
+  let aperturesChanged = false;
+  let furnitureChanged = false;
   if (cur.levels.length < inc.levels.length) {
     staticChanged = true;
     while (cur.levels.length < inc.levels.length)
@@ -309,7 +311,23 @@ function mergeRemote(cur, base, inc, incStamps, baseStamps) {
         if (k in bd && JSON.stringify(id[k]) === JSON.stringify(bd[k])) continue;  // unchanged
         observeStamp(isd[k]);
         if (cmpStamp(isd[k], md[k]) > 0 || !incStamps) {               // their stamp wins (or legacy peer)
-          if (JSON.stringify(cd[k]) !== JSON.stringify(id[k])) { cd[k] = id[k]; staticChanged = true; }
+          if (JSON.stringify(cd[k]) !== JSON.stringify(id[k])) {
+            if (d === 'walls' && cd[k] && id[k]) {
+              const oldW = cd[k], newW = id[k];
+              if (oldW.f === newW.f && oldW.ca === newW.ca && oldW.cb === newW.cb) {
+                if (oldW.swing !== newW.swing || oldW.c !== newW.c) {
+                  aperturesChanged = true;
+                } else {
+                  staticChanged = true;
+                }
+              } else {
+                staticChanged = true;
+              }
+            } else {
+              staticChanged = true;
+            }
+            cd[k] = id[k];
+          }
           if (isd[k]) { md[k] = isd[k]; mergedTags.add(tag(i, d, k)); }
         }
       }
@@ -317,8 +335,10 @@ function mergeRemote(cur, base, inc, incStamps, baseStamps) {
     const bIds = {}, iIds = {}, iim = iS.items || {}, bim = bS.items || {}, mim = stMap(i, 'items');
     for (const it of bl.furniture || []) bIds[it.id] = it;
     for (const it of il.furniture) iIds[it.id] = it;
+    const oldFurnLen = cl.furniture.length;
     cl.furniture = cl.furniture.filter(it =>                          // they removed it
       !bIds[it.id] || it.id in iIds || cmpStamp(mim[it.id], bim[it.id]) > 0);
+    if (cl.furniture.length !== oldFurnLen) furnitureChanged = true;
     for (const it of il.furniture) {
       const b = bIds[it.id];
       const idx = cl.furniture.findIndex(x => x.id === it.id);
@@ -326,12 +346,14 @@ function mergeRemote(cur, base, inc, incStamps, baseStamps) {
         if (it.oid === HP.oid) continue;                                     // my own item echoing back — skip
         const copy = idx >= 0 ? { ...it, id: ++HP.nextId } : it;               // id collision → new id
         cl.furniture.push(copy);
+        furnitureChanged = true;
         observeStamp(iim[it.id]);
         if (iim[it.id]) { mim[copy.id] = iim[it.id]; mergedTags.add(tag(i, 'items', copy.id)); }
       } else if (JSON.stringify(b) !== JSON.stringify(it)) {
         observeStamp(iim[it.id]);
         if (cmpStamp(iim[it.id], mim[it.id]) > 0 || !incStamps) {            // they changed it — stamp wins
           if (idx >= 0) cl.furniture[idx] = it; else cl.furniture.push(it);
+          furnitureChanged = true;
           if (iim[it.id]) { mim[it.id] = iim[it.id]; mergedTags.add(tag(i, 'items', it.id)); }
         }
       }
@@ -345,7 +367,7 @@ function mergeRemote(cur, base, inc, incStamps, baseStamps) {
   /* inc.level is deliberately NOT synced — the viewed floor is a personal
      view choice, not shared house data. Her climbing stairs shouldn't drag
      my screen to floor 2. (Adopted once on join in applyState.) */
-  return staticChanged;
+  return { staticChanged, aperturesChanged, furnitureChanged };
 }
 
 function applyState(msg, fromConn) {
@@ -367,6 +389,8 @@ function applyState(msg, fromConn) {
     HP.status(fromConn.name + ' went to floor ' + (inc.level + 1));
   const baseStamps = peerStamps[origin];
   let staticChanged = false;
+  let aperturesChanged = false;
+  let furnitureChanged = false;
   if (!peerBase[origin]) {
     HP.state = inc;                                // first state from them → adopt wholesale
     staticChanged = true;
@@ -382,7 +406,10 @@ function applyState(msg, fromConn) {
     }
     lastSentState = JSON.parse(JSON.stringify(inc));  // adopted = my baseline, not "my edits"
   } else {
-    staticChanged = mergeRemote(HP.state, peerBase[origin], inc, msg.stamps, baseStamps);  // apply only THEIR delta
+    const delta = mergeRemote(HP.state, peerBase[origin], inc, msg.stamps, baseStamps);  // apply only THEIR delta
+    staticChanged = delta.staticChanged;
+    aperturesChanged = delta.aperturesChanged;
+    furnitureChanged = delta.furnitureChanged;
   }
   peerBase[origin] = msg.state;
   peerStamps[origin] = msg.stamps || {};
@@ -416,11 +443,17 @@ function applyState(msg, fromConn) {
 
   // Coalesced 3D rebuild (40ms debounce): never freeze frames on incoming edits!
   if (HP.in3D && HP.request3DRebuild) {
-    HP.request3DRebuild(40, { staticChanged });
+    HP.request3DRebuild(40, { staticChanged, aperturesChanged, furnitureChanged });
   } else if (HP.in3D && HP.world3d && HP.world3d.scene && HP.world3d.levelGroup) {
     if (staticChanged || !HP.world3d.furnitureGroup) {
       HP.invalidateRegions();
       HP.world3d.buildLevel();
+    } else if (aperturesChanged && HP.world3d.updateApertures) {
+      HP.world3d.updateApertures();
+      if (furnitureChanged) {
+        if (HP.world3d.updateFurnitureAsync) HP.world3d.updateFurnitureAsync();
+        else if (HP.world3d.updateFurniture) HP.world3d.updateFurniture();
+      }
     } else if (HP.world3d.updateFurnitureAsync) {
       HP.world3d.updateFurnitureAsync();
     } else {

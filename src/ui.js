@@ -561,6 +561,9 @@ function setFeatureSwing(k, swing) {
       } else break;
     }
   }
+  if (HP.in3D && HP.world3d && HP.world3d.updateApertures) {
+    HP.world3d.updateApertures();
+  }
 }
 HP.setFeatureSwing = setFeatureSwing;
 

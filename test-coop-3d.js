@@ -238,10 +238,26 @@ async function run() {
   HP.world3d.buildLevel = () => { buildCalled = true; };
   HP.in3D = true;
   HP.world3d.levelGroup = new THREE.Group();
-  // Simulate receiving remote state
-  HP.sync.applyState({ t: 'state', rev: Date.now(), origin: 'partner-1', state: HP.state, nextId: 100 }, dummyConn);
+  // Simulate receiving remote state with structural changes
+  const newWallState = JSON.parse(JSON.stringify(HP.state));
+  newWallState.levels[0].walls['h,0,0'] = { f: null };
+  newWallState.levels[0].walls['h,5,5'] = { f: 'door', swing: 'in' };
+  HP.sync.applyState({ t: 'state', rev: Date.now(), origin: 'partner-1', state: newWallState, nextId: 100 }, dummyConn);
   await new Promise(r => setTimeout(r, 120));
-  assert('Live 3D buildLevel is triggered on remote state update', buildCalled === true);
+  assert('Live 3D buildLevel is triggered on remote structural state update', buildCalled === true);
+
+  // 11. Test instant zero-lag swing flip without full buildLevel
+  let buildCalledOnSwing = false;
+  let updateAperturesCalled = false;
+  HP.world3d.buildLevel = () => { buildCalledOnSwing = true; };
+  HP.world3d.updateApertures = () => { updateAperturesCalled = true; };
+
+  const swingState = JSON.parse(JSON.stringify(HP.state));
+  swingState.levels[0].walls['h,5,5'].swing = 'out';
+  HP.sync.applyState({ t: 'state', rev: Date.now(), origin: 'partner-1', state: swingState, nextId: 101 }, dummyConn);
+  await new Promise(r => setTimeout(r, 120));
+  assert('updateApertures called on swing flip', updateAperturesCalled === true);
+  assert('buildLevel NOT called on swing flip (zero-lag in-place update)', buildCalledOnSwing === false);
   HP.world3d.buildLevel = origBuild;
 
   console.log(`\nResults: ${pass} passed, ${fail} failed.`);

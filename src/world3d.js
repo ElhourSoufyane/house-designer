@@ -520,6 +520,110 @@ function pushable(it, d, f, h) {
   return PUSHABLE_T.test(s) || f.w * f.h <= 1;          // tiny items always slide
 }
 
+function populateWindowAssembly(assembly, sashMat, paneMat, targetDoorPivots) {
+  const { root, a, isH, span, height, rim, rail, width, insideH, wallDepth, n, inward } = assembly;
+  const bars = (parent, specs) => {
+    const geometry = unitBox().clone();
+    const mesh = new THREE.InstancedMesh(geometry, sashMat, specs.length);
+    const bounds = new THREE.Box3(), part = new THREE.Box3();
+    const m4 = new THREE.Matrix4();
+    specs.forEach(([u, y, depth, bw, bh, bd], i) => {
+      const sx = isH ? bw : bd, sz = isH ? bd : bw;
+      const x = isH ? u : depth, z = isH ? depth : u;
+      m4.makeScale(sx, bh, sz); m4.setPosition(x, y, z);
+      mesh.setMatrixAt(i, m4);
+      part.min.set(x - sx / 2, y - bh / 2, z - sz / 2);
+      part.max.set(x + sx / 2, y + bh / 2, z + sz / 2);
+      bounds.union(part);
+    });
+    geometry.boundingBox = bounds;
+    geometry.boundingSphere = bounds.getBoundingSphere(new THREE.Sphere());
+    mesh.instanceMatrix.needsUpdate = true;
+    mesh.castShadow = mesh.receiveShadow = true;
+    parent.add(mesh);
+    return mesh;
+  };
+  const frameBars = [
+    [0, -height / 2 + rim / 2, 0, span, rim, wallDepth],
+    [0, height / 2 - rim / 2, 0, span, rim, wallDepth],
+    [-span / 2 + rim / 2, 0, 0, rim, height - rim * 2, wallDepth],
+    [span / 2 - rim / 2, 0, 0, rim, height - rim * 2, wallDepth]
+  ];
+  if (n === 1) {
+    for (const u of [-width / 2, width / 2])
+      frameBars.push([u, 0, 0, 0.35, insideH, 0.35]);
+  } else {
+    for (let i = 1; i < n; i++)
+      frameBars.push([-width / 2 + width * i / n, 0, 0, rim, insideH, wallDepth]);
+    const cell = width / n, pw = cell - rim - 0.3, ph = insideH - 0.2;
+    const lip = rail * 0.65, holeH = ph - lip * 2;
+    for (let i = 0; i < n; i++) {
+      const u = -width / 2 + cell * (i + 0.5);
+      const left = i === 0 ? -span / 2 : u - cell / 2;
+      const right = i === n - 1 ? span / 2 : u + cell / 2;
+      const holeL = u - pw / 2 + lip, holeR = u + pw / 2 - lip;
+      const depth = inward * wallDepth / 2, band = (height - holeH) / 2;
+      frameBars.push(
+        [(left + right) / 2, -(height + holeH) / 4, depth, right - left, band, 0.7],
+        [(left + right) / 2, (height + holeH) / 4, depth, right - left, band, 0.7],
+        [(left + holeL) / 2, 0, depth, holeL - left, holeH, 0.7],
+        [(holeR + right) / 2, 0, depth, right - holeR, holeH, 0.7]
+      );
+    }
+  }
+  assembly.frame = bars(root, frameBars);
+  const panel = (u, y, pw, ph, moving, du = 0, dy = 0, hinge = 0) => {
+    const depth = hinge ? inward * (wallDepth / 2 + 0.95) : moving ? 0.95 : -0.95;
+    const pivot = new THREE.Group();
+    pivot.position.set(isH ? u : depth, y, isH ? depth : u);
+    root.add(pivot);
+    const sash = new THREE.Group();
+    pivot.add(sash);
+    if (hinge) {
+      if (isH) { pivot.position.x -= hinge * pw / 2; sash.position.x = hinge * pw / 2; }
+      else { pivot.position.z -= hinge * pw / 2; sash.position.z = hinge * pw / 2; }
+    }
+    const leaf = new THREE.Mesh(new THREE.BoxGeometry(
+      isH ? pw - rail * 2 : 0.3, ph - rail * 2, isH ? 0.3 : pw - rail * 2), paneMat);
+    sash.add(leaf);
+    const sashBars = [
+      [0, -(ph - rail) / 2, 0, pw, rail, 1.2],
+      [0, (ph - rail) / 2, 0, pw, rail, 1.2],
+      [-(pw - rail) / 2, 0, 0, rail, ph - rail * 2, 1.2],
+      [(pw - rail) / 2, 0, 0, rail, ph - rail * 2, 1.2]
+    ];
+    if (moving) sashBars.push(n === 1
+      ? [0, -ph / 2 + rail, 0.75, 3, 0.45, 0.3]
+      : [(hinge || (du > 0 ? 1 : -1)) * (pw - rail) / 2, 0, hinge ? inward * 0.75 : 0.75, 0.45, 3, 0.3]);
+    bars(sash, sashBars);
+    if (hinge) bars(pivot, [-ph * 0.32, ph * 0.32].map(yh =>
+      [0, yh, 0, 0.5, 2, 0.5]));
+    const slide = isH ? { x: du, y: dy, z: 0 } : { x: 0, y: dy, z: du };
+    const d = { pivot, a, open: 0, target: 0, leaf, lw: pw, li: 0,
+      vel: 0, holdT: 0, latched: false, window: true,
+      slide: hinge ? null : slide, base: pivot.position.clone(), fixed: !moving,
+      casement: !!hinge, hinge, inward, sash,
+      swingDir: (isH ? -1 : 1) * inward * hinge,
+      ly0: root.position.y + y - ph / 2, ly1: root.position.y + y + ph / 2,
+      halfX: (isH ? pw : 1.8) / 2, halfZ: (isH ? 1.8 : pw) / 2, halfY: ph / 2 };
+    assembly.panels.push(d);
+    if (moving && targetDoorPivots) targetDoorPivots.push(d);
+    if (W3.windowPanels) W3.windowPanels.push(d);
+  };
+  const ph = insideH - 0.2, overlap = 0.6;
+  if (n === 1) {
+    const half = insideH / 2;
+    panel(0, half / 2 - overlap / 2, width - 0.2, half + overlap - 0.2, false);
+    panel(0, -half / 2 + overlap / 2, width - 0.2, half + overlap - 0.2, true, 0, half - overlap);
+  } else {
+    const cell = width / n;
+    for (let i = 0; i < n; i++) {
+      panel(-width / 2 + cell * (i + 0.5), 0, cell - rim - 0.3, ph, true,
+        0, 0, i === n - 1 ? -1 : 1);
+    }
+  }
+}
+
 /* ---------- level build ---------- */
 W3.buildLevel = function () {
   if (HP.graphics3d) HP.graphics3d.resetTiming();
@@ -895,9 +999,9 @@ W3.buildLevel = function () {
      Singles retain a lifting lower sash over a fixed upper sash. */
   W3.windows = [];
   if (geo.windows.length) {
-    const paneMat = HP.graphics3d ? HP.graphics3d.material('glass', '#bfe3ea') :
+    const paneMat = W3._paneMat = HP.graphics3d ? HP.graphics3d.material('glass', '#bfe3ea') :
       new THREE.MeshLambertMaterial({ color: 0x9fd4e8, transparent: true, opacity: 0.45 });
-    const sashMat = HP.graphics3d ? HP.graphics3d.material('metal', '#eae4d6') :
+    const sashMat = W3._sashMat = HP.graphics3d ? HP.graphics3d.material('metal', '#eae4d6') :
       new THREE.MeshLambertMaterial({ color: 0xeae4d6 });
     for (const opening of geo.windows) {
       const w = { ...opening }, isH = w.d === 'h';
@@ -930,120 +1034,10 @@ W3.buildLevel = function () {
       root.position.set(a.cx, (w.y0 + w.y1) / 2, a.cz);
       sg.add(root);
       V.add(root, w.x0 - span, w.z0 - span, w.x1 + span, w.z1 + span);
-      const assembly = { a, root, panels: [], inward, style: n === 1 ? 'single-hung' : 'casement' };
+      const assembly = { a, root, panels: [], inward, style: n === 1 ? 'single-hung' : 'casement',
+        w, span, height, rim, rail, width, insideH, wallDepth, n, isH };
       W3.windows.push(assembly);
-      // Local u runs along the wall; depth always runs across it.
-      const bars = (parent, specs) => {
-        const geometry = unitBox().clone();
-        const mesh = new THREE.InstancedMesh(geometry, sashMat, specs.length);
-        const bounds = new THREE.Box3(), part = new THREE.Box3();
-        specs.forEach(([u, y, depth, bw, bh, bd], i) => {
-          const sx = isH ? bw : bd, sz = isH ? bd : bw;
-          const x = isH ? u : depth, z = isH ? depth : u;
-          m4.makeScale(sx, bh, sz); m4.setPosition(x, y, z);
-          mesh.setMatrixAt(i, m4);
-          part.min.set(x - sx / 2, y - bh / 2, z - sz / 2);
-          part.max.set(x + sx / 2, y + bh / 2, z + sz / 2);
-          bounds.union(part);
-        });
-        // r149 uses geometry bounds for InstancedMesh culling.
-        geometry.boundingBox = bounds;
-        geometry.boundingSphere = bounds.getBoundingSphere(new THREE.Sphere());
-        mesh.instanceMatrix.needsUpdate = true;
-        mesh.castShadow = mesh.receiveShadow = true;
-        parent.add(mesh);
-        return mesh;
-      };
-      const frameBars = [
-        [0, -height / 2 + rim / 2, 0, span, rim, wallDepth],
-        [0, height / 2 - rim / 2, 0, span, rim, wallDepth],
-        [-span / 2 + rim / 2, 0, 0, rim, height - rim * 2, wallDepth],
-        [span / 2 - rim / 2, 0, 0, rim, height - rim * 2, wallDepth]
-      ];
-      // Continuous track divider on the sill/head (or jambs for a lift sash).
-      if (n === 1) {
-        for (const u of [-width / 2, width / 2])
-          frameBars.push([u, 0, 0, 0.35, insideH, 0.35]);
-      } else {
-        // Permanent mullions support each sash's hinge and latch.
-        for (let i = 1; i < n; i++)
-          frameBars.push([-width / 2 + width * i / n, 0, 0, rim, insideH, wallDepth]);
-        // Rebate stops bridge the clearance between each sash and the
-        // jamb/mullion. Their inside face meets the CLOSED sash's back
-        // at wallFace + .35; opening inward pulls the sash away.
-        // Overlap the sash rails in projection so oblique views cannot
-        // see daylight through a gap behind the floating hinge plane.
-        const cell = width / n, pw = cell - rim - 0.3, ph = insideH - 0.2;
-        const lip = rail * 0.65, holeH = ph - lip * 2;
-        for (let i = 0; i < n; i++) {
-          const u = -width / 2 + cell * (i + 0.5);
-          const left = i === 0 ? -span / 2 : u - cell / 2;
-          const right = i === n - 1 ? span / 2 : u + cell / 2;
-          const holeL = u - pw / 2 + lip, holeR = u + pw / 2 - lip;
-          const depth = inward * wallDepth / 2, band = (height - holeH) / 2;
-          frameBars.push(
-            [(left + right) / 2, -(height + holeH) / 4, depth, right - left, band, 0.7],
-            [(left + right) / 2, (height + holeH) / 4, depth, right - left, band, 0.7],
-            [(left + holeL) / 2, 0, depth, holeL - left, holeH, 0.7],
-            [(holeR + right) / 2, 0, depth, right - holeR, holeH, 0.7]
-          );
-        }
-      }
-      assembly.frame = bars(root, frameBars);
-      const panel = (u, y, pw, ph, moving, du = 0, dy = 0, hinge = 0) => {
-        const depth = hinge ? inward * (wallDepth / 2 + 0.95) : moving ? 0.95 : -0.95;
-        const pivot = new THREE.Group();
-        pivot.position.set(isH ? u : depth, y, isH ? depth : u);
-        root.add(pivot);
-        const sash = new THREE.Group();
-        pivot.add(sash);
-        if (hinge) {
-          // Put the pin at a stile, keeping all visible parts on the
-          // same rotating sash. Pins sit beyond the inside wall face.
-          if (isH) { pivot.position.x -= hinge * pw / 2; sash.position.x = hinge * pw / 2; }
-          else { pivot.position.z -= hinge * pw / 2; sash.position.z = hinge * pw / 2; }
-        }
-        // Glass fits INSIDE the sash, rather than overlapping its rails.
-        const leaf = new THREE.Mesh(new THREE.BoxGeometry(
-          isH ? pw - rail * 2 : 0.3, ph - rail * 2, isH ? 0.3 : pw - rail * 2), paneMat);
-        sash.add(leaf);
-        const sashBars = [
-          [0, -(ph - rail) / 2, 0, pw, rail, 1.2],
-          [0, (ph - rail) / 2, 0, pw, rail, 1.2],
-          [-(pw - rail) / 2, 0, 0, rail, ph - rail * 2, 1.2],
-          [(pw - rail) / 2, 0, 0, rail, ph - rail * 2, 1.2]
-        ];
-        // A small pull on each moving sash; no decorative grid obscuring the view.
-        if (moving) sashBars.push(n === 1
-          ? [0, -ph / 2 + rail, 0.75, 3, 0.45, 0.3]
-          : [(hinge || (du > 0 ? 1 : -1)) * (pw - rail) / 2, 0, hinge ? inward * 0.75 : 0.75, 0.45, 3, 0.3]);
-        bars(sash, sashBars);
-        if (hinge) bars(pivot, [-ph * 0.32, ph * 0.32].map(yh =>
-          [0, yh, 0, 0.5, 2, 0.5]));
-        const slide = isH ? { x: du, y: dy, z: 0 } : { x: 0, y: dy, z: du };
-        const d = { pivot, a, open: 0, target: 0, leaf, lw: pw, li: 0,
-          vel: 0, holdT: 0, latched: false, window: true,
-          slide: hinge ? null : slide, base: pivot.position.clone(), fixed: !moving,
-          casement: !!hinge, hinge, inward, sash,
-          swingDir: (isH ? -1 : 1) * inward * hinge,
-          ly0: root.position.y + y - ph / 2, ly1: root.position.y + y + ph / 2,
-          // Full moving assembly bounds, including its pull handle.
-          halfX: (isH ? pw : 1.8) / 2, halfZ: (isH ? 1.8 : pw) / 2, halfY: ph / 2 };
-        assembly.panels.push(d);
-        if (moving) doorPivots.push(d);
-      };
-      const ph = insideH - 0.2, overlap = 0.6;
-      if (n === 1) {
-        const half = insideH / 2;
-        panel(0, half / 2 - overlap / 2, width - 0.2, half + overlap - 0.2, false);
-        panel(0, -half / 2 + overlap / 2, width - 0.2, half + overlap - 0.2, true, 0, half - overlap);
-      } else {
-        const cell = width / n;
-        for (let i = 0; i < n; i++) {
-          panel(-width / 2 + cell * (i + 0.5), 0, cell - rim - 0.3, ph, true,
-            0, 0, i === n - 1 ? -1 : 1);
-        }
-      }
+      populateWindowAssembly(assembly, sashMat, paneMat, doorPivots);
     }
   }
 
@@ -1079,11 +1073,11 @@ W3.buildLevel = function () {
   }
 
   /* ---- door leaves: real meshes (they animate) ---- */
-  const leafMat = HP.graphics3d ? HP.graphics3d.material('wood', '#cfb394') :
+  const leafMat = W3._leafMat = HP.graphics3d ? HP.graphics3d.material('wood', '#cfb394') :
     new THREE.MeshLambertMaterial({ color: 0x8a6844 });
-  const knobMat = HP.graphics3d ? HP.graphics3d.material('metal', '#5b5f63') :
+  const knobMat = W3._knobMat = HP.graphics3d ? HP.graphics3d.material('metal', '#5b5f63') :
     new THREE.MeshLambertMaterial({ color: 0x3c3f45 });
-  const knobGeo = new THREE.SphereGeometry(1.2, 8, 6);    // was 960 tris per knob
+  const knobGeo = W3._knobGeo = new THREE.SphereGeometry(1.2, 8, 6);    // was 960 tris per knob
   for (const a of geo.doors) {
     /* usable span excludes corner posts standing at the aperture's
        ends — a leaf sized to the raw aperture would slice through
@@ -1152,7 +1146,7 @@ W3.buildLevel = function () {
          it open, a damped spring pulls it shut behind you, E latches */
       doorPivots.push({ pivot, a, open: 0, target: 0, leaf, knob, lw, li, dep,
                         vel: 0, holdT: 0, latched: false, flip: a.flip,
-                        ly0: 0, ly1: lh });
+                        ly0: 0, ly1: lh, s0, s1 });
     }
   }
   for (const dp of doorPivots) {
@@ -1890,6 +1884,95 @@ W3.onRemoteDrag = function (items) {
     }
   }
   if (HP.cull3d && HP.cull3d.invalidate) HP.cull3d.invalidate();
+};
+
+W3.updateApertures = function () {
+  if (!W3.levelGroup) return;
+  const lvl = HP.cur();
+  if (!lvl || !lvl.walls) return;
+  const env = geomEnv();
+
+  // 1. Update doors
+  for (const dp of (W3.doorPivots || [])) {
+    if (!dp.a || dp.gate || dp.window) continue;
+    const w = lvl.walls[dp.a.k];
+    if (!w) continue;
+    const seg = HP.parseWallKey(dp.a.k);
+    const minusRoom = dp.a.d === 'h' ? env.rAt(seg.x, seg.y - 1) : env.rAt(seg.x - 1, seg.y);
+    const plusRoom = env.rAt(seg.x, seg.y);
+    const minusIsInside = minusRoom >= 0 && (plusRoom < 0 || env.rsz(minusRoom) < env.rsz(plusRoom));
+    const insideFlip = minusIsInside ? 1 : -1;
+    const outsideFlip = minusIsInside ? -1 : 1;
+    let targetFlip = dp.a.flip;
+    if (w.swing === 'out') targetFlip = outsideFlip;
+    else if (w.swing === 'in') targetFlip = insideFlip;
+
+    if (targetFlip !== undefined && (targetFlip !== dp.flip || w.swing !== dp.a.swing)) {
+      dp.a.swing = w.swing;
+      dp.a.flip = targetFlip;
+      dp.flip = targetFlip;
+      const s0 = dp.s0 !== undefined ? dp.s0 : (dp.a.d === 'h' ? dp.a.x0 : dp.a.z0);
+      const s1 = dp.s1 !== undefined ? dp.s1 : (dp.a.d === 'h' ? dp.a.x1 : dp.a.z1);
+      const pz = dp.a.d === 'h' ? (targetFlip > 0 ? dp.a.z0 : dp.a.z1) : (dp.li === 0 ? s0 : s1);
+      const px = dp.a.d === 'h' ? (dp.li === 0 ? s0 : s1) : (targetFlip > 0 ? dp.a.x0 : dp.a.x1);
+      dp.pivot.position.set(px, 0, pz);
+      const dep = dp.dep || 5;
+      const v = (dep / 2 - 0.3) * targetFlip;
+      const kv = (dep - 0.5) * targetFlip;
+      if (dp.leaf) {
+        dp.leaf.position.set(
+          dp.a.d === 'h' ? (dp.li === 0 ? dp.lw / 2 : -dp.lw / 2) : v,
+          dp.leaf.position.y,
+          dp.a.d === 'h' ? v : (dp.li === 0 ? dp.lw / 2 : -dp.lw / 2)
+        );
+      }
+      if (dp.knob) {
+        dp.knob.position.set(
+          dp.a.d === 'h' ? (dp.li === 0 ? dp.lw - 6 : -dp.lw + 6) : kv,
+          27,
+          dp.a.d === 'h' ? kv : (dp.li === 0 ? dp.lw - 6 : -dp.lw + 6)
+        );
+      }
+      dp.open = 0;
+      dp.target = 0;
+      dp.pivot.rotation.y = 0;
+      dp.vel = 0;
+      dp.maxAng = undefined;
+    }
+  }
+
+  // 2. Update windows
+  const sashMat = W3._sashMat || (HP.graphics3d ? HP.graphics3d.material('metal', '#eae4d6') : new THREE.MeshLambertMaterial({ color: 0xeae4d6 }));
+  const paneMat = W3._paneMat || (HP.graphics3d ? HP.graphics3d.material('glass', '#bfe3ea') : new THREE.MeshLambertMaterial({ color: 0x9fd4e8, transparent: true, opacity: 0.45 }));
+
+  for (const assembly of (W3.windows || [])) {
+    if (!assembly || !assembly.a) continue;
+    const wRec = lvl.walls[assembly.a.k];
+    if (!wRec) continue;
+    const seg = HP.parseWallKey(assembly.a.k);
+    const minusRoom = assembly.isH ? env.rAt(seg.x, seg.y - 1) : env.rAt(seg.x - 1, seg.y);
+    const plusRoom = env.rAt(seg.x, seg.y);
+    let targetInward = minusRoom >= 0 && (plusRoom < 0 || env.rsz(minusRoom) < env.rsz(plusRoom)) ? -1 : 1;
+    if (wRec.swing === 'out') targetInward = -targetInward;
+
+    if (targetInward !== assembly.inward || (wRec.swing && wRec.swing !== assembly.a.swing)) {
+      assembly.inward = targetInward;
+      assembly.a.swing = wRec.swing;
+      while (assembly.root.children.length) {
+        const c = assembly.root.children[0];
+        assembly.root.remove(c);
+        if (c.geometry && !c.geometry.userData?.shared3d) c.geometry.dispose();
+      }
+      const deadPanels = new Set(assembly.panels);
+      assembly.panels = [];
+      W3.doorPivots = W3.doorPivots.filter(p => !deadPanels.has(p));
+      doorPivots = W3.doorPivots;
+      W3.windowPanels = (W3.windowPanels || []).filter(p => !deadPanels.has(p));
+      populateWindowAssembly(assembly, sashMat, paneMat, W3.doorPivots);
+    }
+  }
+
+  if (HP.cull3d) HP.cull3d.setWalls(lvl.walls, W3.doorPivots);
 };
 
 
