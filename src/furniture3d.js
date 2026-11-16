@@ -5,6 +5,18 @@ const F = HP.furniture3d = {};
 /* bake parts [{geo, matrix, color}] into one indexed geometry with
    per-vertex colour; ranges[i] = [firstVertex, vertexCount] of part i */
 const _nm = new THREE.Matrix3(), _col = new THREE.Color();
+const _colCache = new Map();
+const _whiteRGB = [1, 1, 1];
+function getColorRGB(c) {
+  if (!c || c === '#ffffff') return _whiteRGB;
+  let rgb = _colCache.get(c);
+  if (!rgb) {
+    _col.set(c);
+    rgb = [_col.r, _col.g, _col.b];
+    _colCache.set(c, rgb);
+  }
+  return rgb;
+}
 function merge(parts) {
   let nv = 0, ni = 0;
   for (const p of parts) { nv += p.geo.attributes.position.count; ni += p.geo.index.count; }
@@ -16,10 +28,10 @@ function merge(parts) {
   for (const p of parts) {
     const g = p.geo, P = g.attributes.position, N = g.attributes.normal, U = g.attributes.uv;
     _nm.getNormalMatrix(p.matrix);
-    _col.set(p.color || '#ffffff');
+    const rgb = getColorRGB(p.color);
     const m = p.matrix.elements;
     const nm = _nm.elements;
-    const cr = _col.r, cg = _col.g, cb = _col.b;
+    const cr = rgb[0], cg = rgb[1], cb = rgb[2];
     const Pa = P.array, Na = N.array, Ua = U ? U.array : null;
     const count = P.count;
     for (let i = 0; i < count; i++) {
@@ -34,7 +46,7 @@ function merge(parts) {
       const tnx = nm[0] * nx + nm[3] * ny + nm[6] * nz;
       const tny = nm[1] * nx + nm[4] * ny + nm[7] * nz;
       const tnz = nm[2] * nx + nm[5] * ny + nm[8] * nz;
-      const len = Math.hypot(tnx, tny, tnz) || 1;
+      const len = Math.sqrt(tnx * tnx + tny * tny + tnz * tnz) || 1;
       nor[vi3]     = tnx / len;
       nor[vi3 + 1] = tny / len;
       nor[vi3 + 2] = tnz / len;
@@ -8869,7 +8881,12 @@ F.builder = function (group) {
         const k = batch.shape === 'shadow' ? 'shadow' : batch.kind + (batch.detail ? ':d' : '');
         if (!byKind.has(k)) byKind.set(k, { kind: batch.kind, shadow: batch.shape === 'shadow',
           detail: batch.detail, parts: [] });
-        for (const p of batch.parts) byKind.get(k).parts.push({ ...p, geo: geometries[batch.shape] });
+        const targetList = byKind.get(k).parts, geo = geometries[batch.shape];
+        for (let i = 0; i < batch.parts.length; i++) {
+          const p = batch.parts[i];
+          p.geo = geo;
+          targetList.push(p);
+        }
       }
       const V = HP.cull3d;
       for (const [k, b] of byKind) {
@@ -8933,6 +8950,91 @@ F.builder = function (group) {
             g2.position.set(dx, 0, dz);
           }
         },
+        detach,
+        detached,
+        batchCount: byKind.size,
+      };
+    },
+    async finishAsync() {
+      const byKind = new Map();
+      for (const batch of batches.values()) {
+        const k = batch.shape === 'shadow' ? 'shadow' : batch.kind + (batch.detail ? ':d' : '');
+        if (!byKind.has(k)) byKind.set(k, { kind: batch.kind, shadow: batch.shape === 'shadow',
+          detail: batch.detail, parts: [] });
+        const targetList = byKind.get(k).parts, geo = geometries[batch.shape];
+        for (let i = 0; i < batch.parts.length; i++) {
+          const p = batch.parts[i];
+          p.geo = geo;
+          targetList.push(p);
+        }
+      }
+      const V = HP.cull3d;
+      let lastYield = (typeof performance !== 'undefined' && performance.now) ? performance.now() : Date.now();
+      for (const [k, b] of byKind) {
+        const mat = b.shadow ? G.contactMaterial() : G.vertexColorMaterial(b.kind, base[b.kind]);
+        const tiles = new Map();
+        for (const p of b.parts) {
+          const t = V.tileOf((p.fp.x0 + p.fp.x1) / 2, (p.fp.z0 + p.fp.z1) / 2);
+          if (!tiles.has(t)) tiles.set(t, []);
+          tiles.get(t).push(p);
+        }
+        for (const list of tiles.values()) {
+          const { geometry, ranges } = merge(list);
+          const mesh = new THREE.Mesh(geometry, mat);
+          mesh.castShadow = !b.shadow && !NO_CAST[b.kind];
+          mesh.receiveShadow = !b.shadow;
+          group.add(mesh);
+          let x0 = 1e9, z0 = 1e9, x1 = -1e9, z1 = -1e9, allSmall = true;
+          list.forEach((p, i) => {
+            x0 = Math.min(x0, p.fp.x0); z0 = Math.min(z0, p.fp.z0);
+            x1 = Math.max(x1, p.fp.x1); z1 = Math.max(z1, p.fp.z1);
+            if (!p.small) allSmall = false;
+            if (!refs.has(p.index)) refs.set(p.index, []);
+            refs.get(p.index).push({ mesh, range: ranges[i], part: p, key: k, mat });
+          });
+          V.add(mesh, x0, z0, x1, z1, { detail: b.detail, far: allSmall ? 1 : 0 });
+          const now = (typeof performance !== 'undefined' && performance.now) ? performance.now() : Date.now();
+          if (now - lastYield > 6 && typeof requestAnimationFrame !== 'undefined') {
+            await new Promise(r => requestAnimationFrame(r));
+            lastYield = (typeof performance !== 'undefined' && performance.now) ? performance.now() : Date.now();
+          }
+        }
+      }
+      for (const k in geometries) geometries[k].dispose();
+      const detached = new Map();
+      function detach(inst) {
+        const parts = refs.get(inst) || [], kinds = new Map();
+        for (const r of parts) {
+          const pos = r.mesh.geometry.attributes.position;
+          pos.array.fill(0, r.range[0] * 3, (r.range[0] + r.range[1]) * 3);
+          pos.needsUpdate = true;
+          if (!kinds.has(r.key)) kinds.set(r.key, { mat: r.mat, src: r.mesh, parts: [] });
+          kinds.get(r.key).parts.push(r.part);
+        }
+        const g2 = new THREE.Group();
+        for (const kd of kinds.values()) {
+          const m = new THREE.Mesh(merge(kd.parts).geometry, kd.mat);
+          m.castShadow = kd.src.castShadow; m.receiveShadow = kd.src.receiveShadow;
+          g2.add(m);
+        }
+        group.add(g2);
+        detached.set(inst, g2);
+        return g2;
+      }
+      return {
+        move(movers) {
+          for (const m of movers) {
+            if (m.visualX === undefined) { m.visualX = m.box.x0; m.visualZ = m.box.z0; }
+            if (m.shownX === m.x && m.shownZ === m.z) continue;
+            const first = m.shownX === undefined;
+            m.shownX = m.x; m.shownZ = m.z;
+            const dx = m.x - m.visualX, dz = m.z - m.visualZ;
+            if (first && !dx && !dz) continue;
+            const g2 = detached.get(m.inst) || detach(m.inst);
+            g2.position.set(dx, 0, dz);
+          }
+        },
+        detach,
         detached,
         batchCount: byKind.size,
       };

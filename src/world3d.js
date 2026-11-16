@@ -534,6 +534,10 @@ W3.buildLevel = function () {
   if (W3.levelGroup) { scene.remove(W3.levelGroup); disposeGroup(W3.levelGroup); }
   const g = W3.levelGroup = new THREE.Group();
   scene.add(g);
+  const sg = W3.staticGroup = new THREE.Group();
+  g.add(sg);
+  const fg = W3.furnitureGroup = new THREE.Group();
+  g.add(fg);
   doorPivots = W3.doorPivots = [];
   W3.garageDoors = [];
   const C = HP.CELL, lvl = HP.cur(), V = HP.cull3d;
@@ -550,11 +554,14 @@ W3.buildLevel = function () {
      and slice painted segments/sides so each room face gets its colour */
   const env = geomEnv();
   const geo = W3.geom = HP.geom3d.build(lvl.walls, env);
-  const wallMat = HP.graphics3d
-    ? HP.graphics3d.worldUV(HP.graphics3d.material('plaster').clone(), C * 2)
-    : new THREE.MeshLambertMaterial({ color: 0xffffff });
-  wallMat.userData.shared3d = false;
-  if (HP.graphics3d) { HP.graphics3d.untrackAll(); HP.graphics3d.track(wallMat); }
+  if (!W3._wallMat) {
+    W3._wallMat = HP.graphics3d
+      ? HP.graphics3d.worldUV(HP.graphics3d.material('plaster').clone(), C * 2)
+      : new THREE.MeshLambertMaterial({ color: 0xffffff });
+    W3._wallMat.userData.shared3d = true;
+    if (HP.graphics3d) HP.graphics3d.track(W3._wallMat);
+  }
+  const wallMat = W3._wallMat;
   const wallParts = [];
   for (const b of V.splitBoxes(geo.boxes)) {
     if (b.tag === 'fence') {
@@ -612,7 +619,7 @@ W3.buildLevel = function () {
     }
     wallParts.push(boxPart(b, defC));
   }
-  V.instanced(g, unitBox(), wallMat, wallParts, { cast: true, receive: true });
+  V.instanced(sg, unitBox(), wallMat, wallParts, { cast: true, receive: true });
   if (HP.graphics3d) {
     // Trim follows the actual solid wall faces; never spans a doorway.
     const rails = [];
@@ -623,7 +630,7 @@ W3.buildLevel = function () {
         { x0: b.x0 - 0.25, x1: b.x0 + 0.01, z0: b.z0, z1: b.z1, y0: 0, y1: 2.2 },
         { x0: b.x1 - 0.01, x1: b.x1 + 0.25, z0: b.z0, z1: b.z1, y0: 0, y1: 2.2 });
     }
-    V.instanced(g, unitBox(), HP.graphics3d.material('ceramic', '#dfd8c9'),
+    V.instanced(sg, unitBox(), HP.graphics3d.material('ceramic', '#dfd8c9'),
       V.splitBoxes(rails).map(b => boxPart(b)), { receive: true, detail: true });
   }
 
@@ -671,7 +678,7 @@ W3.buildLevel = function () {
   for (const [id, list] of floorGroups) {
     const material = HP.graphics3d ? HP.graphics3d.floorMaterial(id) :
       new THREE.MeshLambertMaterial({ color: floorColor(id) });
-    V.instanced(g, floorQuad(), material, list.map(c => cellPart(c, 0)), { receive: true });
+    V.instanced(sg, floorQuad(), material, list.map(c => cellPart(c, 0)), { receive: true });
   }
   // Custom structure interior floors (greenhouse brick/flagstone, cabin wood floor)
   // Wall-to-wall guaranteed coverage: all cells inside the structure room perimeter receive authentic flooring!
@@ -709,18 +716,21 @@ W3.buildLevel = function () {
   for (const [key, { matId, floorH, cells: iCells }] of interiorFloorGroups) {
     const material = HP.graphics3d ? HP.graphics3d.floorMaterial(matId) :
       new THREE.MeshLambertMaterial({ color: floorColor(matId) });
-    V.instanced(g, floorQuad(), material, iCells.map(c => cellPart(c, floorH)), { receive: true });
+    V.instanced(sg, floorQuad(), material, iCells.map(c => cellPart(c, floorH)), { receive: true });
   }
   /* ceilings cap INTERIOR cells only — open-top rooms leaked sky
      through the top of every doorway (the "gap above the door");
      patios/pool decks have floors but must stay open. They cast the
      sun's shadow, so daylight enters rooms only through windows.    */
-  const ceilMat = HP.graphics3d ? HP.graphics3d.material('plaster', '#f3ecdc').clone()
+  if (!W3._ceilMat) {
+    W3._ceilMat = HP.graphics3d ? HP.graphics3d.material('plaster', '#f3ecdc').clone()
                                 : new THREE.MeshLambertMaterial({ color: 0xf3ecdc });
-  ceilMat.userData.shared3d = false;
-  if (HP.graphics3d) HP.graphics3d.track(ceilMat);
-  ceilMat.shadowSide = THREE.DoubleSide;
-  V.instanced(g, ceilQuad(), ceilMat,
+    W3._ceilMat.userData.shared3d = true;
+    W3._ceilMat.shadowSide = THREE.DoubleSide;
+    if (HP.graphics3d) HP.graphics3d.track(W3._ceilMat);
+  }
+  const ceilMat = W3._ceilMat;
+  V.instanced(sg, ceilQuad(), ceilMat,
     cells.filter(c => c.in).map(c => cellPart(c, HP.geom3d.WALL_H)), { cast: true });
 
   /* ---- ground under everything — a Shape with pool holes when any  */
@@ -742,14 +752,16 @@ W3.buildLevel = function () {
     groundGeo = new THREE.PlaneGeometry(
       HP.GRID_W * C + 4000, HP.GRID_H * C + 4000).rotateX(-Math.PI / 2);
   }
-  const ground = new THREE.Mesh(groundGeo,
-    HP.graphics3d ? HP.graphics3d.worldUV(HP.graphics3d.material('grass').clone(), C * 3) :
-      new THREE.MeshLambertMaterial({ color: 0x7fa75f }));
-  ground.material.userData.shared3d = false;
-  if (HP.graphics3d) HP.graphics3d.track(ground.material);
+  if (!W3._groundMat) {
+    W3._groundMat = HP.graphics3d ? HP.graphics3d.worldUV(HP.graphics3d.material('grass').clone(), C * 3) :
+      new THREE.MeshLambertMaterial({ color: 0x7fa75f });
+    W3._groundMat.userData.shared3d = true;
+    if (HP.graphics3d) HP.graphics3d.track(W3._groundMat);
+  }
+  const ground = new THREE.Mesh(groundGeo, W3._groundMat);
   ground.position.set(HP.GRID_W * C / 2, -1.5, HP.GRID_H * C / 2);
   ground.receiveShadow = true;
-  g.add(ground);
+  sg.add(ground);
 
   /* ---- pool basins: tiled shell 1m down, coping rim, animated
      water surface + caustic light-web on the floor                  */
@@ -877,574 +889,8 @@ W3.buildLevel = function () {
       }
     }
     W3.water.push(rec);
-    g.add(g2);
+    sg.add(g2);
   }
-
-  /* ---- physics footprints + batched furniture visuals ---- */
-  const allFurniture = [];
-  for (const it of (lvl.furniture || [])) {
-    allFurniture.push(it);
-    if (it.interior && it.interior.customized && it.interior.furniture && it.interior.furniture.length > 0) {
-      for (const sub of it.interior.furniture) {
-        const wSub = HP.interiorToWorld ? HP.interiorToWorld(it, sub) : null;
-        if (wSub) allFurniture.push(wSub);
-      }
-    }
-  }
-  const known = allFurniture.filter(it => HP.itemDef(it.type));
-  const items = known.filter(it => !HP.itemDef(it.type).hangs);
-  const hangs = known.filter(it => HP.itemDef(it.type).hangs);
-  const fit2 = new THREE.InstancedMesh(unitBox(), new THREE.MeshLambertMaterial({ color: 0xffffff }), items.length + hangs.length);
-  W3.fitMesh = fit2;                                    // movers update instances
-  /* colliders = only boxes intersecting the player's body height —
-     lintels/headers (y0≥58) must NOT block walking through doors     */
-  W3.colliders = geo.boxes.filter(b => b.y0 < 50 && b.y1 > 2);
-  W3.movers = [];                                       // pushable furniture
-  const models = HP.furniture3d ? HP.furniture3d.builder(g) : null;
-  const lifeItems = [];
-
-  // Precompute footprints, item definitions, heights, and surface roles once (O(N) vs O(N^2))
-  const itemMeta = items.map(it => {
-    const d = HP.itemDef(it.type);
-    return {
-      it, d,
-      f: HP.footprint(it),
-      h: itemH3D(d, it),
-      isSurface: HP.isSurface(it)
-    };
-  });
-  const surfaceMeta = itemMeta.filter(m => m.isSurface);
-  const hostStructures = itemMeta.filter(m => /treehouse|greenhouse/i.test(m.it.type));
-
-  items.forEach((it, i) => {
-    const meta = itemMeta[i];
-    const d = meta.d, f = meta.f;
-    const h = meta.h;
-    const c = (it.colors && it.colors[0]) || (d.colors && d.colors[0]) || '#999';
-    let baseY = it._baseY !== undefined ? it._baseY : 0;
-    const canSit = d.onTop || (HP.canSitOnSurface && HP.canSitOnSurface(it.type));
-    if (canSit) {                                   // sit on the highest surface under it
-      const cx = f.x + f.w / 2, cy = f.y + f.h / 2;
-      for (const sm of surfaceMeta) {
-        if (sm.it === it) continue;
-        const of = sm.f;
-        if (cx >= of.x && cx < of.x + of.w && cy >= of.y && cy < of.y + of.h)
-          baseY = Math.max(baseY, sm.h);
-      }
-    }
-    // Items placed inside treehouse or on greenhouse benches
-    if (it.type !== 'treehouse' && it.type !== 'greenhouse' && hostStructures.length > 0) {
-      const cx = f.x + f.w / 2, cy = f.y + f.h / 2;
-      for (const hm of hostStructures) {
-        if (hm.it === it) continue;
-        const of = hm.f;
-        if (cx >= of.x && cx < of.x + of.w && cy >= of.y && cy < of.y + of.h) {
-          if (/treehouse/i.test(hm.it.type)) {
-            baseY = Math.max(baseY, 54.0);
-          } else if (/greenhouse/i.test(hm.it.type)) {
-            // Only elevate small tabletop items (d.onTop) if greenhouse is using default built-in benches
-            if (d.onTop && (!hm.it.interior || !hm.it.interior.customized)) {
-              const relX = (cx - (of.x + of.w / 2)) / of.w;
-              const ghH = hm.h;
-              if (Math.abs(relX) > 0.20) baseY = Math.max(baseY, Math.round(ghH * 0.22));
-            }
-          }
-        }
-      }
-    }
-    it._baseY = baseY;
-    lifeItems.push({ it, f, h, baseY });
-    if (/garagedoor/i.test(it.type)) {
-      // Build dynamic articulated overhead roll-up sectional garage door
-      // Designed for ZERO-GAP seamless connection to adjacent walls and adjacent garage doors!
-      const doorGroup = new THREE.Group();
-      const bw = it.w || d.w || 3;
-      const W = bw * C, D = (it.h || d.h || 1) * C;
-      const ph = 14;
-      const panels = [];
-      const dCol = c || '#f8fafc';
-      const panelMat = HP.graphics3d ? HP.graphics3d.material('ceramic', dCol) : new THREE.MeshLambertMaterial({ color: new THREE.Color(dCol) });
-      const winMat = HP.graphics3d ? HP.graphics3d.material('glass', '#bfe3ea') : new THREE.MeshLambertMaterial({ color: 0x9fd4e8, transparent: true, opacity: 0.6 });
-      const metalMat = HP.graphics3d ? HP.graphics3d.material('metal', '#334155') : new THREE.MeshLambertMaterial({ color: 0x334155 });
-      const darkMat = HP.graphics3d ? HP.graphics3d.material('dark', '#181b20') : new THREE.MeshLambertMaterial({ color: 0x181b20 });
-      const wallHeaderMat = HP.graphics3d ? HP.graphics3d.material('ceramic', '#e9e2d2') : new THREE.MeshLambertMaterial({ color: 0xe9e2d2 });
-
-      // Determine wall line alignment in Z (or X for vertical doors)
-      let tcx = (f.x + f.w / 2) * C, tcz = (f.y + f.h / 2) * C;
-      const rot = (it.rot || 0) % 4;
-      const lvlWalls = lvl.walls || {};
-      let wallLine = null;
-      let wt = 0.44 * C;
-
-      if (rot % 2 === 0) {
-        for (const testY of [f.y, f.y + f.h, f.y - 1, f.y + 1]) {
-          let count = 0;
-          for (let cx = 0; cx < HP.GRID_W; cx++) {
-            if (lvlWalls['h,' + cx + ',' + testY]) count++;
-          }
-          if (count > 0 && (wallLine === null || count > wallLine.count)) {
-            wallLine = { d: 'h', line: testY, count };
-          }
-        }
-        if (!wallLine) {
-          for (const testY of [f.y, f.y + f.h, f.y + 1]) {
-            const cx = Math.floor(tcx / C);
-            const ra = env.rAt(cx, testY - 1);
-            const rb = env.rAt(cx, testY);
-            if (ra !== rb) { wallLine = { d: 'h', line: testY, count: 1 }; break; }
-          }
-        }
-        if (!wallLine) wallLine = { d: 'h', line: f.y, count: 0 };
-        const ra = env.rAt(Math.floor(tcx / C), wallLine.line - 1);
-        const rb = env.rAt(Math.floor(tcx / C), wallLine.line);
-        wt = (ra < 0 || rb < 0) ? 0.44 * C : 0.30 * C;
-        if (ra < 0 && rb >= 0) tcz = wallLine.line * C - wt / 2;
-        else if (rb < 0 && ra >= 0) tcz = wallLine.line * C + wt / 2;
-        else tcz = wallLine.line * C;
-      } else {
-        for (const testX of [f.x, f.x + f.w, f.x - 1, f.x + 1]) {
-          let count = 0;
-          for (let cy = 0; cy < HP.GRID_H; cy++) {
-            if (lvlWalls['v,' + testX + ',' + cy]) count++;
-          }
-          if (count > 0 && (wallLine === null || count > wallLine.count)) {
-            wallLine = { d: 'v', line: testX, count };
-          }
-        }
-        if (!wallLine) {
-          for (const testX of [f.x, f.x + f.w, f.x + 1]) {
-            const cy = Math.floor(tcz / C);
-            const ra = env.rAt(testX - 1, cy);
-            const rb = env.rAt(testX, cy);
-            if (ra !== rb) { wallLine = { d: 'v', line: testX, count: 1 }; break; }
-          }
-        }
-        if (!wallLine) wallLine = { d: 'v', line: f.x, count: 0 };
-        const ra = env.rAt(wallLine.line - 1, Math.floor(tcz / C));
-        const rb = env.rAt(wallLine.line, Math.floor(tcz / C));
-        wt = (ra < 0 || rb < 0) ? 0.44 * C : 0.30 * C;
-        if (ra < 0 && rb >= 0) tcx = wallLine.line * C - wt / 2;
-        else if (rb < 0 && ra >= 0) tcx = wallLine.line * C + wt / 2;
-        else tcx = wallLine.line * C;
-      }
-
-      const wallThick = Math.max(12.5, wt);
-
-      // 1. FULL-HEIGHT WALL HEADER (y = 56 to 74, WALL_H = 74)
-      // Spans full width W across opening, matching ceiling height exactly
-      const headerBox = new THREE.Mesh(new THREE.BoxGeometry(W, 18, wallThick), wallHeaderMat);
-      headerBox.position.set(0, 65, 0);
-      headerBox.castShadow = headerBox.receiveShadow = true;
-      doorGroup.add(headerBox);
-
-      // Architectural header drip trim moulding in bronze/slate
-      const dripTrim = new THREE.Mesh(new THREE.BoxGeometry(W, 1.8, wallThick + 0.8), metalMat);
-      dripTrim.position.set(0, 56.5, 0);
-      dripTrim.castShadow = true;
-      doorGroup.add(dripTrim);
-
-      // 2. FULL-HEIGHT LEFT & RIGHT WALL JAMB PILASTERS (y = 0 to 74)
-      // Outer faces reach EXACTLY -W/2 and +W/2
-      const jw = 3.6;
-      for (const sx of [-W / 2 + jw / 2, W / 2 - jw / 2]) {
-        const jambPost = new THREE.Mesh(new THREE.BoxGeometry(jw, 74, wallThick), wallHeaderMat);
-        jambPost.position.set(sx, 37, 0);
-        jambPost.castShadow = jambPost.receiveShadow = true;
-        doorGroup.add(jambPost);
-
-        const trackChannel = new THREE.Mesh(new THREE.BoxGeometry(2.0, 56, 4.2), metalMat);
-        trackChannel.position.set(sx > 0 ? sx - jw / 2 - 1.0 : sx + jw / 2 + 1.0, 28, 0);
-        trackChannel.castShadow = true;
-        doorGroup.add(trackChannel);
-      }
-
-      // 3. AUTOMATIC GAP BRIDGING TO NEAREST ADJACENT WALL OR GARAGE DOOR (up to 3.5 cells)
-      // Fills any gap between adjacent doors or door and wall with a full-height solid wall pier!
-      if (rot % 2 === 0) {
-        const leftEdgeWorld = f.x * C;
-        const rightEdgeWorld = (f.x + bw) * C;
-        // Search left for neighboring garage door or wall
-        let leftWallEnd = null;
-        // 1. Check neighboring garage doors on left
-        for (const o of (lvl.furniture || [])) {
-          if (o === it || !/garagedoor/i.test(o.type)) continue;
-          if (((o.rot || 0) % 4) % 2 !== 0) continue;
-          if (Math.abs(o.y - f.y) > 1.2) continue;
-          const obw = o.w || 3;
-          const ox_max = (o.x + obw) * C;
-          if (ox_max <= leftEdgeWorld + 0.5) {
-            leftWallEnd = Math.max(leftWallEnd !== null ? leftWallEnd : -1e9, ox_max);
-          }
-        }
-        // 2. Check walls on left
-        for (let cx = Math.floor(leftEdgeWorld / C); cx >= Math.floor(leftEdgeWorld / C) - 4; cx--) {
-          const hasH = lvlWalls['h,' + cx + ',' + wallLine.line];
-          const hasV = lvlWalls['v,' + cx + ',' + wallLine.line] || lvlWalls['v,' + cx + ',' + (wallLine.line - 1)];
-          if (hasH) {
-            leftWallEnd = Math.max(leftWallEnd !== null ? leftWallEnd : -1e9, (cx + 1) * C);
-            break;
-          } else if (hasV) {
-            leftWallEnd = Math.max(leftWallEnd !== null ? leftWallEnd : -1e9, cx * C);
-            break;
-          }
-        }
-        if (leftWallEnd !== null && leftWallEnd < leftEdgeWorld) {
-          const gapLeft = leftEdgeWorld - leftWallEnd;
-          if (gapLeft > 0.5 && gapLeft <= 3.5 * C) {
-            const bridgeMesh = new THREE.Mesh(new THREE.BoxGeometry(gapLeft, 74, wallThick), wallHeaderMat);
-            const localX = (rot === 2) ? (W / 2 + gapLeft / 2) : (-W / 2 - gapLeft / 2);
-            bridgeMesh.position.set(localX, 37, 0);
-            bridgeMesh.castShadow = bridgeMesh.receiveShadow = true;
-            doorGroup.add(bridgeMesh);
-          }
-        }
-        // Search right for neighboring garage door or wall
-        let rightWallStart = null;
-        // 1. Check neighboring garage doors on right
-        for (const o of (lvl.furniture || [])) {
-          if (o === it || !/garagedoor/i.test(o.type)) continue;
-          if (((o.rot || 0) % 4) % 2 !== 0) continue;
-          if (Math.abs(o.y - f.y) > 1.2) continue;
-          const ox_min = o.x * C;
-          if (ox_min >= rightEdgeWorld - 0.5) {
-            rightWallStart = Math.min(rightWallStart !== null ? rightWallStart : 1e9, ox_min);
-          }
-        }
-        // 2. Check walls on right
-        for (let cx = Math.floor(rightEdgeWorld / C); cx <= Math.floor(rightEdgeWorld / C) + 4; cx++) {
-          if (lvlWalls['h,' + cx + ',' + wallLine.line] || lvlWalls['v,' + cx + ',' + wallLine.line] || lvlWalls['v,' + cx + ',' + (wallLine.line - 1)]) {
-            rightWallStart = Math.min(rightWallStart !== null ? rightWallStart : 1e9, cx * C);
-            break;
-          }
-        }
-        if (rightWallStart !== null && rightWallStart > rightEdgeWorld) {
-          const gapRight = rightWallStart - rightEdgeWorld;
-          if (gapRight > 0.5 && gapRight <= 3.5 * C) {
-            const bridgeMesh = new THREE.Mesh(new THREE.BoxGeometry(gapRight, 74, wallThick), wallHeaderMat);
-            const localX = (rot === 2) ? (-W / 2 - gapRight / 2) : (W / 2 + gapRight / 2);
-            bridgeMesh.position.set(localX, 37, 0);
-            bridgeMesh.castShadow = bridgeMesh.receiveShadow = true;
-            doorGroup.add(bridgeMesh);
-          }
-        }
-      } else {
-        const leftEdgeWorld = f.y * C;
-        const rightEdgeWorld = (f.y + bw) * C;
-        let leftWallEnd = null;
-        for (const o of (lvl.furniture || [])) {
-          if (o === it || !/garagedoor/i.test(o.type)) continue;
-          if (((o.rot || 0) % 4) % 2 === 0) continue;
-          if (Math.abs(o.x - f.x) > 1.2) continue;
-          const obw = o.w || 3;
-          const oy_max = (o.y + obw) * C;
-          if (oy_max <= leftEdgeWorld + 0.5) {
-            leftWallEnd = Math.max(leftWallEnd !== null ? leftWallEnd : -1e9, oy_max);
-          }
-        }
-        for (let cy = Math.floor(leftEdgeWorld / C); cy >= Math.floor(leftEdgeWorld / C) - 4; cy--) {
-          const hasV = lvlWalls['v,' + wallLine.line + ',' + cy];
-          const hasH = lvlWalls['h,' + wallLine.line + ',' + cy] || lvlWalls['h,' + (wallLine.line - 1) + ',' + cy];
-          if (hasV) {
-            leftWallEnd = Math.max(leftWallEnd !== null ? leftWallEnd : -1e9, (cy + 1) * C);
-            break;
-          } else if (hasH) {
-            leftWallEnd = Math.max(leftWallEnd !== null ? leftWallEnd : -1e9, cy * C);
-            break;
-          }
-        }
-        if (leftWallEnd !== null && leftWallEnd < leftEdgeWorld) {
-          const gapLeft = leftEdgeWorld - leftWallEnd;
-          if (gapLeft > 0.5 && gapLeft <= 3.5 * C) {
-            const bridgeMesh = new THREE.Mesh(new THREE.BoxGeometry(gapLeft, 74, wallThick), wallHeaderMat);
-            const localX = (rot === 3) ? (W / 2 + gapLeft / 2) : (-W / 2 - gapLeft / 2);
-            bridgeMesh.position.set(localX, 37, 0);
-            bridgeMesh.castShadow = bridgeMesh.receiveShadow = true;
-            doorGroup.add(bridgeMesh);
-          }
-        }
-        let rightWallStart = null;
-        for (const o of (lvl.furniture || [])) {
-          if (o === it || !/garagedoor/i.test(o.type)) continue;
-          if (((o.rot || 0) % 4) % 2 === 0) continue;
-          if (Math.abs(o.x - f.x) > 1.2) continue;
-          const oy_min = o.y * C;
-          if (oy_min >= rightEdgeWorld - 0.5) {
-            rightWallStart = Math.min(rightWallStart !== null ? rightWallStart : 1e9, oy_min);
-          }
-        }
-        for (let cy = Math.floor(rightEdgeWorld / C); cy <= Math.floor(rightEdgeWorld / C) + 4; cy++) {
-          if (lvlWalls['v,' + wallLine.line + ',' + cy] || lvlWalls['h,' + wallLine.line + ',' + cy] || lvlWalls['h,' + (wallLine.line - 1) + ',' + cy]) {
-            rightWallStart = Math.min(rightWallStart !== null ? rightWallStart : 1e9, cy * C);
-            break;
-          }
-        }
-        if (rightWallStart !== null && rightWallStart > rightEdgeWorld) {
-          const gapRight = rightWallStart - rightEdgeWorld;
-          if (gapRight > 0.5 && gapRight <= 3.5 * C) {
-            const bridgeMesh = new THREE.Mesh(new THREE.BoxGeometry(gapRight, 74, wallThick), wallHeaderMat);
-            const localX = (rot === 3) ? (-W / 2 - gapRight / 2) : (W / 2 + gapRight / 2);
-            bridgeMesh.position.set(localX, 37, 0);
-            bridgeMesh.castShadow = bridgeMesh.receiveShadow = true;
-            doorGroup.add(bridgeMesh);
-          }
-        }
-      }
-
-      // 4. OVERHEAD HORIZONTAL CEILING TRACKS & AUTOMATIC OPENER MOTOR
-      for (const sx of [-W / 2 + jw + 1.0, W / 2 - jw - 1.0]) {
-        const ceilTrack = new THREE.Mesh(new THREE.BoxGeometry(1.6, 1.6, 48), metalMat);
-        ceilTrack.position.set(sx, 61, -24);
-        ceilTrack.castShadow = true;
-        doorGroup.add(ceilTrack);
-
-        const hanger = new THREE.Mesh(new THREE.BoxGeometry(1.2, 13, 1.2), metalMat);
-        hanger.position.set(sx, 67.5, -42);
-        doorGroup.add(hanger);
-      }
-      const torsionShaft = new THREE.Mesh(new THREE.CylinderGeometry(0.8, 0.8, W - 8, 8), metalMat);
-      torsionShaft.rotation.z = Math.PI / 2;
-      torsionShaft.position.set(0, 58, 1.2);
-      doorGroup.add(torsionShaft);
-
-      const trolleyRail = new THREE.Mesh(new THREE.BoxGeometry(1.4, 1.4, 46), metalMat);
-      trolleyRail.position.set(0, 61, -23);
-      doorGroup.add(trolleyRail);
-      const motorUnit = new THREE.Mesh(new THREE.BoxGeometry(12, 6, 14), darkMat);
-      motorUnit.position.set(0, 61, -40);
-      motorUnit.castShadow = true;
-      doorGroup.add(motorUnit);
-
-      // 5. ARTICULATED MOVING DOOR PANELS (OVERLAPPING INSIDE TRACKS)
-      const pw = W - jw * 2 + 1.6;
-      for (let pi = 0; pi < 4; pi++) {
-        const pGroup = new THREE.Group();
-        const slab = new THREE.Mesh(new THREE.BoxGeometry(pw, ph - 0.4, 2.6), panelMat);
-        slab.castShadow = slab.receiveShadow = true;
-        pGroup.add(slab);
-
-        for (const sx of [-pw / 2 + 0.6, pw / 2 - 0.6]) {
-          const roller = new THREE.Mesh(new THREE.CylinderGeometry(1.1, 1.1, 1.6, 8), metalMat);
-          roller.rotation.z = Math.PI / 2;
-          roller.position.x = sx;
-          pGroup.add(roller);
-        }
-
-        if (pi === 3) {
-          const numWindows = W >= 120 ? 8 : 4;
-          const stampW = (pw - (numWindows + 1) * 3) / numWindows;
-          for (let wi = 0; wi < numWindows; wi++) {
-            const wx = -pw / 2 + 3 + stampW / 2 + wi * (stampW + 3);
-            const win = new THREE.Mesh(new THREE.BoxGeometry(stampW, 6.5, 2.8), winMat);
-            win.position.set(wx, 0, 0);
-            pGroup.add(win);
-          }
-        }
-
-        if (pi === 0) {
-          const seal = new THREE.Mesh(new THREE.BoxGeometry(pw, 2.0, 3.2), darkMat);
-          seal.position.set(0, -ph / 2 + 1.0, 0);
-          pGroup.add(seal);
-
-          const handle = new THREE.Mesh(new THREE.BoxGeometry(14, 2.5, 3.8), metalMat);
-          handle.position.set(0, -ph / 4, 1.2);
-          pGroup.add(handle);
-        }
-
-        doorGroup.add(pGroup);
-        panels.push({ group: pGroup, y0: (pi + 0.5) * ph, idx: pi });
-      }
-
-      function updatePanels(open) {
-        const travel = 54;
-        for (let pi = 0; pi < 4; pi++) {
-          const p = panels[pi];
-          const s = p.y0 + open * travel;
-          let y, z, rx;
-          if (s <= 48) {
-            y = s; z = 0; rx = 0;
-          } else if (s < 60) {
-            const u = (s - 48) / 12;
-            const ang = u * (Math.PI / 2);
-            y = 48 + 12 * Math.sin(ang);
-            z = -12 * (1 - Math.cos(ang));
-            rx = -ang;
-          } else {
-            y = 60;
-            z = -12 - (s - 60);
-            rx = -Math.PI / 2;
-          }
-          p.group.position.set(0, y, z);
-          p.group.rotation.x = rx;
-        }
-      }
-
-      updatePanels(0); // initially closed
-
-      doorGroup.position.set(tcx, 0, tcz);
-      doorGroup.rotation.y = -rot * Math.PI / 2;
-      g.add(doorGroup);
-      V.add(doorGroup, f.x * C - C, f.y * C - C, (f.x + f.w) * C + C, (f.y + f.h) * C + C);
-
-      // World-space closed door collider box
-      let box;
-      if (rot % 2 === 0) {
-        box = { x0: tcx - pw / 2, x1: tcx + pw / 2, z0: tcz - 5, z1: tcz + 5, y0: 0, y1: 58 };
-      } else {
-        box = { x0: tcx - 5, x1: tcx + 5, z0: tcz - pw / 2, z1: tcz + pw / 2, y0: 0, y1: 58 };
-      }
-
-      W3.garageDoors.push({
-        it, def: d, group: doorGroup, panels,
-        open: 0, target: 0, vel: 0,
-        cx: tcx, cz: tcz, w: W, d: D, rot,
-        box,
-        updatePanels
-      });
-    }
-    if (/treehouse/i.test(it.type)) {
-      // Register elevated deck floor at y = 40.5
-      W3.elevatedDecks.push({
-        x0: f.x * C, x1: (f.x + f.w) * C,
-        z0: f.y * C, z1: (f.y + f.h) * C,
-        deckY: 54.0
-      });
-      // Register ship's ladder climb
-      const rot = it.rot || 0;
-      const tcx = (f.x + f.w / 2) * C, tcz = (f.y + f.h / 2) * C;
-      const W = f.w * C, D = f.h * C;
-      // In unrotated model space: ladder is at x in [0.20, 0.34]*W, z in [0.44, 0.65]*D
-      const lx0 = 0.20 * W, lx1 = 0.34 * W, lz0 = 0.44 * D, lz1 = 0.65 * D;
-      const corners = [
-        { x: lx0, z: lz0 }, { x: lx1, z: lz0 },
-        { x: lx1, z: lz1 }, { x: lx0, z: lz1 }
-      ];
-      // Rotate by rot * PI/2
-      const rotCorners = corners.map(pt => {
-        let rx = pt.x, rz = pt.z;
-        if (rot === 1) { rx = -pt.z; rz = pt.x; }
-        else if (rot === 2) { rx = -pt.x; rz = -pt.z; }
-        else if (rot === 3) { rx = pt.z; rz = -pt.x; }
-        return { x: tcx + rx, z: tcz + rz };
-      });
-      const minX = Math.min(...rotCorners.map(p => p.x));
-      const maxX = Math.max(...rotCorners.map(p => p.x));
-      const minZ = Math.min(...rotCorners.map(p => p.z));
-      const maxZ = Math.max(...rotCorners.map(p => p.z));
-
-      // Spots for prompt & teleport
-      let deckPt = { x: 0.27 * W, z: 0.38 * D };
-      let gndPt  = { x: 0.27 * W, z: 0.68 * D };
-      const rotateSpot = pt => {
-        let rx = pt.x, rz = pt.z;
-        if (rot === 1) { rx = -pt.z; rz = pt.x; }
-        else if (rot === 2) { rx = -pt.x; rz = -pt.z; }
-        else if (rot === 3) { rx = pt.z; rz = -pt.x; }
-        return { x: tcx + rx, z: tcz + rz };
-      };
-      const deckSpot = rotateSpot(deckPt);
-      const groundSpot = rotateSpot(gndPt);
-
-      // Ladder climb axis:
-      let ax = 'z', dir = -1, from = maxZ, run = maxZ - minZ;
-      if (rot === 1) { ax = 'x'; dir = 1; from = minX; run = maxX - minX; }
-      else if (rot === 2) { ax = 'z'; dir = 1; from = minZ; run = maxZ - minZ; }
-      else if (rot === 3) { ax = 'x'; dir = -1; from = maxX; run = maxX - minX; }
-
-      W3.climbs.push({
-        x0: minX - 2, x1: maxX + 2,
-        z0: minZ - 2, z1: maxZ + 2,
-        y0: 0, y1: 54.0,
-        ax, dir, from, run,
-        deckSpot, groundSpot
-      });
-    }
-    m4.makeScale(Math.max(2, f.w * C - 3), Math.max(1.5, h), Math.max(2, f.h * C - 3));
-    m4.setPosition((f.x + f.w / 2) * C, baseY + h / 2, (f.y + f.h / 2) * C);
-    fit2.setMatrixAt(i, m4);
-    fit2.setColorAt(i, col.set(c));
-    if (models) models.add(it, d, f, h, i, baseY);
-    if (h > 10 && !FLAT(it.type) && !d.onTop && !d.walkable && it.type !== 'rangehood') {
-      const colliders = HP.itemColliders ? HP.itemColliders(it, d, f, h) : [{ x0: f.x * C, x1: (f.x + f.w) * C, z0: f.y * C, z1: (f.y + f.h) * C, y0: 0, y1: h }];
-      for (const box of colliders) {
-        W3.colliders.push(box);
-        if (colliders.length === 1 && pushable(it, d, f, h)) {
-          box.mv = W3.movers.length;
-          W3.movers.push({ inst: i, box, x: f.x * C, z: f.y * C,
-                           w: f.w * C, h: f.h * C,
-                           sx: Math.max(2, f.w * C - 3), sy: Math.max(1.5, h),
-                           sz: Math.max(2, f.h * C - 3), vx: 0, vz: 0 });
-        }
-      }
-    }
-  });
-  hangs.forEach((it, i2) => {
-    const i = items.length + i2;
-    const d = HP.itemDef(it.type), f = HP.footprint(it);
-    lifeItems.push({ it, f, h: 0 });
-    const c = (it.colors && it.colors[0]) || (d.colors && d.colors[0]) || '#999';
-    const w = f.w * C, dep = 4, hy = 52;
-    m4.makeScale(it.rot % 2 ? dep : w, Math.max(10, f.h * C * 0.5), it.rot % 2 ? w : dep);
-    m4.setPosition((f.x + f.w / 2) * C, hy, (f.y + f.h / 2) * C);
-    fit2.setMatrixAt(i, m4);
-    fit2.setColorAt(i, col.set(c));
-    if (models) models.add(it, d, f, 0, i);
-  });
-  /* night light sources: real lamps/fireplaces + one ceiling light per
-     room (rooms with no lamp would otherwise be black after sunset)   */
-  W3.lamps = [];
-  for (const it of items) {
-    if (!/lamp|torch|candle|fireplace|lantern|light|sconce/i.test(it.type)) continue;
-    const f = HP.footprint(it), h = itemH3D(HP.itemDef(it.type), it);
-    const isPost = /lamppost/i.test(it.type);
-    const isPath = /pathlight/i.test(it.type);
-    const isNight = /nightlight/i.test(it.type);
-    const isCandle = /candle/i.test(it.type);
-    const lightPower = isPost ? 1.6 : (isPath ? 0.9 : (isNight ? 0.8 : (isCandle ? 0.75 : 1.4)));
-    const bY = it._baseY !== undefined ? it._baseY : 0;
-    const lightY = bY + (/fireplace/i.test(it.type) ? 10 : (isNight ? 6 : (isCandle ? Math.max(3.5, Math.min(6.5, h * 0.38)) : Math.max(12, h * 0.85))));
-    W3.lamps.push({ x: (f.x + f.w / 2) * C, z: (f.y + f.h / 2) * C, y: lightY, power: lightPower });
-  }
-  for (const it of items) {
-    if (/^greenhouse/i.test(it.type)) {
-      const f = HP.footprint(it), h = itemH3D(HP.itemDef(it.type), it);
-      const bY = it._baseY !== undefined ? it._baseY : 0;
-      W3.lamps.push({ x: (f.x + f.w / 2) * C, z: (f.y + f.h / 2) * C, y: bY + Math.round(h * 0.56), power: 1.3 });
-    }
-  }
-  for (const it of items) {
-    if (/^treehouse/i.test(it.type)) {
-      const f = HP.footprint(it), rot = it.rot || 0;
-      const W = f.w * C, D = f.h * C;
-      const tcx = (f.x + f.w / 2) * C, tcz = (f.y + f.h / 2) * C;
-      let lx = -0.15 * W, lz = -0.15 * D;
-      if (rot === 1) { const rx = -lz; lz = lx; lx = rx; }
-      else if (rot === 2) { lx = -lx; lz = -lz; }
-      else if (rot === 3) { const rx = lz; lz = -lx; lx = rx; }
-      W3.lamps.push({ x: tcx + lx, z: tcz + lz, y: 98, power: 1.2 });
-    }
-  }
-  for (const it of hangs) {                            // wall sconces light too
-    if (!/sconce/i.test(it.type)) continue;
-    const f = HP.footprint(it);
-    const hang = it.hang || HP.hangSide(it.type, it.x, it.y, it.rot || 0, { w: it.w || f.w, h: it.h || f.h });
-    let mx = (f.x + f.w / 2) * C, mz = (f.y + f.h / 2) * C;
-    if (hang === 'n') mz = f.y * C + 5.2; else if (hang === 's') mz = (f.y + f.h) * C - 5.2;
-    else if (hang === 'w') mx = f.x * C + 5.2; else if (hang === 'e') mx = (f.x + f.w) * C - 5.2;
-    W3.lamps.push({ x: mx, z: mz, y: 38, power: 0.8 });
-  }
-  for (const r of HP.computeRegions().regions) if (r.cells.length >= 6)
-    W3.lamps.push({ x: r.lx, z: r.ly, y: HP.geom3d.WALL_H - 10, power: 0.7 });
-  /* animated + interactive furniture (fan, clock, fish, fire, TV,
-     E-toggle lamps) and creatures — after lamps so bulbs can link  */
-  if (HP.life3d) HP.life3d.build(g, lifeItems);
-  fit2.instanceMatrix.needsUpdate = true;
-  if (fit2.instanceColor) fit2.instanceColor.needsUpdate = true;
-  if (models) {
-    fit2.dispose(); fit2.material.dispose(); W3.fitMesh = null;   // physics-only data
-    W3.furnitureVisuals = models.finish();
-    W3.furnitureVisuals.move(W3.movers);
-  } else { g.add(fit2); W3.furnitureVisuals = null; }
-
   /* Framed windows: multi-panel casements hinge into the room.
      Singles retain a lifting lower sash over a fixed upper sash. */
   W3.windows = [];
@@ -1482,7 +928,7 @@ W3.buildLevel = function () {
       const wallDepth = isH ? w.z1 - w.z0 : w.x1 - w.x0;
       const root = new THREE.Group();
       root.position.set(a.cx, (w.y0 + w.y1) / 2, a.cz);
-      g.add(root);
+      sg.add(root);
       V.add(root, w.x0 - span, w.z0 - span, w.x1 + span, w.z1 + span);
       const assembly = { a, root, panels: [], inward, style: n === 1 ? 'single-hung' : 'casement' };
       W3.windows.push(assembly);
@@ -1625,7 +1071,7 @@ W3.buildLevel = function () {
                       isH ? 0 : (li === 0 ? lw / 2 : -lw / 2));
     leaf.castShadow = leaf.receiveShadow = true;
     pivot.add(leaf);
-    g.add(pivot);
+    sg.add(pivot);
     V.add(pivot, a.x0 - C, a.z0 - C, a.x1 + C, a.z1 + C);
     doorPivots.push({ pivot, a, open: 0, target: 0, leaf, lw, li,
                       vel: 0, holdT: 0, latched: false, gate: true,
@@ -1700,7 +1146,7 @@ W3.buildLevel = function () {
                         27,
                         a.d === 'h' ? kv : (li === 0 ? lw - 6 : -lw + 6));
       pivot.add(knob);
-      g.add(pivot);
+      sg.add(pivot);
       V.add(pivot, a.x0 - C, a.z0 - C, a.x1 + C, a.z1 + C);   // swing reach
       /* vel/holdT/latched drive the physics: bump the leaf to swing
          it open, a damped spring pulls it shut behind you, E latches */
@@ -1719,8 +1165,734 @@ W3.buildLevel = function () {
     }
   }
   V.setWalls(lvl.walls, doorPivots);
+
+  W3.staticColliders = geo.boxes.filter(b => b.y0 < 50 && b.y1 > 2);
+  W3.staticLamps = [];
+  for (const r of HP.computeRegions().regions) if (r.cells.length >= 6)
+    W3.staticLamps.push({ x: r.lx, z: r.ly, y: HP.geom3d.WALL_H - 10, power: 0.7 });
+
+  const res = W3._buildFurnitureSync(fg);
+  W3.colliders = (W3.staticColliders || []).concat(res.furnColliders);
+  W3.lamps = (W3.staticLamps || []).concat(res.furnLamps);
+  W3.movers = res.movers;
+  W3.garageDoors = res.garageDoors;
+  W3.elevatedDecks = res.elevatedDecks;
+  W3.climbs = res.climbs;
+  W3.furnitureVisuals = res.visuals;
+  W3._furnMetaById = res.furnMetaById;
+  if (res.visuals) res.visuals.move(W3.movers);
   if (HP.graphics3d) HP.graphics3d.applyMaterials(g);
 };
+
+/* ---------- Modular Furniture Building (Synchronous & Async Sliced) ---------- */
+function initFurnitureContext(targetGroup) {
+  const lvl = HP.cur(), C = HP.CELL, env = geomEnv();
+  const allFurniture = [];
+  for (const it of (lvl.furniture || [])) {
+    allFurniture.push(it);
+    if (it.interior && it.interior.customized && it.interior.furniture && it.interior.furniture.length > 0) {
+      for (const sub of it.interior.furniture) {
+        const wSub = HP.interiorToWorld ? HP.interiorToWorld(it, sub) : null;
+        if (wSub) allFurniture.push(wSub);
+      }
+    }
+  }
+  const known = allFurniture.filter(it => HP.itemDef(it.type));
+  const items = known.filter(it => !HP.itemDef(it.type).hangs);
+  const hangs = known.filter(it => HP.itemDef(it.type).hangs);
+  const fit2 = new THREE.InstancedMesh(unitBox(), new THREE.MeshLambertMaterial({ color: 0xffffff }), items.length + hangs.length);
+  W3.fitMesh = fit2;
+  const furnColliders = [];
+  const movers = [];
+  const models = HP.furniture3d ? HP.furniture3d.builder(targetGroup) : null;
+  const lifeItems = [];
+  const garageDoors = [];
+  const elevatedDecks = [];
+  const climbs = [];
+  const furnLamps = [];
+  const furnMetaById = new Map();
+  const m4 = new THREE.Matrix4(), col = new THREE.Color();
+
+  const itemMeta = items.map(it => {
+    const d = HP.itemDef(it.type);
+    return {
+      it, d,
+      f: HP.footprint(it),
+      h: itemH3D(d, it),
+      isSurface: HP.isSurface(it)
+    };
+  });
+  const surfaceMeta = itemMeta.filter(m => m.isSurface);
+  const hostStructures = itemMeta.filter(m => /treehouse|greenhouse/i.test(m.it.type));
+
+  return {
+    targetGroup, lvl, C, env, items, hangs, fit2, models, lifeItems,
+    furnColliders, movers, garageDoors, elevatedDecks, climbs, furnLamps,
+    furnMetaById, m4, col, itemMeta, surfaceMeta, hostStructures
+  };
+}
+
+function buildSingleFurnitureItem(it, i, ctx) {
+  const {
+    targetGroup, lvl, C, env, fit2, models, lifeItems, furnColliders,
+    movers, garageDoors, elevatedDecks, climbs, furnMetaById,
+    m4, col, itemMeta, surfaceMeta, hostStructures
+  } = ctx;
+  const meta = itemMeta[i];
+  const d = meta.d, f = meta.f, h = meta.h;
+  const c = (it.colors && it.colors[0]) || (d.colors && d.colors[0]) || '#999';
+  let baseY = it._baseY !== undefined ? it._baseY : 0;
+  const canSit = d.onTop || (HP.canSitOnSurface && HP.canSitOnSurface(it.type));
+  if (canSit) {
+    const cx = f.x + f.w / 2, cy = f.y + f.h / 2;
+    for (const sm of surfaceMeta) {
+      if (sm.it === it) continue;
+      const of = sm.f;
+      if (cx >= of.x && cx < of.x + of.w && cy >= of.y && cy < of.y + of.h)
+        baseY = Math.max(baseY, sm.h);
+    }
+  }
+  if (it.type !== 'treehouse' && it.type !== 'greenhouse' && hostStructures.length > 0) {
+    const cx = f.x + f.w / 2, cy = f.y + f.h / 2;
+    for (const hm of hostStructures) {
+      if (hm.it === it) continue;
+      const of = hm.f;
+      if (cx >= of.x && cx < of.x + of.w && cy >= of.y && cy < of.y + of.h) {
+        if (/treehouse/i.test(hm.it.type)) {
+          baseY = Math.max(baseY, 54.0);
+        } else if (/greenhouse/i.test(hm.it.type)) {
+          if (d.onTop && (!hm.it.interior || !hm.it.interior.customized)) {
+            const relX = (cx - (of.x + of.w / 2)) / of.w;
+            const ghH = hm.h;
+            if (Math.abs(relX) > 0.20) baseY = Math.max(baseY, Math.round(ghH * 0.22));
+          }
+        }
+      }
+    }
+  }
+  it._baseY = baseY;
+  lifeItems.push({ it, f, h, baseY });
+  furnMetaById.set(it.id, { inst: i, origX: it.x, origY: it.y, it });
+
+  if (/garagedoor/i.test(it.type)) {
+    buildGarageDoorModel(it, d, f, c, C, lvl, env, targetGroup, garageDoors);
+  }
+  if (/treehouse/i.test(it.type)) {
+    buildTreehouseClimbModel(it, f, C, elevatedDecks, climbs);
+  }
+  m4.makeScale(Math.max(2, f.w * C - 3), Math.max(1.5, h), Math.max(2, f.h * C - 3));
+  m4.setPosition((f.x + f.w / 2) * C, baseY + h / 2, (f.y + f.h / 2) * C);
+  fit2.setMatrixAt(i, m4);
+  fit2.setColorAt(i, col.set(c));
+  if (models) models.add(it, d, f, h, i, baseY);
+  if (h > 10 && !FLAT(it.type) && !d.onTop && !d.walkable && it.type !== 'rangehood') {
+    const colliders = HP.itemColliders ? HP.itemColliders(it, d, f, h) : [{ x0: f.x * C, x1: (f.x + f.w) * C, z0: f.y * C, z1: (f.y + f.h) * C, y0: 0, y1: h }];
+    for (const box of colliders) {
+      furnColliders.push(box);
+      if (colliders.length === 1 && pushable(it, d, f, h)) {
+        box.mv = movers.length;
+        movers.push({ inst: i, box, x: f.x * C, z: f.y * C,
+                      w: f.w * C, h: f.h * C,
+                      sx: Math.max(2, f.w * C - 3), sy: Math.max(1.5, h),
+                      sz: Math.max(2, f.h * C - 3), vx: 0, vz: 0 });
+      }
+    }
+  }
+}
+
+function buildSingleHangItem(it, i2, ctx) {
+  const { targetGroup, items, fit2, models, lifeItems, furnMetaById, m4, col, C } = ctx;
+  const i = items.length + i2;
+  const d = HP.itemDef(it.type), f = HP.footprint(it);
+  lifeItems.push({ it, f, h: 0 });
+  furnMetaById.set(it.id, { inst: i, origX: it.x, origY: it.y, it });
+  const c = (it.colors && it.colors[0]) || (d.colors && d.colors[0]) || '#999';
+  const w = f.w * C, dep = 4, hy = 52;
+  m4.makeScale(it.rot % 2 ? dep : w, Math.max(10, f.h * C * 0.5), it.rot % 2 ? w : dep);
+  m4.setPosition((f.x + f.w / 2) * C, hy, (f.y + f.h / 2) * C);
+  fit2.setMatrixAt(i, m4);
+  fit2.setColorAt(i, col.set(c));
+  if (models) models.add(it, d, f, 0, i);
+}
+
+function buildFurnitureLamps(ctx) {
+  const { items, hangs, furnLamps, C } = ctx;
+  for (const it of items) {
+    if (!/lamp|torch|candle|fireplace|lantern|light|sconce/i.test(it.type)) continue;
+    const f = HP.footprint(it), h = itemH3D(HP.itemDef(it.type), it);
+    const isPost = /lamppost/i.test(it.type);
+    const isPath = /pathlight/i.test(it.type);
+    const isNight = /nightlight/i.test(it.type);
+    const isCandle = /candle/i.test(it.type);
+    const lightPower = isPost ? 1.6 : (isPath ? 0.9 : (isNight ? 0.8 : (isCandle ? 0.75 : 1.4)));
+    const bY = it._baseY !== undefined ? it._baseY : 0;
+    const lightY = bY + (/fireplace/i.test(it.type) ? 10 : (isNight ? 6 : (isCandle ? Math.max(3.5, Math.min(6.5, h * 0.38)) : Math.max(12, h * 0.85))));
+    furnLamps.push({ x: (f.x + f.w / 2) * C, z: (f.y + f.h / 2) * C, y: lightY, power: lightPower });
+  }
+  for (const it of items) {
+    if (/^greenhouse/i.test(it.type)) {
+      const f = HP.footprint(it), h = itemH3D(HP.itemDef(it.type), it);
+      const bY = it._baseY !== undefined ? it._baseY : 0;
+      furnLamps.push({ x: (f.x + f.w / 2) * C, z: (f.y + f.h / 2) * C, y: bY + Math.round(h * 0.56), power: 1.3 });
+    }
+  }
+  for (const it of items) {
+    if (/^treehouse/i.test(it.type)) {
+      const f = HP.footprint(it), rot = it.rot || 0;
+      const W = f.w * C, D = f.h * C;
+      const tcx = (f.x + f.w / 2) * C, tcz = (f.y + f.h / 2) * C;
+      let lx = -0.15 * W, lz = -0.15 * D;
+      if (rot === 1) { const rx = -lz; lz = lx; lx = rx; }
+      else if (rot === 2) { lx = -lx; lz = -lz; }
+      else if (rot === 3) { const rx = lz; lz = -lx; lx = rx; }
+      furnLamps.push({ x: tcx + lx, z: tcz + lz, y: 98, power: 1.2 });
+    }
+  }
+  for (const it of hangs) {
+    if (!/sconce/i.test(it.type)) continue;
+    const f = HP.footprint(it);
+    const hang = it.hang || HP.hangSide(it.type, it.x, it.y, it.rot || 0, { w: it.w || f.w, h: it.h || f.h });
+    let mx = (f.x + f.w / 2) * C, mz = (f.y + f.h / 2) * C;
+    if (hang === 'n') mz = f.y * C + 5.2; else if (hang === 's') mz = (f.y + f.h) * C - 5.2;
+    else if (hang === 'w') mx = f.x * C + 5.2; else if (hang === 'e') mx = (f.x + f.w) * C - 5.2;
+    furnLamps.push({ x: mx, z: mz, y: 38, power: 0.8 });
+  }
+}
+
+function buildGarageDoorModel(it, d, f, c, C, lvl, env, targetGroup, garageDoors) {
+  const doorGroup = new THREE.Group();
+  const bw = it.w || d.w || 3;
+  const W = bw * C, D = (it.h || d.h || 1) * C;
+  const ph = 14;
+  const panels = [];
+  const dCol = c || '#f8fafc';
+  const panelMat = HP.graphics3d ? HP.graphics3d.material('ceramic', dCol) : new THREE.MeshLambertMaterial({ color: new THREE.Color(dCol) });
+  const winMat = HP.graphics3d ? HP.graphics3d.material('glass', '#bfe3ea') : new THREE.MeshLambertMaterial({ color: 0x9fd4e8, transparent: true, opacity: 0.6 });
+  const metalMat = HP.graphics3d ? HP.graphics3d.material('metal', '#334155') : new THREE.MeshLambertMaterial({ color: 0x334155 });
+  const darkMat = HP.graphics3d ? HP.graphics3d.material('dark', '#181b20') : new THREE.MeshLambertMaterial({ color: 0x181b20 });
+  const wallHeaderMat = HP.graphics3d ? HP.graphics3d.material('ceramic', '#e9e2d2') : new THREE.MeshLambertMaterial({ color: 0xe9e2d2 });
+
+  let tcx = (f.x + f.w / 2) * C, tcz = (f.y + f.h / 2) * C;
+  const rot = (it.rot || 0) % 4;
+  const lvlWalls = lvl.walls || {};
+  let wallLine = null;
+  let wt = 0.44 * C;
+
+  if (rot % 2 === 0) {
+    for (const testY of [f.y, f.y + f.h, f.y - 1, f.y + 1]) {
+      let count = 0;
+      for (let cx = 0; cx < HP.GRID_W; cx++) {
+        if (lvlWalls['h,' + cx + ',' + testY]) count++;
+      }
+      if (count > 0 && (wallLine === null || count > wallLine.count)) {
+        wallLine = { d: 'h', line: testY, count };
+      }
+    }
+    if (!wallLine) {
+      for (const testY of [f.y, f.y + f.h, f.y + 1]) {
+        const cx = Math.floor(tcx / C);
+        const ra = env.rAt(cx, testY - 1);
+        const rb = env.rAt(cx, testY);
+        if (ra !== rb) { wallLine = { d: 'h', line: testY, count: 1 }; break; }
+      }
+    }
+    if (!wallLine) wallLine = { d: 'h', line: f.y, count: 0 };
+    const ra = env.rAt(Math.floor(tcx / C), wallLine.line - 1);
+    const rb = env.rAt(Math.floor(tcx / C), wallLine.line);
+    wt = (ra < 0 || rb < 0) ? 0.44 * C : 0.30 * C;
+    if (ra < 0 && rb >= 0) tcz = wallLine.line * C - wt / 2;
+    else if (rb < 0 && ra >= 0) tcz = wallLine.line * C + wt / 2;
+    else tcz = wallLine.line * C;
+  } else {
+    for (const testX of [f.x, f.x + f.w, f.x - 1, f.x + 1]) {
+      let count = 0;
+      for (let cy = 0; cy < HP.GRID_H; cy++) {
+        if (lvlWalls['v,' + testX + ',' + cy]) count++;
+      }
+      if (count > 0 && (wallLine === null || count > wallLine.count)) {
+        wallLine = { d: 'v', line: testX, count };
+      }
+    }
+    if (!wallLine) {
+      for (const testX of [f.x, f.x + f.w, f.x + 1]) {
+        const cy = Math.floor(tcz / C);
+        const ra = env.rAt(testX - 1, cy);
+        const rb = env.rAt(testX, cy);
+        if (ra !== rb) { wallLine = { d: 'v', line: testX, count: 1 }; break; }
+      }
+    }
+    if (!wallLine) wallLine = { d: 'v', line: f.x, count: 0 };
+    const ra = env.rAt(wallLine.line - 1, Math.floor(tcz / C));
+    const rb = env.rAt(wallLine.line, Math.floor(tcz / C));
+    wt = (ra < 0 || rb < 0) ? 0.44 * C : 0.30 * C;
+    if (ra < 0 && rb >= 0) tcx = wallLine.line * C - wt / 2;
+    else if (rb < 0 && ra >= 0) tcx = wallLine.line * C + wt / 2;
+    else tcx = wallLine.line * C;
+  }
+
+  const wallThick = Math.max(12.5, wt);
+
+  const headerBox = new THREE.Mesh(new THREE.BoxGeometry(W, 18, wallThick), wallHeaderMat);
+  headerBox.position.set(0, 65, 0);
+  headerBox.castShadow = headerBox.receiveShadow = true;
+  doorGroup.add(headerBox);
+
+  const dripTrim = new THREE.Mesh(new THREE.BoxGeometry(W, 1.8, wallThick + 0.8), metalMat);
+  dripTrim.position.set(0, 56.5, 0);
+  dripTrim.castShadow = true;
+  doorGroup.add(dripTrim);
+
+  const jw = 3.6;
+  for (const sx of [-W / 2 + jw / 2, W / 2 - jw / 2]) {
+    const jambPost = new THREE.Mesh(new THREE.BoxGeometry(jw, 74, wallThick), wallHeaderMat);
+    jambPost.position.set(sx, 37, 0);
+    jambPost.castShadow = jambPost.receiveShadow = true;
+    doorGroup.add(jambPost);
+
+    const trackChannel = new THREE.Mesh(new THREE.BoxGeometry(2.0, 56, 4.2), metalMat);
+    trackChannel.position.set(sx > 0 ? sx - jw / 2 - 1.0 : sx + jw / 2 + 1.0, 28, 0);
+    trackChannel.castShadow = true;
+    doorGroup.add(trackChannel);
+  }
+
+  if (rot % 2 === 0) {
+    const leftEdgeWorld = f.x * C;
+    const rightEdgeWorld = (f.x + bw) * C;
+    let leftWallEnd = null;
+    for (const o of (lvl.furniture || [])) {
+      if (o === it || !/garagedoor/i.test(o.type)) continue;
+      if (((o.rot || 0) % 4) % 2 !== 0) continue;
+      if (Math.abs(o.y - f.y) > 1.2) continue;
+      const obw = o.w || 3;
+      const ox_max = (o.x + obw) * C;
+      if (ox_max <= leftEdgeWorld + 0.5) {
+        leftWallEnd = Math.max(leftWallEnd !== null ? leftWallEnd : -1e9, ox_max);
+      }
+    }
+    for (let cx = Math.floor(leftEdgeWorld / C); cx >= Math.floor(leftEdgeWorld / C) - 4; cx--) {
+      const hasH = lvlWalls['h,' + cx + ',' + wallLine.line];
+      const hasV = lvlWalls['v,' + cx + ',' + wallLine.line] || lvlWalls['v,' + cx + ',' + (wallLine.line - 1)];
+      if (hasH) {
+        leftWallEnd = Math.max(leftWallEnd !== null ? leftWallEnd : -1e9, (cx + 1) * C);
+        break;
+      } else if (hasV) {
+        leftWallEnd = Math.max(leftWallEnd !== null ? leftWallEnd : -1e9, cx * C);
+        break;
+      }
+    }
+    if (leftWallEnd !== null && leftWallEnd < leftEdgeWorld) {
+      const gapLeft = leftEdgeWorld - leftWallEnd;
+      if (gapLeft > 0.5 && gapLeft <= 3.5 * C) {
+        const bridgeMesh = new THREE.Mesh(new THREE.BoxGeometry(gapLeft, 74, wallThick), wallHeaderMat);
+        const localX = (rot === 2) ? (W / 2 + gapLeft / 2) : (-W / 2 - gapLeft / 2);
+        bridgeMesh.position.set(localX, 37, 0);
+        bridgeMesh.castShadow = bridgeMesh.receiveShadow = true;
+        doorGroup.add(bridgeMesh);
+      }
+    }
+    let rightWallStart = null;
+    for (const o of (lvl.furniture || [])) {
+      if (o === it || !/garagedoor/i.test(o.type)) continue;
+      if (((o.rot || 0) % 4) % 2 !== 0) continue;
+      if (Math.abs(o.y - f.y) > 1.2) continue;
+      const ox_min = o.x * C;
+      if (ox_min >= rightEdgeWorld - 0.5) {
+        rightWallStart = Math.min(rightWallStart !== null ? rightWallStart : 1e9, ox_min);
+      }
+    }
+    for (let cx = Math.floor(rightEdgeWorld / C); cx <= Math.floor(rightEdgeWorld / C) + 4; cx++) {
+      if (lvlWalls['h,' + cx + ',' + wallLine.line] || lvlWalls['v,' + cx + ',' + wallLine.line] || lvlWalls['v,' + cx + ',' + (wallLine.line - 1)]) {
+        rightWallStart = Math.min(rightWallStart !== null ? rightWallStart : 1e9, cx * C);
+        break;
+      }
+    }
+    if (rightWallStart !== null && rightWallStart > rightEdgeWorld) {
+      const gapRight = rightWallStart - rightEdgeWorld;
+      if (gapRight > 0.5 && gapRight <= 3.5 * C) {
+        const bridgeMesh = new THREE.Mesh(new THREE.BoxGeometry(gapRight, 74, wallThick), wallHeaderMat);
+        const localX = (rot === 2) ? (-W / 2 - gapRight / 2) : (W / 2 + gapRight / 2);
+        bridgeMesh.position.set(localX, 37, 0);
+        bridgeMesh.castShadow = bridgeMesh.receiveShadow = true;
+        doorGroup.add(bridgeMesh);
+      }
+    }
+  } else {
+    const leftEdgeWorld = f.y * C;
+    const rightEdgeWorld = (f.y + bw) * C;
+    let leftWallEnd = null;
+    for (const o of (lvl.furniture || [])) {
+      if (o === it || !/garagedoor/i.test(o.type)) continue;
+      if (((o.rot || 0) % 4) % 2 === 0) continue;
+      if (Math.abs(o.x - f.x) > 1.2) continue;
+      const obw = o.w || 3;
+      const oy_max = (o.y + obw) * C;
+      if (oy_max <= leftEdgeWorld + 0.5) {
+        leftWallEnd = Math.max(leftWallEnd !== null ? leftWallEnd : -1e9, oy_max);
+      }
+    }
+    for (let cy = Math.floor(leftEdgeWorld / C); cy >= Math.floor(leftEdgeWorld / C) - 4; cy--) {
+      const hasV = lvlWalls['v,' + wallLine.line + ',' + cy];
+      const hasH = lvlWalls['h,' + wallLine.line + ',' + cy] || lvlWalls['h,' + (wallLine.line - 1) + ',' + cy];
+      if (hasV) {
+        leftWallEnd = Math.max(leftWallEnd !== null ? leftWallEnd : -1e9, (cy + 1) * C);
+        break;
+      } else if (hasH) {
+        leftWallEnd = Math.max(leftWallEnd !== null ? leftWallEnd : -1e9, cy * C);
+        break;
+      }
+    }
+    if (leftWallEnd !== null && leftWallEnd < leftEdgeWorld) {
+      const gapLeft = leftEdgeWorld - leftWallEnd;
+      if (gapLeft > 0.5 && gapLeft <= 3.5 * C) {
+        const bridgeMesh = new THREE.Mesh(new THREE.BoxGeometry(gapLeft, 74, wallThick), wallHeaderMat);
+        const localX = (rot === 3) ? (W / 2 + gapLeft / 2) : (-W / 2 - gapLeft / 2);
+        bridgeMesh.position.set(localX, 37, 0);
+        bridgeMesh.castShadow = bridgeMesh.receiveShadow = true;
+        doorGroup.add(bridgeMesh);
+      }
+    }
+    let rightWallStart = null;
+    for (const o of (lvl.furniture || [])) {
+      if (o === it || !/garagedoor/i.test(o.type)) continue;
+      if (((o.rot || 0) % 4) % 2 === 0) continue;
+      if (Math.abs(o.x - f.x) > 1.2) continue;
+      const oy_min = o.y * C;
+      if (oy_min >= rightEdgeWorld - 0.5) {
+        rightWallStart = Math.min(rightWallStart !== null ? rightWallStart : 1e9, oy_min);
+      }
+    }
+    for (let cy = Math.floor(rightEdgeWorld / C); cy <= Math.floor(rightEdgeWorld / C) + 4; cy++) {
+      if (lvlWalls['v,' + wallLine.line + ',' + cy] || lvlWalls['h,' + wallLine.line + ',' + cy] || lvlWalls['h,' + (wallLine.line - 1) + ',' + cy]) {
+        rightWallStart = Math.min(rightWallStart !== null ? rightWallStart : 1e9, cy * C);
+        break;
+      }
+    }
+    if (rightWallStart !== null && rightWallStart > rightEdgeWorld) {
+      const gapRight = rightWallStart - rightEdgeWorld;
+      if (gapRight > 0.5 && gapRight <= 3.5 * C) {
+        const bridgeMesh = new THREE.Mesh(new THREE.BoxGeometry(gapRight, 74, wallThick), wallHeaderMat);
+        const localX = (rot === 3) ? (-W / 2 - gapRight / 2) : (W / 2 + gapRight / 2);
+        bridgeMesh.position.set(localX, 37, 0);
+        bridgeMesh.castShadow = bridgeMesh.receiveShadow = true;
+        doorGroup.add(bridgeMesh);
+      }
+    }
+  }
+
+  for (const sx of [-W / 2 + jw + 1.0, W / 2 - jw - 1.0]) {
+    const ceilTrack = new THREE.Mesh(new THREE.BoxGeometry(1.6, 1.6, 48), metalMat);
+    ceilTrack.position.set(sx, 61, -24);
+    ceilTrack.castShadow = true;
+    doorGroup.add(ceilTrack);
+
+    const hanger = new THREE.Mesh(new THREE.BoxGeometry(1.2, 13, 1.2), metalMat);
+    hanger.position.set(sx, 67.5, -42);
+    doorGroup.add(hanger);
+  }
+  const torsionShaft = new THREE.Mesh(new THREE.CylinderGeometry(0.8, 0.8, W - 8, 8), metalMat);
+  torsionShaft.rotation.z = Math.PI / 2;
+  torsionShaft.position.set(0, 58, 1.2);
+  doorGroup.add(torsionShaft);
+
+  const trolleyRail = new THREE.Mesh(new THREE.BoxGeometry(1.4, 1.4, 46), metalMat);
+  trolleyRail.position.set(0, 61, -23);
+  doorGroup.add(trolleyRail);
+  const motorUnit = new THREE.Mesh(new THREE.BoxGeometry(12, 6, 14), darkMat);
+  motorUnit.position.set(0, 61, -40);
+  motorUnit.castShadow = true;
+  doorGroup.add(motorUnit);
+
+  const pw = W - jw * 2 + 1.6;
+  for (let pi = 0; pi < 4; pi++) {
+    const pGroup = new THREE.Group();
+    const slab = new THREE.Mesh(new THREE.BoxGeometry(pw, ph - 0.4, 2.6), panelMat);
+    slab.castShadow = slab.receiveShadow = true;
+    pGroup.add(slab);
+
+    for (const sx of [-pw / 2 + 0.6, pw / 2 - 0.6]) {
+      const roller = new THREE.Mesh(new THREE.CylinderGeometry(1.1, 1.1, 1.6, 8), metalMat);
+      roller.rotation.z = Math.PI / 2;
+      roller.position.x = sx;
+      pGroup.add(roller);
+    }
+
+    if (pi === 3) {
+      const numWindows = W >= 120 ? 8 : 4;
+      const stampW = (pw - (numWindows + 1) * 3) / numWindows;
+      for (let wi = 0; wi < numWindows; wi++) {
+        const wx = -pw / 2 + 3 + stampW / 2 + wi * (stampW + 3);
+        const win = new THREE.Mesh(new THREE.BoxGeometry(stampW, 6.5, 2.8), winMat);
+        win.position.set(wx, 0, 0);
+        pGroup.add(win);
+      }
+    }
+
+    if (pi === 0) {
+      const seal = new THREE.Mesh(new THREE.BoxGeometry(pw, 2.0, 3.2), darkMat);
+      seal.position.set(0, -ph / 2 + 1.0, 0);
+      pGroup.add(seal);
+
+      const handle = new THREE.Mesh(new THREE.BoxGeometry(14, 2.5, 3.8), metalMat);
+      handle.position.set(0, -ph / 4, 1.2);
+      pGroup.add(handle);
+    }
+
+    doorGroup.add(pGroup);
+    panels.push({ group: pGroup, y0: (pi + 0.5) * ph, idx: pi });
+  }
+
+  function updatePanels(open) {
+    const travel = 54;
+    for (let pi = 0; pi < 4; pi++) {
+      const p = panels[pi];
+      const s = p.y0 + open * travel;
+      let y, z, rx;
+      if (s <= 48) {
+        y = s; z = 0; rx = 0;
+      } else if (s < 60) {
+        const u = (s - 48) / 12;
+        const ang = u * (Math.PI / 2);
+        y = 48 + 12 * Math.sin(ang);
+        z = -12 * (1 - Math.cos(ang));
+        rx = -ang;
+      } else {
+        y = 60;
+        z = -12 - (s - 60);
+        rx = -Math.PI / 2;
+      }
+      p.group.position.set(0, y, z);
+      p.group.rotation.x = rx;
+    }
+  }
+
+  updatePanels(0);
+
+  doorGroup.position.set(tcx, 0, tcz);
+  doorGroup.rotation.y = -rot * Math.PI / 2;
+  targetGroup.add(doorGroup);
+  HP.cull3d.add(doorGroup, f.x * C - C, f.y * C - C, (f.x + f.w) * C + C, (f.y + f.h) * C + C);
+
+  let box;
+  if (rot % 2 === 0) {
+    box = { x0: tcx - pw / 2, x1: tcx + pw / 2, z0: tcz - 5, z1: tcz + 5, y0: 0, y1: 58 };
+  } else {
+    box = { x0: tcx - 5, x1: tcx + 5, z0: tcz - pw / 2, z1: tcz + pw / 2, y0: 0, y1: 58 };
+  }
+
+  garageDoors.push({
+    it, def: d, group: doorGroup, panels,
+    open: 0, target: 0, vel: 0,
+    cx: tcx, cz: tcz, w: W, d: D, rot,
+    box,
+    updatePanels
+  });
+}
+
+function buildTreehouseClimbModel(it, f, C, elevatedDecks, climbs) {
+  elevatedDecks.push({
+    x0: f.x * C, x1: (f.x + f.w) * C,
+    z0: f.y * C, z1: (f.y + f.h) * C,
+    deckY: 54.0
+  });
+  const rot = it.rot || 0;
+  const tcx = (f.x + f.w / 2) * C, tcz = (f.y + f.h / 2) * C;
+  const W = f.w * C, D = f.h * C;
+  const lx0 = 0.20 * W, lx1 = 0.34 * W, lz0 = 0.44 * D, lz1 = 0.65 * D;
+  const corners = [
+    { x: lx0, z: lz0 }, { x: lx1, z: lz0 },
+    { x: lx1, z: lz1 }, { x: lx0, z: lz1 }
+  ];
+  const rotCorners = corners.map(pt => {
+    let rx = pt.x, rz = pt.z;
+    if (rot === 1) { rx = -pt.z; rz = pt.x; }
+    else if (rot === 2) { rx = -pt.x; rz = -pt.z; }
+    else if (rot === 3) { rx = pt.z; rz = -pt.x; }
+    return { x: tcx + rx, z: tcz + rz };
+  });
+  const minX = Math.min(...rotCorners.map(p => p.x));
+  const maxX = Math.max(...rotCorners.map(p => p.x));
+  const minZ = Math.min(...rotCorners.map(p => p.z));
+  const maxZ = Math.max(...rotCorners.map(p => p.z));
+
+  let deckPt = { x: 0.27 * W, z: 0.38 * D };
+  let gndPt  = { x: 0.27 * W, z: 0.68 * D };
+  const rotateSpot = pt => {
+    let rx = pt.x, rz = pt.z;
+    if (rot === 1) { rx = -pt.z; rz = pt.x; }
+    else if (rot === 2) { rx = -pt.x; rz = -pt.z; }
+    else if (rot === 3) { rx = pt.z; rz = -pt.x; }
+    return { x: tcx + rx, z: tcz + rz };
+  };
+  const deckSpot = rotateSpot(deckPt);
+  const groundSpot = rotateSpot(gndPt);
+
+  let ax = 'z', dir = -1, from = maxZ, run = maxZ - minZ;
+  if (rot === 1) { ax = 'x'; dir = 1; from = minX; run = maxX - minX; }
+  else if (rot === 2) { ax = 'z'; dir = 1; from = minZ; run = maxZ - minZ; }
+  else if (rot === 3) { ax = 'x'; dir = -1; from = maxX; run = maxX - minX; }
+
+  climbs.push({
+    x0: minX - 2, x1: maxX + 2,
+    z0: minZ - 2, z1: maxZ + 2,
+    y0: 0, y1: 54.0,
+    ax, dir, from, run,
+    deckSpot, groundSpot
+  });
+}
+
+W3._buildFurnitureSync = function (targetGroup) {
+  const ctx = initFurnitureContext(targetGroup);
+  for (let i = 0; i < ctx.items.length; i++) {
+    buildSingleFurnitureItem(ctx.items[i], i, ctx);
+  }
+  for (let i2 = 0; i2 < ctx.hangs.length; i2++) {
+    buildSingleHangItem(ctx.hangs[i2], i2, ctx);
+  }
+  buildFurnitureLamps(ctx);
+  if (HP.life3d) HP.life3d.build(targetGroup, ctx.lifeItems);
+  ctx.fit2.instanceMatrix.needsUpdate = true;
+  if (ctx.fit2.instanceColor) ctx.fit2.instanceColor.needsUpdate = true;
+  let visuals = null;
+  if (ctx.models) {
+    ctx.fit2.dispose(); ctx.fit2.material.dispose(); W3.fitMesh = null;
+    visuals = ctx.models.finish();
+  } else {
+    targetGroup.add(ctx.fit2);
+  }
+  return {
+    visuals,
+    furnColliders: ctx.furnColliders,
+    furnLamps: ctx.furnLamps,
+    movers: ctx.movers,
+    garageDoors: ctx.garageDoors,
+    elevatedDecks: ctx.elevatedDecks,
+    climbs: ctx.climbs,
+    furnMetaById: ctx.furnMetaById
+  };
+};
+
+W3._furnUpdateSeq = 0;
+W3._buildFurnitureAsync = async function (targetGroup, seq) {
+  const ctx = initFurnitureContext(targetGroup);
+  let lastYield = (typeof performance !== 'undefined' && performance.now) ? performance.now() : Date.now();
+  for (let i = 0; i < ctx.items.length; i++) {
+    buildSingleFurnitureItem(ctx.items[i], i, ctx);
+    const now = (typeof performance !== 'undefined' && performance.now) ? performance.now() : Date.now();
+    if (now - lastYield > 6 && typeof requestAnimationFrame !== 'undefined') {
+      await new Promise(r => requestAnimationFrame(r));
+      lastYield = (typeof performance !== 'undefined' && performance.now) ? performance.now() : Date.now();
+      if (seq !== W3._furnUpdateSeq) {
+        ctx.fit2.dispose(); ctx.fit2.material.dispose();
+        return null;
+      }
+    }
+  }
+  for (let i2 = 0; i2 < ctx.hangs.length; i2++) {
+    buildSingleHangItem(ctx.hangs[i2], i2, ctx);
+  }
+  buildFurnitureLamps(ctx);
+  if (HP.life3d) HP.life3d.build(targetGroup, ctx.lifeItems);
+  ctx.fit2.instanceMatrix.needsUpdate = true;
+  if (ctx.fit2.instanceColor) ctx.fit2.instanceColor.needsUpdate = true;
+  let visuals = null;
+  if (ctx.models) {
+    ctx.fit2.dispose(); ctx.fit2.material.dispose(); W3.fitMesh = null;
+    visuals = ctx.models.finishAsync ? await ctx.models.finishAsync() : ctx.models.finish();
+  } else {
+    targetGroup.add(ctx.fit2);
+  }
+  if (seq !== W3._furnUpdateSeq) return null;
+  return {
+    visuals,
+    furnColliders: ctx.furnColliders,
+    furnLamps: ctx.furnLamps,
+    movers: ctx.movers,
+    garageDoors: ctx.garageDoors,
+    elevatedDecks: ctx.elevatedDecks,
+    climbs: ctx.climbs,
+    furnMetaById: ctx.furnMetaById
+  };
+};
+
+W3.updateFurniture = function () {
+  if (!W3.staticGroup || !W3.levelGroup) {
+    W3.buildLevel();
+    return;
+  }
+  const nextFG = new THREE.Group();
+  const res = W3._buildFurnitureSync(nextFG);
+  if (!res) return;
+  if (W3.furnitureGroup) {
+    HP.cull3d.removeGroup(W3.furnitureGroup);
+    W3.levelGroup.remove(W3.furnitureGroup);
+    disposeGroup(W3.furnitureGroup);
+  }
+  W3.furnitureGroup = nextFG;
+  W3.levelGroup.add(nextFG);
+  W3.colliders = (W3.staticColliders || []).concat(res.furnColliders);
+  W3.lamps = (W3.staticLamps || []).concat(res.furnLamps);
+  W3.movers = res.movers;
+  W3.garageDoors = res.garageDoors;
+  W3.elevatedDecks = res.elevatedDecks;
+  W3.climbs = res.climbs;
+  W3.furnitureVisuals = res.visuals;
+  W3._furnMetaById = res.furnMetaById;
+  if (res.visuals) res.visuals.move(W3.movers);
+  if (HP.graphics3d) HP.graphics3d.applyMaterials(nextFG);
+  if (HP.cull3d && HP.cull3d.invalidate) HP.cull3d.invalidate(); else if (HP.cull3d) HP.cull3d.dirty = true;
+};
+
+W3.updateFurnitureAsync = async function () {
+  if (!W3.staticGroup || !W3.levelGroup) {
+    W3.buildLevel();
+    return;
+  }
+  const seq = ++W3._furnUpdateSeq;
+  const nextFG = new THREE.Group();
+  const res = await W3._buildFurnitureAsync(nextFG, seq);
+  if (!res || seq !== W3._furnUpdateSeq) {
+    disposeGroup(nextFG);
+    return;
+  }
+  if (W3.furnitureGroup) {
+    HP.cull3d.removeGroup(W3.furnitureGroup);
+    W3.levelGroup.remove(W3.furnitureGroup);
+    disposeGroup(W3.furnitureGroup);
+  }
+  W3.furnitureGroup = nextFG;
+  W3.levelGroup.add(nextFG);
+  W3.colliders = (W3.staticColliders || []).concat(res.furnColliders);
+  W3.lamps = (W3.staticLamps || []).concat(res.furnLamps);
+  W3.movers = res.movers;
+  W3.garageDoors = res.garageDoors;
+  W3.elevatedDecks = res.elevatedDecks;
+  W3.climbs = res.climbs;
+  W3.furnitureVisuals = res.visuals;
+  W3._furnMetaById = res.furnMetaById;
+  if (res.visuals) res.visuals.move(W3.movers);
+  if (HP.graphics3d) HP.graphics3d.applyMaterials(nextFG);
+  if (HP.cull3d && HP.cull3d.invalidate) HP.cull3d.invalidate(); else if (HP.cull3d) HP.cull3d.dirty = true;
+};
+
+W3.onRemoteDrag = function (items) {
+  if (!items || !items.length || !W3.furnitureVisuals) return;
+  const C = HP.CELL;
+  const visuals = W3.furnitureVisuals;
+  for (const it of items) {
+    const meta = W3._furnMetaById && W3._furnMetaById.get(it.id);
+    if (!meta) continue;
+    const g2 = (visuals.detached && visuals.detached.get(meta.inst)) ||
+               (visuals.detach && visuals.detach(meta.inst));
+    if (g2) {
+      const dx = (it.x - meta.origX) * C;
+      const dz = (it.y - meta.origY) * C;
+      g2.position.set(dx, 0, dz);
+    }
+  }
+  if (HP.cull3d && HP.cull3d.invalidate) HP.cull3d.invalidate();
+};
+
+
 function floorQuad() {
   if (!W3._fq) W3._fq = new THREE.PlaneGeometry(1, 1).rotateX(-Math.PI / 2);
   return W3._fq;
@@ -1750,7 +1922,7 @@ function unitBox() {
 function disposeGroup(gr) {
   const geometries = new Set(), materials = new Set();
   gr.traverse(o => {
-    if (o.geometry && o.geometry !== W3._ub) geometries.add(o.geometry);
+    if (o.geometry && o.geometry !== W3._ub && o.geometry !== W3._fq && o.geometry !== W3._cq) geometries.add(o.geometry);
     if (o.material && !o.material.userData.shared3d) materials.add(o.material);
     if (o.isInstancedMesh && o.dispose) o.dispose();
   });

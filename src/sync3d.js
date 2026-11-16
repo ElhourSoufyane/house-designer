@@ -454,7 +454,7 @@
         HP.state = HP.migrate(d.state);
         HP.nextId = d.nextId || HP.nextId;
         if (HP.request3DRebuild) {
-          HP.request3DRebuild(80);
+          HP.request3DRebuild(40, { staticChanged: false });
         } else if (HP.world3d && HP.world3d.buildLevel) {
           HP.invalidateRegions();
           HP.world3d.buildLevel();

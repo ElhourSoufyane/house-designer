@@ -151,14 +151,28 @@
   };
 
   let rebuildTimer = null;
-  HP.request3DRebuild = function (delay = 80) {
+  let pendingStaticChanged = false;
+  HP.request3DRebuild = function (delay = 40, opts = {}) {
     if (!HP.in3D || !HP.world3d || !HP.world3d.scene || !HP.world3d.levelGroup) return;
+    if (opts.staticChanged) pendingStaticChanged = true;
     if (rebuildTimer) clearTimeout(rebuildTimer);
     rebuildTimer = setTimeout(() => {
       rebuildTimer = null;
+      const mustRebuildStatic = pendingStaticChanged;
+      pendingStaticChanged = false;
       if (HP.in3D && HP.world3d) {
-        HP.invalidateRegions();
-        HP.world3d.buildLevel();
+        if (mustRebuildStatic || !HP.world3d.furnitureGroup) {
+          HP.invalidateRegions();
+          HP.world3d.buildLevel();
+        } else {
+          if (HP.world3d.updateFurnitureAsync) {
+            HP.world3d.updateFurnitureAsync();
+          } else if (HP.world3d.updateFurniture) {
+            HP.world3d.updateFurniture();
+          } else {
+            HP.world3d.buildLevel();
+          }
+        }
       }
     }, delay);
   };

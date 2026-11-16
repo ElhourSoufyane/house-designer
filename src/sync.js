@@ -199,6 +199,9 @@ function onRemoteDrag(d) {
       it.y = match.y;
     }
   }
+  if (HP.in3D && HP.world3d && HP.world3d.onRemoteDrag) {
+    HP.world3d.onRemoteDrag(d.items);
+  }
   HP.markDirty();
 }
 
@@ -411,12 +414,18 @@ function applyState(msg, fromConn) {
   lastSentSnap = HP.snap();
   lastSentState = JSON.parse(JSON.stringify(HP.state));
 
-  // Coalesced 3D rebuild (80ms debounce): never freeze frames on incoming edits!
+  // Coalesced 3D rebuild (40ms debounce): never freeze frames on incoming edits!
   if (HP.in3D && HP.request3DRebuild) {
-    HP.request3DRebuild(80);
+    HP.request3DRebuild(40, { staticChanged });
   } else if (HP.in3D && HP.world3d && HP.world3d.scene && HP.world3d.levelGroup) {
-    HP.invalidateRegions();
-    HP.world3d.buildLevel();
+    if (staticChanged || !HP.world3d.furnitureGroup) {
+      HP.invalidateRegions();
+      HP.world3d.buildLevel();
+    } else if (HP.world3d.updateFurnitureAsync) {
+      HP.world3d.updateFurnitureAsync();
+    } else {
+      HP.world3d.updateFurniture();
+    }
   }
 
   // Star topology: only relay to OTHER guests if host, NEVER echo back to sender!

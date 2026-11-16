@@ -41,6 +41,15 @@ V.add = function (obj, x0, z0, x1, z1, opts) {
   dirty = true;
 };
 
+/* remove all objects belonging to a group from culling entries */
+V.removeGroup = function (group) {
+  if (!group || !entries.length) return;
+  const dead = new Set();
+  group.traverse(o => dead.add(o));
+  entries = entries.filter(e => !dead.has(e.obj));
+  dirty = true;
+};
+
 /* split boxes at tile lines so a long wall run is not culled as a whole
    just because its centre sits in a hidden tile                       */
 V.splitBoxes = function (boxes) {
