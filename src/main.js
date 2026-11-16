@@ -1771,8 +1771,18 @@ function drawGap(g, s, t, dbl) {
 function insideDir(s) {                      // which side is inside? for door swing
   const { regionOf } = HP.computeRegions();
   const inr = (x, y) => HP.cellIn(x, y) && regionOf[y * HP.GRID_W + x] >= 0;
-  if (s.d === 'h') return inr(s.x, s.y) ? 1 : -1;        // inside below (+y) or above
-  return inr(s.x, s.y) ? 1 : -1;                          // inside right (+x) or left
+  const base = s.d === 'h' ? (inr(s.x, s.y) ? 1 : -1) : (inr(s.x, s.y) ? 1 : -1);
+  const lvl = HP.cur();
+  if (!lvl || !lvl.walls) return base;
+  const k = s.d + ',' + s.x + ',' + s.y;
+  const rec = lvl.walls[k];
+  const partnerK = s.d === 'h' ? 'h,' + (s.x + 1) + ',' + s.y : 'v,' + s.x + ',' + (s.y + 1);
+  const prevK = s.d === 'h' ? 'h,' + (s.x - 1) + ',' + s.y : 'v,' + s.x + ',' + (s.y - 1);
+  const sw = (rec && rec.swing) ||
+             (lvl.walls[partnerK] && lvl.walls[partnerK].f === (rec && rec.f) && lvl.walls[partnerK].swing) ||
+             (lvl.walls[prevK] && lvl.walls[prevK].f === (rec && rec.f) && lvl.walls[prevK].swing);
+  if (sw === 'out') return -base;
+  return base;
 }
 
 function drawDoor(g, s, t) {
@@ -1872,6 +1882,10 @@ function drawWindow(g, s, t) {
   const C = HP.CELL;
   g.strokeStyle = '#5b8aa8'; g.lineWidth = 2;
   const o = t * 0.28;
+  const k = s.d + ',' + s.x + ',' + s.y;
+  const rec = HP.cur() && HP.cur().walls && HP.cur().walls[k];
+  const isOut = rec && rec.swing === 'out';
+  const dir = insideDir(s);
   if (s.d === 'h') {
     const y = s.y * C;
     g.fillStyle = '#2e3138';
@@ -1880,6 +1894,15 @@ function drawWindow(g, s, t) {
     g.moveTo(s.x * C + 2, y - o); g.lineTo((s.x + 1) * C - 2, y - o);
     g.moveTo(s.x * C + 2, y + o); g.lineTo((s.x + 1) * C - 2, y + o);
     g.stroke();
+    if (isOut) {
+      g.strokeStyle = 'rgba(91,138,168,0.7)'; g.lineWidth = 1.2; g.setLineDash([2, 2]);
+      g.beginPath();
+      g.moveTo(s.x * C + 3, y + dir * (t / 2));
+      g.lineTo(s.x * C + C / 2, y + dir * (t / 2 + 5));
+      g.lineTo((s.x + 1) * C - 3, y + dir * (t / 2));
+      g.stroke();
+      g.setLineDash([]);
+    }
   } else {
     const x = s.x * C;
     g.fillStyle = '#2e3138';
@@ -1888,6 +1911,15 @@ function drawWindow(g, s, t) {
     g.moveTo(x - o, s.y * C + 2); g.lineTo(x - o, (s.y + 1) * C - 2);
     g.moveTo(x + o, s.y * C + 2); g.lineTo(x + o, (s.y + 1) * C - 2);
     g.stroke();
+    if (isOut) {
+      g.strokeStyle = 'rgba(91,138,168,0.7)'; g.lineWidth = 1.2; g.setLineDash([2, 2]);
+      g.beginPath();
+      g.moveTo(x + dir * (t / 2), s.y * C + 3);
+      g.lineTo(x + dir * (t / 2 + 5), s.y * C + C / 2);
+      g.lineTo(x + dir * (t / 2), (s.y + 1) * C - 3);
+      g.stroke();
+      g.setLineDash([]);
+    }
   }
 }
 
@@ -2206,6 +2238,36 @@ function drawOverlays(g) {
     g.beginPath(); g.arc((f.x + f.w) * C - 3, f.y * C - 3, 6, 0, 7); g.fill();
     g.fillStyle = '#fff'; g.font = 'bold 9px sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle';
     g.fillText('⟳', (f.x + f.w) * C - 3, f.y * C - 3);
+  }
+  // selection outline for door / window
+  if (HP.selectedFeature) {
+    const sf = HP.selectedFeature;
+    const s = HP.parseWallKey(sf.k);
+    const rec = HP.cur() && HP.cur().walls && HP.cur().walls[sf.k];
+    if (rec && rec.f) {
+      const isH = s.d === 'h';
+      const x0 = (isH ? s.x : s.x - 0.25) * C - 2;
+      const y0 = (isH ? s.y - 0.25 : s.y) * C - 2;
+      const bw = (isH ? C : 0.5 * C) + 4;
+      const bh = (isH ? 0.5 * C : C) + 4;
+      g.strokeStyle = '#4f9cf9'; g.lineWidth = 2.5; g.setLineDash([5, 3]);
+      g.strokeRect(x0, y0, bw, bh);
+      g.setLineDash([]);
+      const dir = insideDir(s);
+      const badgeText = (rec.swing === 'out') ? 'OUTSIDE' : 'INSIDE';
+      g.font = 'bold 9px "Segoe UI", sans-serif';
+      const tw = g.measureText(badgeText).width + 8;
+      const bx = isH ? (s.x + 0.5) * C : (s.x * C + dir * 14);
+      const by = isH ? (s.y * C + dir * 14) : (s.y + 0.5) * C;
+      g.fillStyle = 'rgba(20,23,28,0.85)';
+      g.beginPath();
+      if (g.roundRect) g.roundRect(bx - tw / 2, by - 7, tw, 14, 3);
+      else g.rect(bx - tw / 2, by - 7, tw, 14);
+      g.fill();
+      g.fillStyle = rec.swing === 'out' ? '#ffb74d' : '#4f9cf9';
+      g.textAlign = 'center'; g.textBaseline = 'middle';
+      g.fillText(badgeText, bx, by);
+    }
   }
   // invalid-move tint on dragged item
   // (item itself already moves; footprint overlap drawn via ghost only)

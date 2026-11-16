@@ -1454,7 +1454,8 @@ W3.buildLevel = function () {
       const plusRoom = env.rAt(seg.x, seg.y);
       // Exterior windows always open into the enclosed room. For a
       // room-to-room opening choose the smaller room, consistently.
-      const inward = minusRoom >= 0 && (plusRoom < 0 || env.rsz(minusRoom) < env.rsz(plusRoom)) ? -1 : 1;
+      let inward = minusRoom >= 0 && (plusRoom < 0 || env.rsz(minusRoom) < env.rsz(plusRoom)) ? -1 : 1;
+      if (w.swing === 'out') inward = -inward;
       const wallDepth = isH ? w.z1 - w.z0 : w.x1 - w.x0;
       const root = new THREE.Group();
       root.position.set(a.cx, (w.y0 + w.y1) / 2, a.cz);
@@ -1635,6 +1636,14 @@ W3.buildLevel = function () {
     }
     const span = s1 - s0;
     const leaves = a.dbl ? 2 : 1;
+    const seg = HP.parseWallKey(a.k);
+    const minusRoom = a.d === 'h' ? env.rAt(seg.x, seg.y - 1) : env.rAt(seg.x - 1, seg.y);
+    const plusRoom = env.rAt(seg.x, seg.y);
+    const minusIsInside = minusRoom >= 0 && (plusRoom < 0 || env.rsz(minusRoom) < env.rsz(plusRoom));
+    const insideFlip = minusIsInside ? 1 : -1;
+    const outsideFlip = minusIsInside ? -1 : 1;
+    if (a.swing === 'out') a.flip = outsideFlip;
+    else if (a.swing === 'in') a.flip = insideFlip;
     for (let li = 0; li < leaves; li++) {
       /* +1: leaves lap past the far jamb and meet at the centre —
          an inset leaf leaves a slit you can see the sky through.
@@ -1650,27 +1659,30 @@ W3.buildLevel = function () {
       const pivot = new THREE.Group();
       /* hinge pin at the aperture CORNER on the swing side — the leaf
          folds out of the doorway like a real door, not into the slot */
-      pivot.position.set(a.d === 'h' ? (li === 0 ? s0 : s1) : a.x0,
-                         0,
-                         a.d === 'v' ? (li === 0 ? s0 : s1) : a.z0);
+      const pz = a.d === 'h' ? (a.flip !== undefined ? (a.flip > 0 ? a.z0 : a.z1) : a.z0) : (li === 0 ? s0 : s1);
+      const px = a.d === 'h' ? (li === 0 ? s0 : s1) : (a.flip !== undefined ? (a.flip > 0 ? a.x0 : a.x1) : a.x0);
+      pivot.position.set(px, 0, pz);
       const leaf = new THREE.Mesh(new THREE.BoxGeometry(a.d === 'h' ? lw : dep, lh, a.d === 'h' ? dep : lw), leafMat);
+      const flipVal = a.flip !== undefined ? a.flip : 1;
+      const v = (dep / 2 - 0.3) * flipVal;
+      const kv = (dep - 0.5) * flipVal;
       leaf.position.set(
-        a.d === 'h' ? (li === 0 ? lw / 2 : -lw / 2) : dep / 2 - 0.3,
+        a.d === 'h' ? (li === 0 ? lw / 2 : -lw / 2) : v,
         lh / 2 - 0.5,                      /* sunk 0.5px each end — sealed top+bottom */
-        a.d === 'h' ? dep / 2 - 0.3 : (li === 0 ? lw / 2 : -lw / 2));
+        a.d === 'h' ? v : (li === 0 ? lw / 2 : -lw / 2));
       leaf.castShadow = leaf.receiveShadow = true;
       pivot.add(leaf);
       const knob = new THREE.Mesh(knobGeo, knobMat);
-      knob.position.set(a.d === 'h' ? (li === 0 ? lw - 6 : -lw + 6) : dep - 0.5,
+      knob.position.set(a.d === 'h' ? (li === 0 ? lw - 6 : -lw + 6) : kv,
                         27,
-                        a.d === 'h' ? dep - 0.5 : (li === 0 ? lw - 6 : -lw + 6));
+                        a.d === 'h' ? kv : (li === 0 ? lw - 6 : -lw + 6));
       pivot.add(knob);
       g.add(pivot);
       V.add(pivot, a.x0 - C, a.z0 - C, a.x1 + C, a.z1 + C);   // swing reach
       /* vel/holdT/latched drive the physics: bump the leaf to swing
          it open, a damped spring pulls it shut behind you, E latches */
       doorPivots.push({ pivot, a, open: 0, target: 0, leaf, knob, lw, li, dep,
-                        vel: 0, holdT: 0, latched: false,
+                        vel: 0, holdT: 0, latched: false, flip: a.flip,
                         ly0: 0, ly1: lh });
     }
   }

@@ -883,6 +883,7 @@ function tick(t) {
       else if (d.slide) d.maxAng = Infinity;            // sashes slide, not swing
       else {
         if (d.a.flip === undefined) chooseFlip(d);        // pick roomier side
+        else setFlip(d, d.a.flip);
         d.flip = d.a.flip;
         d.maxAng = swingLimit(d);                          // swing arc vs world
       }

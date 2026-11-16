@@ -529,5 +529,39 @@ t('Escape resume also preserves position', pos().x === beforePause.x && pos().z 
   t('360° mouse turn is continuous and rejects warp spikes', !snapped);
 }
 
+/* ---------- 11. door & window inside/outside swing option ---------- */
+{
+  HP.state = JSON.parse(JSON.stringify(house.state));
+  const fix = HP.cur();
+  fix.walls = {}; fix.furniture = []; fix.fences = {}; fix.floors = {};
+  for (let x = 10; x < 20; x++) {
+    fix.walls[`h,${x},10`] = { f: null };
+    fix.walls[`h,${x},20`] = { f: null };
+  }
+  for (let y = 10; y < 20; y++) {
+    fix.walls[`v,10,${y}`] = { f: null };
+    fix.walls[`v,20,${y}`] = { f: null };
+  }
+  fix.walls['h,12,10'] = { f: 'door', swing: 'in' };
+  fix.walls['h,15,10'] = { f: 'door', swing: 'out' };
+  fix.walls['h,12,20'] = { f: 'window', swing: 'in' };
+  fix.walls['h,13,20'] = { f: 'window', swing: 'in' };
+  fix.walls['h,16,20'] = { f: 'window', swing: 'out' };
+  fix.walls['h,17,20'] = { f: 'window', swing: 'out' };
+  
+  HP.invalidateRegions();
+  W3.buildLevel();
+  
+  const dIn = W3.doorPivots.find(p => p.a.k === 'h,12,10');
+  const dOut = W3.doorPivots.find(p => p.a.k === 'h,15,10');
+  t('door swing: in opens into the room (f = -1)', dIn && dIn.a.flip === -1);
+  t('door swing: out opens to the outside (f = 1)', dOut && dOut.a.flip === 1);
+  
+  const wIn = W3.windows.find(w => w.a.k === 'h,12,20');
+  const wOut = W3.windows.find(w => w.a.k === 'h,16,20');
+  t('window swing: in hinges into the room', wIn && wIn.inward === -1);
+  t('window swing: out hinges outward to exterior', wOut && wOut.inward === 1);
+}
+
 console.log(`\n${fail ? 'FAILURES: ' + fail : 'ALL PASS'} (${pass} checks)`);
 process.exit(fail ? 1 : 0);

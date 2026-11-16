@@ -261,6 +261,8 @@ button { font-family: inherit; color: inherit; }
 .insp-grabber { display: none; }
 .insp-section { padding: 16px 16px 18px; border-bottom: 1px solid var(--border-soft); }
 .tool-sec { display: none; }
+#inspector[data-sec="door"] [data-sec="door"],
+#inspector[data-sec="window"] [data-sec="window"],
 #inspector[data-sec="wall"] [data-sec="wall"],
 #inspector[data-sec="floor"] [data-sec="floor"],
 #inspector[data-sec="fence"] [data-sec="fence"],

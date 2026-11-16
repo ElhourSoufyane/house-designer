@@ -321,8 +321,10 @@ function apertures(walls, env, zoneOf) {
       z1 = (s.y + s.span) * C + (perpB(s.dbl ? { d: 'v', x: s.x, y: s.y + 1 } : s) ? 0 : rB.a);
       x0 = s.x * C + z.w0; x1 = s.x * C + z.w1;
     }
+    const nk = s.d === 'h' ? 'h,' + (s.x + 1) + ',' + s.y : 'v,' + s.x + ',' + (s.y + 1);
+    const sw = (walls[s.k] && walls[s.k].swing) || (s.dbl && walls[nk] && walls[nk].swing) || undefined;
     aps.push({ kind: 'door', d: s.d, x0, z0, x1, z1, y0: 0, y1: DOOR_H,
-               dbl: s.dbl, k: s.k, cx: (x0 + x1) / 2, cz: (z0 + z1) / 2 });
+               dbl: s.dbl, k: s.k, cx: (x0 + x1) / 2, cz: (z0 + z1) / 2, swing: sw });
   }
   /* windows: consecutive segs on a line merge into one aperture —
      a 4px post between two windows reads as a crack in the wall    */
@@ -360,8 +362,10 @@ function apertures(walls, env, zoneOf) {
           if (a.z1 > z0 && a.z1 < z1) z0 = a.z1;
         }
       }
-      if ((s.d === 'h' ? x1 - x0 : z1 - z0) > 4)
-        aps.push({ kind: 'window', d: s.d, x0, z0, x1, z1, y0: WIN_SILL, y1: WIN_TOP, k: s.k });
+      if ((s.d === 'h' ? x1 - x0 : z1 - z0) > 4) {
+        const sw = gr.segs.map(sg => walls[sg.k] && walls[sg.k].swing).find(Boolean) || (walls[s.k] && walls[s.k].swing) || undefined;
+        aps.push({ kind: 'window', d: s.d, x0, z0, x1, z1, y0: WIN_SILL, y1: WIN_TOP, k: s.k, swing: sw });
+      }
     }
   }
   /* garage doors cut wall apertures if placed across walls */

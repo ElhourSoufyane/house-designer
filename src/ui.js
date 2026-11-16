@@ -58,11 +58,13 @@ function showDialog({ title, desc, buttons }) {
 HP.showDialog = showDialog;
 
 /* ---------- tool rail ---------- */
+HP.defaultDoorSwing = HP.defaultDoorSwing || 'in';
+HP.defaultWindowSwing = HP.defaultWindowSwing || 'in';
 const TOOL_HINTS = {
-  select: 'Tap a room to edit it, drag empty space to pan around, or drag furniture to move it (Shift+drag to box-select).',
+  select: 'Select furniture or tap any door/window to change opening inside / outside. Tap a room to edit properties.',
   wall: 'Draw walls between grid lines, or switch to Paint Room / Paint Wall to colour them.',
-  door: 'Tap a wall to place a door. Two adjacent doors merge into a double door.',
-  window: 'Tap a wall to place a window.',
+  door: 'Tap a wall to place a door (Inside / Outside). Tap an existing door to flip its swing.',
+  window: 'Tap a wall to place a window (Inside / Outside). Tap an existing window to flip its swing.',
   fence: 'Pick a fence type, then drag on the plan to draw a fence run of any length.',
   floor: 'Pick a material below, then tap a room to repaint its floor.',
   furniture: 'Pick an item below, then tap the plan to place it.',
@@ -524,6 +526,211 @@ function fenceUI() {
   }
 }
 
+function setFeatureSwing(k, swing) {
+  const lvl = HP.cur();
+  if (!lvl || !lvl.walls) return;
+  const w = lvl.walls[k];
+  if (!w || !w.f) return;
+  const s = HP.parseWallKey(k);
+  w.swing = swing;
+  if (w.f === 'door') {
+    const adjKeys = [
+      s.d === 'h' ? 'h,' + (s.x + 1) + ',' + s.y : 'v,' + s.x + ',' + (s.y + 1),
+      s.d === 'h' ? 'h,' + (s.x - 1) + ',' + s.y : 'v,' + s.x + ',' + (s.y - 1)
+    ];
+    for (const ak of adjKeys) {
+      if (lvl.walls[ak] && lvl.walls[ak].f === 'door') {
+        lvl.walls[ak].swing = swing;
+      }
+    }
+  } else if (w.f === 'window') {
+    let pos = s.d === 'h' ? s.x + 1 : s.y + 1;
+    while (true) {
+      const ak = s.d === 'h' ? 'h,' + pos + ',' + s.y : 'v,' + s.x + ',' + pos;
+      if (lvl.walls[ak] && lvl.walls[ak].f === 'window') {
+        lvl.walls[ak].swing = swing;
+        pos++;
+      } else break;
+    }
+    pos = s.d === 'h' ? s.x - 1 : s.y - 1;
+    while (true) {
+      const ak = s.d === 'h' ? 'h,' + pos + ',' + s.y : 'v,' + s.x + ',' + pos;
+      if (lvl.walls[ak] && lvl.walls[ak].f === 'window') {
+        lvl.walls[ak].swing = swing;
+        pos--;
+      } else break;
+    }
+  }
+}
+HP.setFeatureSwing = setFeatureSwing;
+
+function doorUI() {
+  const top = $('#door-panel'); if (!top) return;
+  top.innerHTML = '';
+  const s = document.createElement('div');
+  const curDef = HP.defaultDoorSwing || 'in';
+  s.innerHTML = `
+    <div class="field">
+      <label>Default Door Opening</label>
+      <div class="seg" id="door-tool-seg">
+        <button class="seg-btn ${curDef === 'in' ? 'on' : ''}" data-s="in">🚪 Inside</button>
+        <button class="seg-btn ${curDef === 'out' ? 'on' : ''}" data-s="out">🚪 Outside</button>
+      </div>
+    </div>
+    <div class="hint" style="margin-top:10px;line-height:1.45">
+      <b>Tips:</b><br>
+      • Tap any wall to place a door.<br>
+      • Tap an existing door on the plan to flip its swing inside ⇄ outside.<br>
+      • Two adjacent doors merge into a double door.
+    </div>
+  `;
+  top.appendChild(s);
+  const seg = $('#door-tool-seg');
+  if (seg) {
+    seg.querySelectorAll('.seg-btn').forEach(b => {
+      b.onclick = () => {
+        HP.defaultDoorSwing = b.dataset.s;
+        HP.status('New doors will open: ' + (HP.defaultDoorSwing === 'out' ? 'Outside (Outward)' : 'Inside (Inward)'));
+        doorUI();
+      };
+    });
+  }
+}
+
+function windowUI() {
+  const top = $('#window-panel'); if (!top) return;
+  top.innerHTML = '';
+  const s = document.createElement('div');
+  const curDef = HP.defaultWindowSwing || 'in';
+  s.innerHTML = `
+    <div class="field">
+      <label>Default Window Opening</label>
+      <div class="seg" id="window-tool-seg">
+        <button class="seg-btn ${curDef === 'in' ? 'on' : ''}" data-s="in">🪟 Inside</button>
+        <button class="seg-btn ${curDef === 'out' ? 'on' : ''}" data-s="out">🪟 Outside</button>
+      </div>
+    </div>
+    <div class="hint" style="margin-top:10px;line-height:1.45">
+      <b>Tips:</b><br>
+      • Tap any wall to place a window.<br>
+      • Tap an existing window on the plan to flip its casement swing inside ⇄ outside.<br>
+      • Multi-cell window runs hinge and swing together in 3D.
+    </div>
+  `;
+  top.appendChild(s);
+  const seg = $('#window-tool-seg');
+  if (seg) {
+    seg.querySelectorAll('.seg-btn').forEach(b => {
+      b.onclick = () => {
+        HP.defaultWindowSwing = b.dataset.s;
+        HP.status('New windows will open: ' + (HP.defaultWindowSwing === 'out' ? 'Outside (Outward)' : 'Inside (Inward)'));
+        windowUI();
+      };
+    });
+  }
+}
+
+function featureSelectedUI(feat) {
+  const top = $('#insp-top');
+  top.innerHTML = '';
+  const w = HP.cur() && HP.cur().walls && HP.cur().walls[feat.k];
+  if (!w || !w.f) { HP.selectedFeature = null; return; }
+  const isDoor = w.f === 'door';
+  const kindName = isDoor ? 'Door' : 'Window';
+  $('#edit-title').textContent = kindName + ' Properties';
+  
+  const curSwing = w.swing || 'in';
+  const s = document.createElement('div');
+  s.className = 'insp-section';
+  s.innerHTML = `
+    <div class="field">
+      <label>Opening Direction</label>
+      <div class="seg" id="feat-swing-seg">
+        <button class="seg-btn ${curSwing === 'in' ? 'on' : ''}" data-s="in">
+          ${isDoor ? '🚪' : '🪟'} Inside
+        </button>
+        <button class="seg-btn ${curSwing === 'out' ? 'on' : ''}" data-s="out">
+          ${isDoor ? '🚪' : '🪟'} Outside
+        </button>
+      </div>
+    </div>
+    <div class="field" style="margin-top:10px">
+      <button class="ibtn" id="feat-flip-btn" style="width:100%;margin-bottom:8px">
+        ⇄ Flip Inside / Outside
+      </button>
+      ${isDoor ? `
+      <button class="ibtn" id="feat-toggle-closed" style="width:100%;margin-bottom:8px">
+        ${w.c ? '👁 Show Open Leaf in 2D' : '🔒 Show Closed Leaf in 2D'}
+      </button>
+      ` : ''}
+      <button class="btn-danger" id="feat-del-btn" style="width:100%">
+        Remove ${kindName}
+      </button>
+    </div>
+    <div class="hint" style="margin-top:10px;line-height:1.4">
+      ${isDoor 
+        ? (curSwing === 'out' ? '🚪 Opens <b>Outside</b> (outward swing).' : '🚪 Opens <b>Inside</b> (inward swing).')
+        : (curSwing === 'out' ? '🪟 Casement hinges <b>Outside</b> (exterior opening).' : '🪟 Casement hinges <b>Inside</b> (room opening).')}
+    </div>
+  `;
+  top.appendChild(s);
+  
+  const seg = $('#feat-swing-seg');
+  if (seg) {
+    seg.querySelectorAll('.seg-btn').forEach(b => {
+      b.onclick = () => {
+        HP.pushUndo();
+        const sw = b.dataset.s;
+        setFeatureSwing(feat.k, sw);
+        HP.saveState(); HP.invalidateRegions();
+        HP.status(kindName + ' set to open: ' + (sw === 'out' ? 'Outside' : 'Inside'));
+        refreshInspector();
+        HP.markDirty();
+      };
+    });
+  }
+  
+  const flipBtn = $('#feat-flip-btn');
+  if (flipBtn) {
+    flipBtn.onclick = () => {
+      HP.pushUndo();
+      const newSwing = curSwing === 'out' ? 'in' : 'out';
+      setFeatureSwing(feat.k, newSwing);
+      HP.saveState(); HP.invalidateRegions();
+      HP.status(kindName + ' flipped to open ' + (newSwing === 'out' ? 'Outside' : 'Inside'));
+      refreshInspector();
+      HP.markDirty();
+    };
+  }
+  
+  const closedBtn = $('#feat-toggle-closed');
+  if (closedBtn) {
+    closedBtn.onclick = () => {
+      HP.pushUndo();
+      w.c = !w.c;
+      HP.saveState(); HP.invalidateRegions();
+      HP.status('Door leaf in 2D: ' + (w.c ? 'Closed' : 'Open'));
+      refreshInspector();
+      HP.markDirty();
+    };
+  }
+  
+  const delBtn = $('#feat-del-btn');
+  if (delBtn) {
+    delBtn.onclick = () => {
+      HP.pushUndo();
+      w.f = null;
+      delete w.swing;
+      delete w.c;
+      HP.selectedFeature = null;
+      HP.saveState(); HP.invalidateRegions();
+      HP.status(kindName + ' removed');
+      refreshInspector();
+      HP.markDirty();
+    };
+  }
+}
+
 function projectStats() {
   const el = $('#insp-project'); if (!el) return;
   const m2 = HP.M2_PER_CELL;
@@ -550,7 +757,7 @@ function projectStats() {
 HP.projectStats = projectStats;
 
 /* sidebar shows only the active tool's section; selection edits float on the canvas */
-const SEC_FOR = { wall: 'wall', floor: 'floor', furniture: 'furniture', fence: 'fence' };
+const SEC_FOR = { wall: 'wall', floor: 'floor', furniture: 'furniture', fence: 'fence', door: 'door', window: 'window' };
 function refreshInspector(force) {
   const insp = $('#inspector');
   if (force === 'settings') { insp.dataset.sec = 'settings'; settingsUI(); }
@@ -561,11 +768,14 @@ function refreshInspector(force) {
   top.innerHTML = '';
   if (HP.pending) placingUI();
   else if (HP.selected) itemUI(HP.selected);
+  else if (HP.selectedFeature) featureSelectedUI(HP.selectedFeature);
   else if (HP.selectedRoom) roomUI();
   $('#edit-panel').classList.toggle('hidden', !top.firstChild);
   if (insp.dataset.sec === 'wall') wallUI();
   if (insp.dataset.sec === 'floor') floorUI();
   if (insp.dataset.sec === 'fence') fenceUI();
+  if (insp.dataset.sec === 'door') doorUI();
+  if (insp.dataset.sec === 'window') windowUI();
   projectStats();
 }
 HP.refreshContext = refreshInspector;
@@ -748,7 +958,7 @@ HP.initUI = function () {
   /* floating edit panel: close button + drag by header */
   $('#edit-close').onclick = () => {
     if (HP.pending) HP.cancelPending();
-    else { HP.selected = null; HP.selectedRoom = null; HP.markDirty(); }
+    else { HP.selected = null; HP.selectedRoom = null; HP.selectedFeature = null; HP.markDirty(); }
     refreshInspector();
   };
   const ep = $('#edit-panel'), eh = $('#edit-head');

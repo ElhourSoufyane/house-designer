@@ -134,7 +134,7 @@
 
 <!-- TOP BAR -->
 <header class="topbar">
-  <div class="logo"><svg class="ic"><use href="#i-logo"/></svg>House<span>Designer</span> <span class="ver-badge" id="btn-ver" title="Check for updates">v1.1.0 ✓</span></div>
+  <div class="logo"><svg class="ic"><use href="#i-logo"/></svg>House<span>Designer</span> <span class="ver-badge" id="btn-ver" title="Check for updates">v1.3.0 ✓</span></div>
   <button class="tbtn" id="btn-new">New</button>
   <button class="tbtn" id="btn-save" title="Download house as a backup file">Save</button>
   <button class="tbtn" id="btn-export">Export</button>
@@ -213,6 +213,14 @@
   <!-- RIGHT INSPECTOR — tool-scoped sections -->
   <aside class="inspector" id="inspector" data-sec="generic">
     <div class="insp-grabber" id="insp-grabber" role="button" aria-label="Close panel"><i></i><span class="gx">&#10005;</span></div>
+    <div class="insp-section tool-sec" data-sec="door">
+      <div class="insp-title">Door Options</div>
+      <div id="door-panel"></div>
+    </div>
+    <div class="insp-section tool-sec" data-sec="window">
+      <div class="insp-title">Window Options</div>
+      <div id="window-panel"></div>
+    </div>
     <div class="insp-section tool-sec" data-sec="floor">
       <div class="insp-title">Flooring</div>
       <div id="floor-panel"></div>

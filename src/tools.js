@@ -38,6 +38,7 @@ const selectTool = {
     const it = HP.itemAt(p.cx, p.cy, p.wx, p.wy);
     const mouse = !p.e || p.e.pointerType === 'mouse';
     if (it) {
+      HP.selectedFeature = null;
       /* clicking a member of the marquee set moves the whole set        */
       const inSet = HP.selectedSet && HP.selectedSet.length && HP.selectedSet.includes(it);
       const members = inSet ? HP.selSet() : HP.groupOf(it);
@@ -50,15 +51,28 @@ const selectTool = {
         ox: (fine ? p.fx : p.cx) - f.x, oy: (fine ? p.fy : p.cy) - f.y,
         origs: members.map(m => ({ m, x: m.x, y: m.y })), moved: false, valid: true
       };
-    } else if (p.e && p.e.shiftKey) {
-      /* Shift + drag on empty space = box select; normal drag = pan     */
-      HP.selected = null;
-      drag = { kind: 'marquee', ax: p.wx, ay: p.wy, sx: p.sx, sy: p.sy,
-               roomCell: HP.regionAt(p.cx, p.cy) ? { cx: p.cx, cy: p.cy } : null };
     } else {
-      HP.selected = null; HP.selectedSet = [];
-      drag = { kind: 'pan', sx: p.sx, sy: p.sy, cam: { ...HP.camera },
-               roomCell: HP.regionAt(p.cx, p.cy) ? { cx: p.cx, cy: p.cy } : null };
+      const wk = HP.nearestWallSeg(p.wx, p.wy, 0.65);
+      const wRec = wk && HP.cur().walls && HP.cur().walls[wk];
+      if (wRec && (wRec.f === 'door' || wRec.f === 'window')) {
+        HP.selected = null; HP.selectedSet = []; HP.selectedRoom = null;
+        HP.selectedFeature = { k: wk, kind: wRec.f, wall: wRec };
+        drag = null;
+        HP.status((wRec.f === 'door' ? 'Door' : 'Window') + ' selected — opens ' + (wRec.swing === 'out' ? 'Outside' : 'Inside'));
+        HP.refreshContext(); HP.markDirty();
+        return;
+      }
+      HP.selectedFeature = null;
+      if (p.e && p.e.shiftKey) {
+        /* Shift + drag on empty space = box select; normal drag = pan     */
+        HP.selected = null;
+        drag = { kind: 'marquee', ax: p.wx, ay: p.wy, sx: p.sx, sy: p.sy,
+                 roomCell: HP.regionAt(p.cx, p.cy) ? { cx: p.cx, cy: p.cy } : null };
+      } else {
+        HP.selected = null; HP.selectedSet = [];
+        drag = { kind: 'pan', sx: p.sx, sy: p.sy, cam: { ...HP.camera },
+                 roomCell: HP.regionAt(p.cx, p.cy) ? { cx: p.cx, cy: p.cy } : null };
+      }
     }
     HP.refreshContext(); HP.markDirty();
   },
@@ -237,9 +251,24 @@ function featureTool(kind) {
       if (!k) { HP.status('No wall here — draw a wall first'); return; }
       HP.pushUndo();
       const w = HP.cur().walls[k];
-      w.f = (w.f === kind) ? null : kind;          // toggle
-      HP.saveState(); HP.invalidateRegions();      // walls live in the static layer — rebuild it
-      HP.status(w.f ? (kind === 'door' ? 'Door placed' : 'Window placed') : 'Back to plain wall');
+      if (w.f === kind) {
+        // Tapping existing door/window flips its swing direction between Inside and Outside
+        const newSwing = (w.swing === 'out') ? 'in' : 'out';
+        if (HP.setFeatureSwing) HP.setFeatureSwing(k, newSwing);
+        else w.swing = newSwing;
+        HP.selectedFeature = { k, kind, wall: w };
+        HP.saveState(); HP.invalidateRegions();
+        HP.status((kind === 'door' ? 'Door' : 'Window') + ' swing flipped: opens ' + (newSwing === 'out' ? 'Outside' : 'Inside'));
+      } else {
+        w.f = kind;
+        const defSwing = (kind === 'door' ? HP.defaultDoorSwing : HP.defaultWindowSwing) || 'in';
+        if (HP.setFeatureSwing) HP.setFeatureSwing(k, defSwing);
+        else w.swing = defSwing;
+        HP.selectedFeature = { k, kind, wall: w };
+        HP.saveState(); HP.invalidateRegions();
+        HP.status((kind === 'door' ? 'Door' : 'Window') + ' placed (opens ' + (defSwing === 'out' ? 'Outside' : 'Inside') + ') — click again to flip');
+      }
+      HP.refreshContext(); HP.markDirty();
     },
     move() {}, up() {}, cancel() {}
   };
@@ -311,7 +340,10 @@ const eraseTool = {
       HP.cur().furniture = HP.cur().furniture.filter(f => !members.includes(f));
       if (members.includes(HP.selected)) HP.selected = null;
     }
-    if (k && !HP.editingInterior) delete HP.cur().walls[k];
+    if (k && !HP.editingInterior) {
+      delete HP.cur().walls[k];
+      if (HP.selectedFeature && HP.selectedFeature.k === k) HP.selectedFeature = null;
+    }
     if (fk) delete HP.cur().fences[fk];
     if (pathK) delete HP.cur().floors[pathK];
     HP.saveState(); HP.invalidateRegions(); HP.refreshContext();
