@@ -144,6 +144,15 @@ function downloadFile(url, destPath) {
   });
 }
 
+ipcMain.handle('get-version', () => {
+  try {
+    const v = JSON.parse(fs.readFileSync(path.join(__dirname, 'version.json'), 'utf8'));
+    return v.version || '1.3.6';
+  } catch (e) {
+    return '1.3.6';
+  }
+});
+
 // In-app updater for standalone desktop application — Differential, Parallel & Blazing Fast
 ipcMain.handle('apply-update', async (event) => {
   const baseUrl = 'https://elhoursoufyane.github.io/housedesigner/';

@@ -38,13 +38,13 @@
     "src/play3d-inpage.js"
   ],
   "hashes": {
-    "index.html": "832d28358902",
+    "index.html": "b7978751affb",
     "play3d.html": "e4de3893ac0e",
     "style.css": "be5fcd41cfb5",
     "manifest.json": "6b5cec7e7507",
     "sw.js": "00052f36d2ac",
-    "preload.js": "973817e1676f",
-    "electron-main.js": "3a0deab95aad",
+    "preload.js": "51c8baf4b838",
+    "electron-main.js": "bb2833cb8ba4",
     "src/catalog.js": "60cffe928a65",
     "src/cull3d.js": "97513f293937",
     "src/default-house.js": "dd05eb4821e8",
