@@ -3,6 +3,8 @@
   "appName": "House Designer",
   "webDir": "www",
   "server": {
+    "url": "https://elhoursoufyane.github.io/housedesigner",
+    "cleartext": true,
     "androidScheme": "https",
     "iosScheme": "https"
   },

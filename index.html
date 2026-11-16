@@ -596,6 +596,23 @@
         const hasUpdate = isNewerVersion(info.version, CURRENT_VERSION);
 
         if (hasUpdate) {
+          // If running in Capacitor (Android/iOS app wrapper), seamlessly load live remote build
+          if (window.Capacitor) {
+            if (!canAttemptReload()) {
+              dismissSplash();
+              return;
+            }
+            setProgress(85, `Updating to v${info.version}...`);
+            if ('caches' in window) {
+              try {
+                const keys = await caches.keys();
+                await Promise.all(keys.map(k => caches.delete(k)));
+              } catch(e) {}
+            }
+            location.href = 'https://elhoursoufyane.github.io/housedesigner/?_v=' + Date.now();
+            return;
+          }
+
           // If running on web (GitHub Pages / PWA), auto-update cache & reload once
           if (location.protocol.startsWith('http') && !location.hostname.includes('localhost')) {
             if (!canAttemptReload()) {
