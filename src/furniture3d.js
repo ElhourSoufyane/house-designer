@@ -4,7 +4,7 @@ window.HP = window.HP || {};
 const F = HP.furniture3d = {};
 /* bake parts [{geo, matrix, color}] into one indexed geometry with
    per-vertex colour; ranges[i] = [firstVertex, vertexCount] of part i */
-const _nm = new THREE.Matrix3(), _v = new THREE.Vector3(), _col = new THREE.Color();
+const _nm = new THREE.Matrix3(), _col = new THREE.Color();
 function merge(parts) {
   let nv = 0, ni = 0;
   for (const p of parts) { nv += p.geo.attributes.position.count; ni += p.geo.index.count; }
@@ -17,18 +17,40 @@ function merge(parts) {
     const g = p.geo, P = g.attributes.position, N = g.attributes.normal, U = g.attributes.uv;
     _nm.getNormalMatrix(p.matrix);
     _col.set(p.color || '#ffffff');
-    for (let i = 0; i < P.count; i++) {
-      _v.fromBufferAttribute(P, i).applyMatrix4(p.matrix);
-      pos[(vo + i) * 3] = _v.x; pos[(vo + i) * 3 + 1] = _v.y; pos[(vo + i) * 3 + 2] = _v.z;
-      _v.fromBufferAttribute(N, i).applyMatrix3(_nm).normalize();
-      nor[(vo + i) * 3] = _v.x; nor[(vo + i) * 3 + 1] = _v.y; nor[(vo + i) * 3 + 2] = _v.z;
-      uv[(vo + i) * 2] = U.getX(i); uv[(vo + i) * 2 + 1] = U.getY(i);
-      col[(vo + i) * 3] = _col.r; col[(vo + i) * 3 + 1] = _col.g; col[(vo + i) * 3 + 2] = _col.b;
+    const m = p.matrix.elements;
+    const nm = _nm.elements;
+    const cr = _col.r, cg = _col.g, cb = _col.b;
+    const Pa = P.array, Na = N.array, Ua = U ? U.array : null;
+    const count = P.count;
+    for (let i = 0; i < count; i++) {
+      const i3 = i * 3;
+      const x = Pa[i3], y = Pa[i3 + 1], z = Pa[i3 + 2];
+      const vi = vo + i;
+      const vi3 = vi * 3;
+      pos[vi3]     = m[0] * x + m[4] * y + m[8]  * z + m[12];
+      pos[vi3 + 1] = m[1] * x + m[5] * y + m[9]  * z + m[13];
+      pos[vi3 + 2] = m[2] * x + m[6] * y + m[10] * z + m[14];
+      const nx = Na[i3], ny = Na[i3 + 1], nz = Na[i3 + 2];
+      const tnx = nm[0] * nx + nm[3] * ny + nm[6] * nz;
+      const tny = nm[1] * nx + nm[4] * ny + nm[7] * nz;
+      const tnz = nm[2] * nx + nm[5] * ny + nm[8] * nz;
+      const len = Math.hypot(tnx, tny, tnz) || 1;
+      nor[vi3]     = tnx / len;
+      nor[vi3 + 1] = tny / len;
+      nor[vi3 + 2] = tnz / len;
+      if (Ua) {
+        const i2 = i * 2, vi2 = vi * 2;
+        uv[vi2]     = Ua[i2];
+        uv[vi2 + 1] = Ua[i2 + 1];
+      }
+      col[vi3]     = cr;
+      col[vi3 + 1] = cg;
+      col[vi3 + 2] = cb;
     }
     const I = g.index.array;
     for (let i = 0; i < I.length; i++) idx[io + i] = I[i] + vo;
-    ranges.push([vo, P.count]);
-    vo += P.count; io += I.length;
+    ranges.push([vo, count]);
+    vo += count; io += I.length;
   }
   const geometry = new THREE.BufferGeometry();
   geometry.setAttribute('position', new THREE.BufferAttribute(pos, 3));

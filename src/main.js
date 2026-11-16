@@ -2287,6 +2287,10 @@ function drawOverlays(g) {
 let lastT = 0;
 function frame(t) {
   const dt = Math.min(0.05, ((t || 0) - lastT) / 1000); lastT = t || 0;
+  if (HP.in3D) {
+    requestAnimationFrame(frame);
+    return;
+  }
   if (HP.playing) HP.tickPlayer(dt);
   if (staticDirty) rebuildStatic();
   if (HP.dirty) {

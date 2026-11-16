@@ -411,9 +411,9 @@ function applyState(msg, fromConn) {
   lastSentSnap = HP.snap();
   lastSentState = JSON.parse(JSON.stringify(HP.state));
 
-  // Coalesced 3D rebuild (35ms debounce): never freeze frames on incoming edits!
+  // Coalesced 3D rebuild (80ms debounce): never freeze frames on incoming edits!
   if (HP.in3D && HP.request3DRebuild) {
-    HP.request3DRebuild(35);
+    HP.request3DRebuild(80);
   } else if (HP.in3D && HP.world3d && HP.world3d.scene && HP.world3d.levelGroup) {
     HP.invalidateRegions();
     HP.world3d.buildLevel();
@@ -537,7 +537,6 @@ function setupConn(c) {
     }
     else if (d.t === 'state') {
       applyState(d, c);
-      if (HP.sync3d && HP.sync3d.handleData) HP.sync3d.handleData(d, c);
     }
     else if (d.t === 'f_drag') {
       onRemoteDrag(d);

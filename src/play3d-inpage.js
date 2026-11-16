@@ -151,7 +151,7 @@
   };
 
   let rebuildTimer = null;
-  HP.request3DRebuild = function (delay = 35) {
+  HP.request3DRebuild = function (delay = 80) {
     if (!HP.in3D || !HP.world3d || !HP.world3d.scene || !HP.world3d.levelGroup) return;
     if (rebuildTimer) clearTimeout(rebuildTimer);
     rebuildTimer = setTimeout(() => {

@@ -240,12 +240,13 @@ async function run() {
   HP.world3d.levelGroup = new THREE.Group();
   // Simulate receiving remote state
   HP.sync.applyState({ t: 'state', rev: Date.now(), origin: 'partner-1', state: HP.state, nextId: 100 }, dummyConn);
-  await new Promise(r => setTimeout(r, 60));
+  await new Promise(r => setTimeout(r, 120));
   assert('Live 3D buildLevel is triggered on remote state update', buildCalled === true);
   HP.world3d.buildLevel = origBuild;
 
   console.log(`\nResults: ${pass} passed, ${fail} failed.`);
   if (fail > 0) process.exit(1);
+  process.exit(0);
 }
 
 run();

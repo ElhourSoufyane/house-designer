@@ -391,15 +391,15 @@
       if (conn) conn.name = d.name || 'Partner';
       const p = getOrCreatePeer(peerId, d.name);
       notify(`${d.name} joined the 3D walk!`);
-      // If host, send current house state and doors/lamps
+      // If host in standalone mode, send current house state (unified sync handles state if active)
+      const isUnified = HP.sync && HP.sync.conns && HP.sync.conns.length > 0;
       const isHost = S3.mode === 'host' || (HP.sync && HP.sync.mode === 'host');
       if (isHost && HP.state) {
-        if (conn) {
-          conn.send({ t: 'house', state: HP.state, nextId: HP.nextId });
-          syncWorldStateTo(conn);
-        } else {
-          sendAll({ t: 'house', state: HP.state, nextId: HP.nextId });
+        if (!isUnified) {
+          if (conn) conn.send({ t: 'house', state: HP.state, nextId: HP.nextId });
+          else sendAll({ t: 'house', state: HP.state, nextId: HP.nextId });
         }
+        if (conn) syncWorldStateTo(conn);
       }
     } else if (d.t === 'pos') {
       if (d.off) {
@@ -447,11 +447,15 @@
     } else if (d.t === 'emote') {
       applyEmote(peerId, d.emote);
     } else if (d.t === 'house' || d.t === 'state') {
+      // If unified sync is active, ignore state in sync3d to avoid duplicate rebuilds
+      if (HP.sync && HP.sync.conns && HP.sync.conns.length > 0) return;
       if (d.state) {
         notify('Synchronized house changes');
         HP.state = HP.migrate(d.state);
         HP.nextId = d.nextId || HP.nextId;
-        if (HP.world3d && HP.world3d.buildLevel) {
+        if (HP.request3DRebuild) {
+          HP.request3DRebuild(80);
+        } else if (HP.world3d && HP.world3d.buildLevel) {
           HP.invalidateRegions();
           HP.world3d.buildLevel();
         }

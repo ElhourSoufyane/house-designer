@@ -652,7 +652,7 @@ W3.buildLevel = function () {
   const cells = [];
   for (let y = 0; y < HP.GRID_H; y++) for (let x = 0; x < HP.GRID_W; x++) {
     if ((x * C < 0)) continue;
-    const id = regionFloorId(x, y, lvl);
+    const id = regionFloorId(x, y, lvl, regionOf);
     if (id && !inPool(x * C, y * C, x * C + C, y * C + C))
       cells.push({ x, y, id, in: regionOf[y * HP.GRID_W + x] >= 0 });
   }
@@ -822,12 +822,13 @@ W3.buildLevel = function () {
         { ax: 'x', dir: -1, from: p.x1 - 3, u0: p.z0 + 2, u1: p.z0 + 22, ap: [p.x1 + 12, p.z0 + 11] },
         { ax: 'x', dir: -1, from: p.x1 - 3, u0: p.z1 - 22, u1: p.z1 - 2, ap: [p.x1 + 12, p.z1 - 11] },
       ];
+      const nonPoolFootprints = (lvl.furniture || [])
+        .filter(it => !/pool$|pond/i.test(it.type))
+        .map(it => { const f = HP.footprint(it); return { x0: f.x * C - 8, x1: (f.x + f.w) * C + 8, z0: f.y * C - 8, z1: (f.y + f.h) * C + 8 }; });
       const clutter = (x, z) => {
         let s = 0;
-        for (const it of lvl.furniture) {
-          if (/pool$|pond/i.test(it.type)) continue;
-          const f = HP.footprint(it);
-          if (x > f.x * C - 8 && x < (f.x + f.w) * C + 8 && z > f.y * C - 8 && z < (f.y + f.h) * C + 8) s++;
+        for (const f of nonPoolFootprints) {
+          if (x > f.x0 && x < f.x1 && z > f.z0 && z < f.z1) s++;
         }
         for (const b of geo.boxes)
           if (b.y0 < 50 && x > b.x0 - 4 && x < b.x1 + 4 && z > b.z0 - 4 && z < b.z1 + 4) s++;
@@ -901,35 +902,50 @@ W3.buildLevel = function () {
   W3.movers = [];                                       // pushable furniture
   const models = HP.furniture3d ? HP.furniture3d.builder(g) : null;
   const lifeItems = [];
+
+  // Precompute footprints, item definitions, heights, and surface roles once (O(N) vs O(N^2))
+  const itemMeta = items.map(it => {
+    const d = HP.itemDef(it.type);
+    return {
+      it, d,
+      f: HP.footprint(it),
+      h: itemH3D(d, it),
+      isSurface: HP.isSurface(it)
+    };
+  });
+  const surfaceMeta = itemMeta.filter(m => m.isSurface);
+  const hostStructures = itemMeta.filter(m => /treehouse|greenhouse/i.test(m.it.type));
+
   items.forEach((it, i) => {
-    const d = HP.itemDef(it.type), f = HP.footprint(it);
-    const h = itemH3D(d, it);
+    const meta = itemMeta[i];
+    const d = meta.d, f = meta.f;
+    const h = meta.h;
     const c = (it.colors && it.colors[0]) || (d.colors && d.colors[0]) || '#999';
     let baseY = it._baseY !== undefined ? it._baseY : 0;
     const canSit = d.onTop || (HP.canSitOnSurface && HP.canSitOnSurface(it.type));
     if (canSit) {                                   // sit on the highest surface under it
       const cx = f.x + f.w / 2, cy = f.y + f.h / 2;
-      for (const o of items) {
-        if (o === it || !HP.isSurface(o)) continue;
-        const of = HP.footprint(o);
+      for (const sm of surfaceMeta) {
+        if (sm.it === it) continue;
+        const of = sm.f;
         if (cx >= of.x && cx < of.x + of.w && cy >= of.y && cy < of.y + of.h)
-          baseY = Math.max(baseY, itemH3D(HP.itemDef(o.type), o));
+          baseY = Math.max(baseY, sm.h);
       }
     }
     // Items placed inside treehouse or on greenhouse benches
-    if (it.type !== 'treehouse' && it.type !== 'greenhouse') {
+    if (it.type !== 'treehouse' && it.type !== 'greenhouse' && hostStructures.length > 0) {
       const cx = f.x + f.w / 2, cy = f.y + f.h / 2;
-      for (const o of items) {
-        if (o === it) continue;
-        const of = HP.footprint(o);
+      for (const hm of hostStructures) {
+        if (hm.it === it) continue;
+        const of = hm.f;
         if (cx >= of.x && cx < of.x + of.w && cy >= of.y && cy < of.y + of.h) {
-          if (/treehouse/i.test(o.type)) {
+          if (/treehouse/i.test(hm.it.type)) {
             baseY = Math.max(baseY, 54.0);
-          } else if (/greenhouse/i.test(o.type)) {
+          } else if (/greenhouse/i.test(hm.it.type)) {
             // Only elevate small tabletop items (d.onTop) if greenhouse is using default built-in benches
-            if (d.onTop && (!o.interior || !o.interior.customized)) {
+            if (d.onTop && (!hm.it.interior || !hm.it.interior.customized)) {
               const relX = (cx - (of.x + of.w / 2)) / of.w;
-              const ghH = itemH3D(HP.itemDef(o.type), o);
+              const ghH = hm.h;
               if (Math.abs(relX) > 0.20) baseY = Math.max(baseY, Math.round(ghH * 0.22));
             }
           }
@@ -1714,8 +1730,8 @@ function ceilQuad() {
   return W3._cq;
 }
 
-function regionFloorId(x, y, lvl) {
-  const { regionOf } = HP.computeRegions();
+function regionFloorId(x, y, lvl, regionOf) {
+  if (!regionOf) regionOf = HP.computeRegions().regionOf;
   if (x < 0 || y < 0 || x >= HP.GRID_W || y >= HP.GRID_H) return null;
   const mat = lvl.floors[x + ',' + y];
   if (regionOf[y * HP.GRID_W + x] < 0 && !mat) return null;   // bare outside = ground
