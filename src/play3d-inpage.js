@@ -158,7 +158,10 @@
 
     HP.in3D = true;
     const wrap = document.getElementById('view3d-wrap');
-    if (wrap) wrap.classList.remove('hidden');
+    if (wrap) {
+      wrap.classList.remove('hidden');
+      if (HP.graphics3d && HP.graphics3d.touch) wrap.classList.add('touch-controls');
+    }
 
     HP.init3D();
     HP.invalidateRegions();
@@ -181,6 +184,11 @@
     HP.in3D = false;
     if (HP.walk3d && HP.walk3d.pause) HP.walk3d.pause();
     if (HP.sound3d && HP.sound3d.suspend) HP.sound3d.suspend();
+
+    const name = (HP.sync && HP.sync.myName) || (HP.sync3d && HP.sync3d.myName) || 'Player';
+    if (HP.sync && HP.sync.sendAll) {
+      HP.sync.sendAll({ t: 'pos', off: true, name });
+    }
 
     if (document.exitPointerLock) {
       try { document.exitPointerLock(); } catch (e) {}

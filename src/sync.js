@@ -7,6 +7,16 @@
 const PREFIX = 'houseplan-';
 const LS_KEY = 'homeplanner_save_v1';
 const LS_BACKUP = 'homeplanner_solo_backup';
+const PEER_CONFIG = {
+  config: {
+    iceServers: [
+      { urls: 'stun:stun.l.google.com:19302' },
+      { urls: 'stun:stun1.l.google.com:19302' },
+      { urls: 'stun:stun2.l.google.com:19302' },
+      { urls: 'stun:stun.cloudflare.com:3478' }
+    ]
+  }
+};
 let peer = null, conns = [], mode = null, roomCode = null;
 let myName = localStorage.getItem('hd_name') || '';
 let rev = 0, applying = false, sendTimer = null, lastCursorSent = 0;
@@ -40,7 +50,13 @@ function coopStatus(txt, on) {
   }
 }
 
-function showPanel() { $('#coop-panel').classList.remove('hidden'); renderPanel(); }
+function showPanel() {
+  if (document.exitPointerLock) {
+    try { document.exitPointerLock(); } catch (e) {}
+  }
+  $('#coop-panel').classList.remove('hidden');
+  renderPanel();
+}
 function hidePanel() { $('#coop-panel').classList.add('hidden'); }
 
 function copyInvite() {
@@ -374,13 +390,13 @@ function applyState(msg, fromConn) {
   if (staticChanged) {
     HP.invalidateRegions();
   }
-  HP.refreshContext();
-  HP.markDirty();
+  if (HP.refreshContext) HP.refreshContext();
+  if (HP.markDirty) HP.markDirty();
   if (HP.updateFloorUI) HP.updateFloorUI();
   if (HP.invalidateBlocked) HP.invalidateBlocked();
   scheduleLSSave();
   applying = false;
-  if (HP.world3d && HP.world3d.scene && HP.world3d.levelGroup && HP.walk3d && HP.walk3d.started) {
+  if (HP.in3D && HP.world3d && HP.world3d.scene && HP.world3d.levelGroup) {
     HP.invalidateRegions();
     HP.world3d.buildLevel();
   }
@@ -495,8 +511,16 @@ function setupConn(c) {
   c.on('data', async raw => {
     const d = await unpackMsg(raw);
     if (!d || !d.t) return;
-    if (d.t === 'hello') { c.name = d.name; HP.status(d.name + ' joined the house'); setConnected(); }
-    else if (d.t === 'state') applyState(d, c);
+    if (d.t === 'hello') {
+      c.name = d.name;
+      HP.status(d.name + ' joined the house');
+      setConnected();
+      if (HP.sync3d && HP.sync3d.handleData) HP.sync3d.handleData(d, c);
+    }
+    else if (d.t === 'state') {
+      applyState(d, c);
+      if (HP.sync3d && HP.sync3d.handleData) HP.sync3d.handleData(d, c);
+    }
     else if (d.t === 'f_drag') {
       onRemoteDrag(d);
       if (mode === 'host') {
@@ -538,7 +562,7 @@ function hostGame(customCode) {
   roomCode = clean || mkCode();
   try { sessionStorage.setItem('hd_room', roomCode); } catch (e) {}
   HP.status('Creating room ' + roomCode + '…');
-  peer = new Peer(PREFIX + roomCode);             // claim the room code as our id
+  peer = new Peer(PREFIX + roomCode, PEER_CONFIG);             // claim the room code as our id
   peer.on('error', e => {
     if (e && e.type === 'unavailable-id') {
       if (clean) {
@@ -567,7 +591,7 @@ function joinGame(code, autoHostFallback) {
   roomCode = clean;
   try { sessionStorage.setItem('hd_room', roomCode); } catch (e) {}
   HP.status('Joining room ' + clean + '…');
-  peer = new Peer();
+  peer = new Peer(PEER_CONFIG);
   let retryCount = 0;
   peer.on('error', e => {
     const t = e && e.type;
@@ -689,7 +713,8 @@ HP.coop = {
   get conns() { return conns; },
   sendAll,
   host: hostGame,
-  join: joinGame
+  join: joinGame,
+  applyState
 };
 HP.sync = HP.coop;
 })();

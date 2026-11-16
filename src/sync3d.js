@@ -59,7 +59,8 @@
 
       ctx.fillStyle = 'rgba(15, 23, 42, 0.85)';
       ctx.beginPath();
-      ctx.roundRect(px, py, pw, ph, 13);
+      if (ctx.roundRect) ctx.roundRect(px, py, pw, ph, 13);
+      else ctx.rect(px, py, pw, ph);
       ctx.fill();
 
       ctx.strokeStyle = color || '#38bdf8';
@@ -241,9 +242,18 @@
 
   /* ---------- Scene Setup & Avatar Registration ---------- */
   function initScene(scene) {
+    if (!scene) return;
     if (!S3.avatarGroup) {
       S3.avatarGroup = new THREE.Group();
+      S3.avatarGroup.name = 'avatarGroup';
+    }
+    if (!scene.children.includes(S3.avatarGroup)) {
       scene.add(S3.avatarGroup);
+    }
+    for (const [_, p] of S3.peers) {
+      if (p.avatar && p.avatar.root && !S3.avatarGroup.children.includes(p.avatar.root)) {
+        S3.avatarGroup.add(p.avatar.root);
+      }
     }
   }
 
@@ -254,10 +264,15 @@
         p.name = name;
         if (p.avatar && p.avatar.nameplate) p.avatar.nameplate.redraw(p.emote, name);
       }
+      if (S3.avatarGroup && p.avatar && p.avatar.root && !S3.avatarGroup.children.includes(p.avatar.root)) {
+        S3.avatarGroup.add(p.avatar.root);
+      }
       return p;
     }
     const avatar = buildAvatar(name || 'Partner');
-    if (S3.avatarGroup) S3.avatarGroup.add(avatar.root);
+    if (S3.avatarGroup && !S3.avatarGroup.children.includes(avatar.root)) {
+      S3.avatarGroup.add(avatar.root);
+    }
 
     const record = {
       peerId,
@@ -286,9 +301,15 @@
 
   /* ---------- Position & Animation Tick ---------- */
   function tick(dt, now, camera) {
+    if (HP.world3d && HP.world3d.scene && (!S3.avatarGroup || !HP.world3d.scene.children.includes(S3.avatarGroup))) {
+      initScene(HP.world3d.scene);
+    }
     for (const [peerId, p] of S3.peers) {
       const cur = p.current, tgt = p.target, av = p.avatar;
       if (!av) continue;
+      if (S3.avatarGroup && av.root && !S3.avatarGroup.children.includes(av.root)) {
+        S3.avatarGroup.add(av.root);
+      }
 
       // Smooth Lerp Position & Yaw
       const lerpFactor = Math.min(1.0, dt * 14.0);
@@ -381,6 +402,10 @@
         }
       }
     } else if (d.t === 'pos') {
+      if (d.off) {
+        removePeer(peerId);
+        return;
+      }
       const p = getOrCreatePeer(peerId, d.name || (conn && conn.name));
       const posZ = d.z !== undefined ? d.z : (d.py2d !== undefined ? d.py2d : d.y);
       const posY = d.y !== undefined && d.z !== undefined ? d.y : 32;
@@ -853,7 +878,8 @@
     // Position Broadcast Loop (20Hz)
     setInterval(() => {
       const hasConns = (HP.sync && HP.sync.conns && HP.sync.conns.length) || S3.conns.length;
-      if (!hasConns || !walk3d || !walk3d.playerPos || !walk3d.started) return;
+      const is3D = HP.in3D || (walk3d && walk3d.started && !walk3d.paused);
+      if (!hasConns || !walk3d || !walk3d.playerPos || !is3D) return;
       const pos = walk3d.playerPos();
       if (!pos || (pos.x === 0 && pos.z === 0)) return;
       const name = S3.myName || (HP.sync && HP.sync.myName) || localStorage.getItem(LS_NAME) || 'Player';

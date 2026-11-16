@@ -219,6 +219,14 @@ K.resume = function (spawn) {
   if (HP.sound3d) HP.sound3d.start();
 };
 K.isPaused = () => paused;
+Object.defineProperty(K, 'started', {
+  get: () => started,
+  set: (v) => { started = !!v; }
+});
+Object.defineProperty(K, 'paused', {
+  get: () => paused,
+  set: (v) => { paused = !!v; }
+});
 
 K.boot = function () {
   el.canvas   = document.getElementById('gl');

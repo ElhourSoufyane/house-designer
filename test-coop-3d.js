@@ -38,7 +38,7 @@ globalThis.document = {
           font: '', textAlign: '', textBaseline: '', fillStyle: '', strokeStyle: '', lineWidth: 1,
           measureText: (txt) => ({ width: (txt || '').length * 7 }),
           clearRect: () => {}, fillRect: () => {}, strokeRect: () => {},
-          beginPath: () => {}, arc: () => {}, ellipse: () => {}, fill: () => {}, stroke: () => {},
+          beginPath: () => {}, arc: () => {}, ellipse: () => {}, roundRect: () => {}, rect: () => {}, fill: () => {}, stroke: () => {}, fillText: () => {}, strokeText: () => {},
           save: () => {}, restore: () => {}, translate: () => {}, rotate: () => {},
           moveTo: () => {}, lineTo: () => {}, closePath: () => {}
         }),
@@ -214,6 +214,34 @@ async function run() {
     console.error(err);
   }
   assert('HP.drawPeerCursors executes with 0 errors', drawSuccess);
+
+  // 9. Test walk3d.started and 3D Avatar attachment
+  assert('HP.walk3d.started is a boolean property', typeof HP.walk3d.started === 'boolean');
+  HP.walk3d.started = true;
+  assert('HP.walk3d.started is true when set', HP.walk3d.started === true);
+
+  // Test avatar attachment when peer data arrives
+  HP.world3d.scene = new THREE.Scene();
+  HP.sync3d.handleData(pos3dMsg, dummyConn);
+  const peerRecord = HP.sync3d.peers.get('partner-1');
+  assert('Peer record exists in sync3d.peers', !!peerRecord);
+  assert('Peer avatar root exists', !!peerRecord?.avatar?.root);
+
+  // Tick sync3d to re-attach to scene
+  HP.sync3d.tick(0.016, 1.0, HP.world3d.camera);
+  assert('AvatarGroup exists and is added to scene', !!HP.sync3d.avatarGroup && HP.world3d.scene.children.includes(HP.sync3d.avatarGroup));
+  assert('Peer avatar is child of avatarGroup', HP.sync3d.avatarGroup.children.includes(peerRecord.avatar.root));
+
+  // 10. Test live 3D rebuild on state update
+  let buildCalled = false;
+  const origBuild = HP.world3d.buildLevel;
+  HP.world3d.buildLevel = () => { buildCalled = true; };
+  HP.in3D = true;
+  HP.world3d.levelGroup = new THREE.Group();
+  // Simulate receiving remote state
+  HP.sync.applyState({ t: 'state', rev: Date.now(), origin: 'partner-1', state: HP.state, nextId: 100 }, dummyConn);
+  assert('Live 3D buildLevel is triggered on remote state update', buildCalled === true);
+  HP.world3d.buildLevel = origBuild;
 
   console.log(`\nResults: ${pass} passed, ${fail} failed.`);
   if (fail > 0) process.exit(1);

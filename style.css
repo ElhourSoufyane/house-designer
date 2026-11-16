@@ -427,9 +427,9 @@ button { font-family: inherit; color: inherit; }
 .panel-btn:active { transform: translate(2px,2px); box-shadow: none; }
 /* ---------- co-op panel ---------- */
 #coop-panel {
-  position: absolute; top: 12px; right: 12px; width: min(280px, 84vw);
+  position: fixed; top: 12px; right: 12px; width: min(280px, 84vw);
   background: var(--panel); border: 1px solid var(--border); border-radius: 12px;
-  box-shadow: var(--sh-lg); z-index: 30; overflow: hidden;
+  box-shadow: var(--sh-lg); z-index: 10000; overflow: hidden;
 }
 #coop-panel.hidden { display: none; }
 .coop-head {

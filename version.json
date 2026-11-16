@@ -1,7 +1,7 @@
 {
   "version": "1.3.5",
-  "build": 1794850449226,
-  "updatedAt": "2026-11-16T17:34:09.226Z",
+  "build": 1794852045173,
+  "updatedAt": "2026-11-16T18:00:45.173Z",
   "notes": "Unified 2D and 3D in-page co-op: never disconnect on 3D walk, see partner avatar live on 2D blueprint, live 2D to 3D editing, and synchronized door pushes, multi-casement windows, lights, and global time",
   "files": [
     "version.json",
@@ -40,7 +40,7 @@
   "hashes": {
     "index.html": "832d28358902",
     "play3d.html": "e4de3893ac0e",
-    "style.css": "bb2ca81846f0",
+    "style.css": "be5fcd41cfb5",
     "manifest.json": "6b5cec7e7507",
     "sw.js": "38f6050802f8",
     "preload.js": "973817e1676f",
@@ -61,13 +61,13 @@
     "src/sky3d.js": "8af065653512",
     "src/sound3d.js": "87ccdcca263a",
     "src/sprites.js": "d37ab2c1fb61",
-    "src/sync.js": "2c1ff11b9c29",
-    "src/sync3d.js": "c33877ec83a7",
+    "src/sync.js": "ba6202a1a5b5",
+    "src/sync3d.js": "5f91ba87a85d",
     "src/tools.js": "1735f3d5ed33",
     "src/ui.js": "94ebe1081b8b",
     "src/walk.js": "601b8eee0012",
-    "src/walk3d.js": "ab092c20e6cf",
+    "src/walk3d.js": "f6b4795c8978",
     "src/world3d.js": "dc90c5a12d2f",
-    "src/play3d-inpage.js": "0f7e817a9589"
+    "src/play3d-inpage.js": "4c0107f5281f"
   }
 }
