@@ -1,7 +1,8 @@
 // electron-main.js — Native Desktop Host for House Designer
-const { app, BrowserWindow, Menu, shell } = require('electron');
+const { app, BrowserWindow, Menu, shell, ipcMain } = require('electron');
 const path = require('path');
 const fs = require('fs');
+const https = require('https');
 
 // Enable modern GPU & WebGL hardware acceleration
 app.commandLine.appendSwitch('enable-gpu-rasterization');
@@ -59,6 +60,7 @@ function createWindow() {
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,
+      preload: path.join(__dirname, 'preload.js'),
       webgl: true,
       spellcheck: false
     }
@@ -100,6 +102,90 @@ function createWindow() {
   // Load the app directly from local files
   mainWindow.loadFile(path.join(__dirname, 'index.html'));
 }
+
+function downloadFile(url, destPath) {
+  return new Promise((resolve, reject) => {
+    const dir = path.dirname(destPath);
+    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+
+    const req = https.get(url, (res) => {
+      if (res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
+        return downloadFile(res.headers.location, destPath).then(resolve).catch(reject);
+      }
+      if (res.statusCode !== 200) {
+        return reject(new Error(`HTTP ${res.statusCode} for ${url}`));
+      }
+      const fileStream = fs.createWriteStream(destPath);
+      res.pipe(fileStream);
+      fileStream.on('finish', () => {
+        fileStream.close(() => resolve(true));
+      });
+      fileStream.on('error', (err) => {
+        fs.unlink(destPath, () => {});
+        reject(err);
+      });
+    });
+    req.on('error', reject);
+    req.setTimeout(12000, () => {
+      req.destroy();
+      reject(new Error(`Timeout downloading ${url}`));
+    });
+  });
+}
+
+// In-app updater for standalone desktop application
+ipcMain.handle('apply-update', async (event) => {
+  const baseUrl = 'https://elhoursoufyane.github.io/housedesigner/';
+  try {
+    const vRes = await new Promise((resolve, reject) => {
+      https.get(`${baseUrl}version.json?_t=${Date.now()}`, (res) => {
+        let body = '';
+        res.on('data', chunk => body += chunk);
+        res.on('end', () => {
+          try { resolve(JSON.parse(body)); } catch (e) { reject(e); }
+        });
+      }).on('error', reject);
+    });
+
+    const fileList = vRes.files || [
+      'version.json', 'index.html', 'play3d.html', 'style.css', 'manifest.json', 'sw.js',
+      'src/catalog.js', 'src/cull3d.js', 'src/default-house.js', 'src/furniture3d.js',
+      'src/geom3d.js', 'src/graphics3d.js', 'src/grid.js', 'src/input.js', 'src/life3d.js',
+      'src/main.js', 'src/presets.js', 'src/rooms.js', 'src/save.js', 'src/sky3d.js',
+      'src/sound3d.js', 'src/sprites.js', 'src/sync.js', 'src/sync3d.js', 'src/tools.js',
+      'src/ui.js', 'src/walk.js', 'src/walk3d.js', 'src/world3d.js'
+    ];
+
+    const total = fileList.length;
+    for (let i = 0; i < total; i++) {
+      const relPath = fileList[i];
+      const fileUrl = `${baseUrl}${relPath}?_t=${Date.now()}`;
+      const destPath = path.join(__dirname, relPath);
+      event.sender.send('update-progress', {
+        current: i + 1,
+        total,
+        percent: Math.round(((i + 1) / total) * 100),
+        file: relPath
+      });
+      await downloadFile(fileUrl, destPath);
+    }
+
+    setTimeout(() => {
+      if (mainWindow) mainWindow.reload();
+    }, 600);
+
+    return { success: true, version: vRes.version };
+  } catch (err) {
+    console.error('Update failed:', err);
+    return { success: false, error: err.message };
+  }
+});
+
+ipcMain.handle('open-external', (event, url) => {
+  if (url && (url.startsWith('https://') || url.startsWith('http://'))) {
+    shell.openExternal(url);
+  }
+});
 
 app.on('second-instance', () => {
   if (mainWindow) {

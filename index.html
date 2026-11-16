@@ -298,17 +298,22 @@
 <script src="src/sync.js?v=1794093466650"></script>
 <script>
 (async function initAppLifecycle() {
+  const CURRENT_VERSION = '1.3.0';
+  const CURRENT_BUILD = 1794846000000;
+
   const splash = document.getElementById('splash-screen');
   const bar = document.getElementById('splash-progress');
   const status = document.getElementById('splash-status');
   const verBadge = document.getElementById('btn-ver');
+
+  if (verBadge) verBadge.textContent = `v${CURRENT_VERSION} ✓`;
 
   function setProgress(pct, text) {
     if (bar) bar.style.width = pct + '%';
     if (status && text) status.textContent = text;
   }
 
-  // Register & listen to serviceWorker
+  // Register & listen to serviceWorker (for web/PWA mode)
   let swUpdated = false;
   if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
     navigator.serviceWorker.addEventListener('controllerchange', () => {
@@ -323,42 +328,162 @@
     } catch(e) {}
   }
 
-  // Verify updates via version.json
+  function showUpdateModal(info) {
+    if (splash) {
+      splash.classList.add('fade-out');
+      setTimeout(() => splash.remove(), 450);
+    }
+    const existing = document.getElementById('update-modal');
+    if (existing) existing.remove();
+
+    const isDesktop = !!(window.electronAPI && window.electronAPI.applyUpdate);
+
+    const modal = document.createElement('div');
+    modal.id = 'update-modal';
+    modal.className = 'update-modal-backdrop';
+    modal.innerHTML = `
+      <div class="update-modal-card">
+        <div class="update-modal-header">
+          <div class="update-modal-badge">✨ NEW UPDATE AVAILABLE</div>
+          <button class="update-modal-close" id="btn-update-dismiss" title="Close">✕</button>
+        </div>
+        <h3 class="update-modal-title">House Designer v${info.version}</h3>
+        <p class="update-modal-notes">${info.notes || 'A new update is available with improvements and new features.'}</p>
+        <div id="update-action-area" class="update-action-area">
+          ${isDesktop ? `
+            <button class="update-btn-primary" id="btn-apply-update">⚡ Update Now & Restart</button>
+            <button class="update-btn-secondary" id="btn-open-release">View GitHub Release</button>
+          ` : `
+            <button class="update-btn-primary" id="btn-reload-update">⚡ Apply & Reload</button>
+            <button class="update-btn-secondary" id="btn-open-release">View Release Notes</button>
+          `}
+        </div>
+        <div id="update-progress-bar" style="display:none; margin-top:14px;">
+          <div class="update-progress-track">
+            <div id="update-progress-fill" class="update-progress-fill" style="width:0%"></div>
+          </div>
+          <div id="update-progress-label" class="update-progress-label">Preparing download...</div>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(modal);
+
+    document.getElementById('btn-update-dismiss').onclick = () => modal.remove();
+
+    const openReleaseBtn = document.getElementById('btn-open-release');
+    if (openReleaseBtn) {
+      openReleaseBtn.onclick = () => {
+        const url = 'https://github.com/ElhourSoufyane/housedesigner/releases/latest';
+        if (window.electronAPI && window.electronAPI.openExternal) {
+          window.electronAPI.openExternal(url);
+        } else {
+          window.open(url, '_blank');
+        }
+      };
+    }
+
+    const reloadBtn = document.getElementById('btn-reload-update');
+    if (reloadBtn) {
+      reloadBtn.onclick = async () => {
+        reloadBtn.disabled = true;
+        reloadBtn.textContent = 'Updating...';
+        if ('caches' in window) {
+          const keys = await caches.keys();
+          await Promise.all(keys.map(k => caches.delete(k)));
+        }
+        location.reload();
+      };
+    }
+
+    const applyBtn = document.getElementById('btn-apply-update');
+    if (applyBtn && isDesktop) {
+      applyBtn.onclick = async () => {
+        applyBtn.style.display = 'none';
+        if (openReleaseBtn) openReleaseBtn.style.display = 'none';
+        const pBar = document.getElementById('update-progress-bar');
+        const pFill = document.getElementById('update-progress-fill');
+        const pLabel = document.getElementById('update-progress-label');
+        if (pBar) pBar.style.display = 'block';
+
+        window.electronAPI.onUpdateProgress((data) => {
+          if (pFill) pFill.style.width = data.percent + '%';
+          if (pLabel) pLabel.textContent = `Downloading ${data.file} (${data.percent}%)...`;
+        });
+
+        const res = await window.electronAPI.applyUpdate();
+        if (res && !res.success) {
+          alert('Update failed: ' + res.error + '\nYou can download the update manually from GitHub Releases.');
+          if (pBar) pBar.style.display = 'none';
+          applyBtn.style.display = 'inline-block';
+          if (openReleaseBtn) openReleaseBtn.style.display = 'inline-block';
+        }
+      };
+    }
+  }
+
+  // Check remote update endpoint
   async function checkForUpdate(manual) {
     setProgress(35, 'Checking for updates...');
+    let lastFoundInfo = null;
+
     try {
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 1800);
-      const res = await fetch('./version.json?_t=' + Date.now(), {
-        cache: 'no-store',
-        signal: controller.signal
-      });
+      const timeoutId = setTimeout(() => controller.abort(), 2600);
+      let res;
+      try {
+        res = await fetch('https://elhoursoufyane.github.io/housedesigner/version.json?_t=' + Date.now(), {
+          cache: 'no-store',
+          signal: controller.signal
+        });
+      } catch (netErr) {
+        // Fallback to GitHub raw
+        res = await fetch('https://raw.githubusercontent.com/ElhourSoufyane/housedesigner/main/version.json?_t=' + Date.now(), {
+          cache: 'no-store',
+          signal: controller.signal
+        });
+      }
       clearTimeout(timeoutId);
 
-      if (res.ok) {
+      if (res && res.ok) {
         const info = await res.json();
-        const localBuild = localStorage.getItem('hd_installed_build');
-        if (verBadge) verBadge.textContent = `v${info.version} ✓`;
+        lastFoundInfo = info;
+        const hasUpdate = (info.build && Number(info.build) > CURRENT_BUILD) || (info.version && info.version !== CURRENT_VERSION);
 
-        if (localBuild && Number(localBuild) < info.build) {
-          setProgress(85, `Update found! Updating to v${info.version}...`);
-          localStorage.setItem('hd_installed_build', String(info.build));
-          if ('caches' in window) {
-            const keys = await caches.keys();
-            await Promise.all(keys.map(k => caches.delete(k)));
+        if (hasUpdate) {
+          // If running on web (GitHub Pages / PWA), auto-update cache & reload
+          if (location.protocol.startsWith('http') && !location.hostname.includes('localhost')) {
+            setProgress(85, `Update found! Updating to v${info.version}...`);
+            if ('caches' in window) {
+              const keys = await caches.keys();
+              await Promise.all(keys.map(k => caches.delete(k)));
+            }
+            setTimeout(() => location.reload(), 450);
+            return;
           }
-          setTimeout(() => location.reload(), 400);
+
+          // Desktop Electron / file: protocol
+          setProgress(100, `Update v${info.version} available!`);
+          if (verBadge) {
+            verBadge.textContent = `v${CURRENT_VERSION} ➜ v${info.version} Ready!`;
+            verBadge.classList.add('badge-update-pulse');
+            verBadge.onclick = () => showUpdateModal(info);
+          }
+          showUpdateModal(info);
           return;
         }
-        localStorage.setItem('hd_installed_build', String(info.build));
-        setProgress(100, `Up to date (v${info.version})`);
-        if (manual) alert(`House Designer is up to date! (v${info.version})`);
+
+        setProgress(100, `Up to date (v${CURRENT_VERSION})`);
+        if (verBadge) {
+          verBadge.textContent = `v${CURRENT_VERSION} ✓`;
+          verBadge.classList.remove('badge-update-pulse');
+        }
+        if (manual) alert(`House Designer is up to date! (v${CURRENT_VERSION})`);
       } else {
-        setProgress(100, 'Ready');
+        setProgress(100, `Ready (v${CURRENT_VERSION})`);
       }
     } catch(e) {
-      setProgress(100, 'Ready (Offline mode)');
-      if (manual) alert('You are currently offline or cannot reach update server.');
+      setProgress(100, `Ready (v${CURRENT_VERSION} · Offline mode)`);
+      if (manual) alert('You are currently offline or cannot reach the update server.');
     }
 
     setTimeout(() => {

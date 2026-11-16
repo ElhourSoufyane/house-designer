@@ -32,6 +32,7 @@ function copyFile(name) {
 // Copy essential app files
 const files = [
   'electron-main.js',
+  'preload.js',
   'index.html',
   'play3d.html',
   'style.css',
