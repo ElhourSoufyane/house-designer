@@ -553,7 +553,15 @@
               const keys = await caches.keys();
               await Promise.all(keys.map(k => caches.delete(k)));
             }
-            setTimeout(() => location.reload(), 450);
+            if ('serviceWorker' in navigator) {
+              try {
+                const regs = await navigator.serviceWorker.getRegistrations();
+                for (const reg of regs) await reg.unregister();
+              } catch (e) {}
+            }
+            setTimeout(() => {
+              location.href = location.origin + location.pathname + '?_v=' + (info.build || Date.now());
+            }, 300);
             return;
           }
 
