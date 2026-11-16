@@ -1,7 +1,7 @@
 {
   "version": "1.3.5",
-  "build": 1794849910788,
-  "updatedAt": "2026-11-16T17:25:10.788Z",
+  "build": 1794850449226,
+  "updatedAt": "2026-11-16T17:34:09.226Z",
   "notes": "Unified 2D and 3D in-page co-op: never disconnect on 3D walk, see partner avatar live on 2D blueprint, live 2D to 3D editing, and synchronized door pushes, multi-casement windows, lights, and global time",
   "files": [
     "version.json",
@@ -38,12 +38,11 @@
     "src/play3d-inpage.js"
   ],
   "hashes": {
-    "version.json": "0887ef464443",
-    "index.html": "4868785c8dfd",
+    "index.html": "832d28358902",
     "play3d.html": "e4de3893ac0e",
     "style.css": "bb2ca81846f0",
     "manifest.json": "6b5cec7e7507",
-    "sw.js": "5705f629be63",
+    "sw.js": "38f6050802f8",
     "preload.js": "973817e1676f",
     "electron-main.js": "3a0deab95aad",
     "src/catalog.js": "60cffe928a65",

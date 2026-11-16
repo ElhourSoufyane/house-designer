@@ -85,8 +85,11 @@ self.addEventListener('fetch', event => {
 
   if (event.request.method !== 'GET') return;
 
+  const isNav = event.request.mode === 'navigate';
+  const fetchOpts = isNav ? { cache: 'no-cache' } : {};
+
   event.respondWith(
-    fetch(event.request)
+    fetch(event.request, fetchOpts)
       .then(response => {
         if (response && response.status === 200 && (response.type === 'basic' || response.type === 'cors')) {
           const copy = response.clone();
@@ -97,7 +100,7 @@ self.addEventListener('fetch', event => {
       .catch(() => {
         return caches.match(event.request, { ignoreSearch: true }).then(cached => {
           if (cached) return cached;
-          if (event.request.mode === 'navigate') {
+          if (isNav) {
             return caches.match('./index.html');
           }
           return new Response('Offline and not cached', { status: 503, statusText: 'Offline' });
