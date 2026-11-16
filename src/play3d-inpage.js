@@ -150,6 +150,19 @@
     }
   };
 
+  let rebuildTimer = null;
+  HP.request3DRebuild = function (delay = 35) {
+    if (!HP.in3D || !HP.world3d || !HP.world3d.scene || !HP.world3d.levelGroup) return;
+    if (rebuildTimer) clearTimeout(rebuildTimer);
+    rebuildTimer = setTimeout(() => {
+      rebuildTimer = null;
+      if (HP.in3D && HP.world3d) {
+        HP.invalidateRegions();
+        HP.world3d.buildLevel();
+      }
+    }, delay);
+  };
+
   HP.enter3D = function (targetSpawn) {
     if (HP.editingInterior) HP.exitInterior();
     try {

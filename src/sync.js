@@ -136,11 +136,12 @@ function scheduleLSSave() {
 }
 
 /* ---------- state broadcast (hooked into saveState) ---------- */
-/* Only gzip very large payloads (>1500 chars) — cursors, positions and deltas flow raw */
+/* Only gzip very large payloads (>1500 chars) — cursors, positions and deltas flow raw and synchronous */
 async function packMsg(obj) {
-  const s = JSON.stringify(obj);
-  if (s.length < 1500 || !window.CompressionStream) return obj;
+  if (!obj || obj.t !== 'state' || !window.CompressionStream) return obj;
   try {
+    const s = JSON.stringify(obj);
+    if (s.length < 1500) return obj;
     const buf = await new Response(
       new Blob([s]).stream().pipeThrough(new CompressionStream('gzip'))
     ).arrayBuffer();
@@ -160,8 +161,17 @@ async function unpackMsg(d) {
     return null;
   }
 }
-async function sendTo(c, obj) {
-  try { c.send(await packMsg(obj)); } catch (e) {}
+function sendTo(c, obj) {
+  try {
+    if (!c || !c.open) return;
+    if (obj && obj.t === 'state' && window.CompressionStream) {
+      packMsg(obj).then(packed => {
+        try { if (c.open) c.send(packed); } catch(e) {}
+      });
+    } else {
+      c.send(obj);
+    }
+  } catch (e) {}
 }
 function sendAll(obj) { for (const c of conns) sendTo(c, obj); }
 
@@ -193,17 +203,19 @@ function onRemoteDrag(d) {
 }
 
 let lastSentSnap = '';
-function broadcastState() {
+function broadcastState(immediate = false) {
   if (applying || !conns.length) return;
   if (lastSentSnap === HP.snap()) return;         // nothing new — stops apply→broadcast ping-pong
   clearTimeout(sendTimer);
-  sendTimer = setTimeout(() => {
+  const doSend = () => {
     rev = Date.now();
     stampOwners();
     stampDelta();                                 // stamp entities we changed since last send
     lastSentSnap = HP.snap();
     sendAll({ t: 'state', rev, origin: peer && peer.id, state: HP.state, stamps, nextId: HP.nextId });
-  }, 90);
+  };
+  if (immediate) doSend();
+  else sendTimer = setTimeout(doSend, 20);
 }
 const _saveState = HP.saveState;
 HP.saveState = function () { _saveState(); broadcastState(); };
@@ -396,15 +408,21 @@ function applyState(msg, fromConn) {
   if (HP.invalidateBlocked) HP.invalidateBlocked();
   scheduleLSSave();
   applying = false;
-  if (HP.in3D && HP.world3d && HP.world3d.scene && HP.world3d.levelGroup) {
+  lastSentSnap = HP.snap();
+  lastSentState = JSON.parse(JSON.stringify(HP.state));
+
+  // Coalesced 3D rebuild (35ms debounce): never freeze frames on incoming edits!
+  if (HP.in3D && HP.request3DRebuild) {
+    HP.request3DRebuild(35);
+  } else if (HP.in3D && HP.world3d && HP.world3d.scene && HP.world3d.levelGroup) {
     HP.invalidateRegions();
     HP.world3d.buildLevel();
   }
-  /* converged rebroadcast: if the merge produced a state different from what we
-     last sent (e.g. simultaneous same-item edits), send it so both sides settle */
-  broadcastState();
-  if (mode === 'host')                           // star: relay to the other guests
+
+  // Star topology: only relay to OTHER guests if host, NEVER echo back to sender!
+  if (mode === 'host') {
     for (const c of conns) if (c !== fromConn) { try { c.send(msg); } catch (e) {} }
+  }
 }
 
 /* ---------- live cursors ---------- */
@@ -509,7 +527,7 @@ function setupConn(c) {
     HP.status('Co-op connected — you are building together now');
   });
   c.on('data', async raw => {
-    const d = await unpackMsg(raw);
+    const d = (raw && raw.t === 'z') ? await unpackMsg(raw) : raw;
     if (!d || !d.t) return;
     if (d.t === 'hello') {
       c.name = d.name;

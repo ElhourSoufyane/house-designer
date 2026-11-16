@@ -875,13 +875,38 @@
 
     initScene(world3d.scene);
 
-    // Position Broadcast Loop (20Hz)
+    // Position Broadcast Loop (20Hz max, filtered on movement)
+    let lastSent = { x: 0, y: 0, z: 0, yaw: 0, pitch: 0, s: 0, time: 0 };
     setInterval(() => {
       const hasConns = (HP.sync && HP.sync.conns && HP.sync.conns.length) || S3.conns.length;
       const is3D = HP.in3D || (walk3d && walk3d.started && !walk3d.paused);
       if (!hasConns || !walk3d || !walk3d.playerPos || !is3D) return;
       const pos = walk3d.playerPos();
       if (!pos || (pos.x === 0 && pos.z === 0)) return;
+
+      const now = performance.now();
+      const sitting = pos.sitting ? 1 : 0;
+      const dx = Math.abs(pos.x - lastSent.x);
+      const dy = Math.abs(pos.y - lastSent.y);
+      const dz = Math.abs(pos.z - lastSent.z);
+      const dyaw = Math.abs(pos.yaw - lastSent.yaw);
+      const dpitch = Math.abs(pos.pitch - lastSent.pitch);
+      const ds = sitting !== lastSent.s;
+      const timeSince = now - lastSent.time;
+
+      const moved = dx > 0.2 || dy > 0.3 || dz > 0.2 || dyaw > 0.03 || dpitch > 0.05 || ds || (pos.speed && pos.speed > 0.5);
+
+      // If standing still, send a heartbeat once every 1200ms instead of 20 times a second
+      if (!moved && timeSince < 1200) return;
+
+      lastSent.x = pos.x;
+      lastSent.y = pos.y;
+      lastSent.z = pos.z;
+      lastSent.yaw = pos.yaw;
+      lastSent.pitch = pos.pitch;
+      lastSent.s = sitting;
+      lastSent.time = now;
+
       const name = S3.myName || (HP.sync && HP.sync.myName) || localStorage.getItem(LS_NAME) || 'Player';
       const msg = {
         t: 'pos',
@@ -891,7 +916,7 @@
         py2d: Math.round(pos.z * 10) / 10,
         yaw: Math.round(pos.yaw * 100) / 100,
         pitch: Math.round(pos.pitch * 100) / 100,
-        s: pos.sitting ? 1 : 0,
+        s: sitting,
         v: Math.round((pos.speed || 0) * 10) / 10,
         name,
         in3d: true,
