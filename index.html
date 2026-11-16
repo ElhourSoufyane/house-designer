@@ -115,9 +115,26 @@
   </defs>
 </svg>
 
+<!-- APP LAUNCH SPLASH & UPDATE VERIFIER -->
+<div id="splash-screen">
+  <div class="splash-card">
+    <div class="splash-logo-wrap">
+      <img src="assets/icon-192.png" width="88" height="88" class="splash-logo" alt="House Designer logo">
+      <div class="splash-glow"></div>
+    </div>
+    <h1 class="splash-title">House Designer</h1>
+    <p class="splash-sub">2D & 3D Architectural Home Planner</p>
+    
+    <div class="splash-bar-outer">
+      <div class="splash-bar-inner" id="splash-progress"></div>
+    </div>
+    <div class="splash-status" id="splash-status">Initializing engine...</div>
+  </div>
+</div>
+
 <!-- TOP BAR -->
 <header class="topbar">
-  <div class="logo"><svg class="ic"><use href="#i-logo"/></svg>House<span>Designer</span></div>
+  <div class="logo"><svg class="ic"><use href="#i-logo"/></svg>House<span>Designer</span> <span class="ver-badge" id="btn-ver" title="Check for updates">v1.1.0 ✓</span></div>
   <button class="tbtn" id="btn-new">New</button>
   <button class="tbtn" id="btn-save" title="Download house as a backup file">Save</button>
   <button class="tbtn" id="btn-export">Export</button>
@@ -272,17 +289,84 @@
 <script src="src/main.js?v=1794093466650"></script>
 <script src="src/sync.js?v=1794093466650"></script>
 <script>
-if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
-  let refreshing = false;
-  navigator.serviceWorker.addEventListener('controllerchange', () => {
-    if (!refreshing) { refreshing = true; location.reload(); }
-  });
-  window.addEventListener('load', () => {
-    navigator.serviceWorker.register('./sw.js').then(reg => {
-      reg.update();
-    }).catch(() => {});
-  });
-}
+(async function initAppLifecycle() {
+  const splash = document.getElementById('splash-screen');
+  const bar = document.getElementById('splash-progress');
+  const status = document.getElementById('splash-status');
+  const verBadge = document.getElementById('btn-ver');
+
+  function setProgress(pct, text) {
+    if (bar) bar.style.width = pct + '%';
+    if (status && text) status.textContent = text;
+  }
+
+  // Register & listen to serviceWorker
+  let swUpdated = false;
+  if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
+    navigator.serviceWorker.addEventListener('controllerchange', () => {
+      if (!swUpdated) {
+        swUpdated = true;
+        location.reload();
+      }
+    });
+    try {
+      const reg = await navigator.serviceWorker.register('./sw.js');
+      if (reg) reg.update();
+    } catch(e) {}
+  }
+
+  // Verify updates via version.json
+  async function checkForUpdate(manual) {
+    setProgress(35, 'Checking for updates...');
+    try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 1800);
+      const res = await fetch('./version.json?_t=' + Date.now(), {
+        cache: 'no-store',
+        signal: controller.signal
+      });
+      clearTimeout(timeoutId);
+
+      if (res.ok) {
+        const info = await res.json();
+        const localBuild = localStorage.getItem('hd_installed_build');
+        if (verBadge) verBadge.textContent = `v${info.version} ✓`;
+
+        if (localBuild && Number(localBuild) < info.build) {
+          setProgress(85, `Update found! Updating to v${info.version}...`);
+          localStorage.setItem('hd_installed_build', String(info.build));
+          if ('caches' in window) {
+            const keys = await caches.keys();
+            await Promise.all(keys.map(k => caches.delete(k)));
+          }
+          setTimeout(() => location.reload(), 400);
+          return;
+        }
+        localStorage.setItem('hd_installed_build', String(info.build));
+        setProgress(100, `Up to date (v${info.version})`);
+        if (manual) alert(`House Designer is up to date! (v${info.version})`);
+      } else {
+        setProgress(100, 'Ready');
+      }
+    } catch(e) {
+      setProgress(100, 'Ready (Offline mode)');
+      if (manual) alert('You are currently offline or cannot reach update server.');
+    }
+
+    setTimeout(() => {
+      if (splash) {
+        splash.classList.add('fade-out');
+        setTimeout(() => splash.remove(), 450);
+      }
+    }, 450);
+  }
+
+  if (verBadge) {
+    verBadge.onclick = () => checkForUpdate(true);
+  }
+
+  checkForUpdate(false);
+})();
 </script>
 </body>
 </html>

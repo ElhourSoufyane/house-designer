@@ -59,6 +59,18 @@ self.addEventListener('activate', event => {
 });
 
 self.addEventListener('fetch', event => {
+  // Always fetch version.json fresh from network for instant update verification
+  if (event.request.url.includes('version.json')) {
+    event.respondWith(
+      fetch(event.request, { cache: 'no-store' }).catch(() => {
+        return new Response(JSON.stringify({ version: '1.1.0', offline: true }), {
+          headers: { 'Content-Type': 'application/json' }
+        });
+      })
+    );
+    return;
+  }
+
   if (event.request.method === 'HEAD') {
     event.respondWith(
       fetch(event.request).catch(async () => {

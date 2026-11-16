@@ -36,6 +36,7 @@ const files = [
   'play3d.html',
   'style.css',
   'manifest.json',
+  'version.json',
   'sw.js',
   'my-house.house.json'
 ];
