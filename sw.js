@@ -1,5 +1,5 @@
 /* sw.js — House Designer Service Worker for Complete Offline & Standalone App Support */
-const CACHE_NAME = 'housedesigner-v3';
+const CACHE_NAME = 'housedesigner-v1.3.5';
 const ASSETS = [
   './',
   './index.html',
