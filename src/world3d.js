@@ -640,6 +640,8 @@ W3.buildLevel = function () {
   scene.add(g);
   const sg = W3.staticGroup = new THREE.Group();
   g.add(sg);
+  const flg = W3.floorGroup = new THREE.Group();
+  g.add(flg);
   const fg = W3.furnitureGroup = new THREE.Group();
   g.add(fg);
   doorPivots = W3.doorPivots = [];
@@ -740,7 +742,7 @@ W3.buildLevel = function () {
 
   /* ---- pools: recessed basins carved 1m into the ground. Collected
      before floors/ground so both leave the hole open; walk3d wades   */
-  const pools = [];
+  const pools = W3.pools = [];
   for (const it of lvl.furniture || []) {
     if (!HP.itemDef(it.type) || !/pool$|pond/i.test(it.type)) continue;
     const f = HP.footprint(it);
@@ -759,69 +761,8 @@ W3.buildLevel = function () {
   W3.elevatedDecks = [];
 
   /* ---- floors + ceilings: one instanced mesh, per-cell colour ---- */
-  const { regionOf } = HP.computeRegions();
-  const cells = [];
-  for (let y = 0; y < HP.GRID_H; y++) for (let x = 0; x < HP.GRID_W; x++) {
-    if ((x * C < 0)) continue;
-    const id = regionFloorId(x, y, lvl, regionOf);
-    if (id && !inPool(x * C, y * C, x * C + C, y * C + C))
-      cells.push({ x, y, id, in: regionOf[y * HP.GRID_W + x] >= 0 });
-  }
-  const floorGroups = new Map();
-  for (const cell of cells) {
-    if (!floorGroups.has(cell.id)) floorGroups.set(cell.id, []);
-    floorGroups.get(cell.id).push(cell);
-  }
-  /* single up-facing quads (2 tris) — a floor box drew 12 tris per
-     cell of which only the top face can ever be seen                 */
-  const cellPart = (c, y) => {
-    const m = new THREE.Matrix4().makeScale(C, 1, C);
-    m.setPosition(c.x * C + C / 2, y, c.y * C + C / 2);
-    return { m, x0: c.x * C, z0: c.y * C, x1: (c.x + 1) * C, z1: (c.y + 1) * C };
-  };
-  for (const [id, list] of floorGroups) {
-    const material = HP.graphics3d ? HP.graphics3d.floorMaterial(id) :
-      new THREE.MeshLambertMaterial({ color: floorColor(id) });
-    V.instanced(sg, floorQuad(), material, list.map(c => cellPart(c, 0)), { receive: true });
-  }
-  // Custom structure interior floors (greenhouse brick/flagstone, cabin wood floor)
-  // Wall-to-wall guaranteed coverage: all cells inside the structure room perimeter receive authentic flooring!
-  const interiorFloorGroups = new Map();
-  for (const it of (lvl.furniture || [])) {
-    if (it.interior && it.interior.customized) {
-      const inLvl = it.interior;
-      const isTH = it.type === 'treehouse';
-      const floorH = isTH ? 54.1 : 0.05;
-      const ox = inLvl.ox !== undefined ? inLvl.ox : 2;
-      const oy = inLvl.oy !== undefined ? inLvl.oy : 2;
-      const rw = inLvl.rw || (inLvl.w - ox * 2);
-      const rh = inLvl.rh || (inLvl.h - oy * 2);
-      for (let iy = oy; iy < oy + rh; iy++) {
-        for (let ix = ox; ix < ox + rw; ix++) {
-          const k = ix + ',' + iy;
-          let matId = (inLvl.floors && inLvl.floors[k]) || null;
-          if (!matId) {
-            if (it.type === 'greenhouse') {
-              matId = (ix === 4 || ix === 5) ? 'flagstone' : 'brick';
-            } else if (it.type === 'treehouse') {
-              matId = 'wood';
-            }
-          }
-          if (!matId) continue;
-          const wCoord = HP.interiorCellToWorld ? HP.interiorCellToWorld(it, ix, iy) : null;
-          if (!wCoord) continue;
-          const groupKey = matId + '@' + floorH;
-          if (!interiorFloorGroups.has(groupKey)) interiorFloorGroups.set(groupKey, { matId, floorH, cells: [] });
-          interiorFloorGroups.get(groupKey).cells.push(wCoord);
-        }
-      }
-    }
-  }
-  for (const [key, { matId, floorH, cells: iCells }] of interiorFloorGroups) {
-    const material = HP.graphics3d ? HP.graphics3d.floorMaterial(matId) :
-      new THREE.MeshLambertMaterial({ color: floorColor(matId) });
-    V.instanced(sg, floorQuad(), material, iCells.map(c => cellPart(c, floorH)), { receive: true });
-  }
+  const cells = W3._buildFloorMeshes(flg, lvl);
+
   /* ceilings cap INTERIOR cells only — open-top rooms leaked sky
      through the top of every doorway (the "gap above the door");
      patios/pool decks have floors but must stay open. They cast the
@@ -1973,6 +1914,109 @@ W3.updateApertures = function () {
   }
 
   if (HP.cull3d) HP.cull3d.setWalls(lvl.walls, W3.doorPivots);
+};
+
+function cellPart(c, y) {
+  const C = HP.CELL;
+  const m = new THREE.Matrix4().makeScale(C, 1, C);
+  m.setPosition(c.x * C + C / 2, y, c.y * C + C / 2);
+  return { m, x0: c.x * C, z0: c.y * C, x1: (c.x + 1) * C, z1: (c.y + 1) * C };
+}
+
+W3._buildFloorMeshes = function (targetGroup, lvl) {
+  const C = HP.CELL, V = HP.cull3d;
+  let pools = W3.pools;
+  if (!pools) {
+    pools = W3.pools = [];
+    for (const it of lvl.furniture || []) {
+      if (!HP.itemDef(it.type) || !/pool$|pond/i.test(it.type)) continue;
+      const f = HP.footprint(it);
+      pools.push({
+        x0: f.x * C, z0: f.y * C, x1: (f.x + f.w) * C, z1: (f.y + f.h) * C,
+        round: /round|circle|ellipse|oval/i.test(it.type),
+      });
+    }
+  }
+  const inPool = (x0, z0, x1, z1) =>
+    pools.some(p => x1 > p.x0 && x0 < p.x1 && z1 > p.z0 && z0 < p.z1);
+  const { regionOf } = HP.computeRegions();
+  const cells = [];
+  for (let y = 0; y < HP.GRID_H; y++) for (let x = 0; x < HP.GRID_W; x++) {
+    if ((x * C < 0)) continue;
+    const id = regionFloorId(x, y, lvl, regionOf);
+    if (id && !inPool(x * C, y * C, x * C + C, y * C + C))
+      cells.push({ x, y, id, in: regionOf[y * HP.GRID_W + x] >= 0 });
+  }
+  const floorGroups = new Map();
+  for (const cell of cells) {
+    if (!floorGroups.has(cell.id)) floorGroups.set(cell.id, []);
+    floorGroups.get(cell.id).push(cell);
+  }
+  for (const [id, list] of floorGroups) {
+    const material = HP.graphics3d ? HP.graphics3d.floorMaterial(id) :
+      new THREE.MeshLambertMaterial({ color: floorColor(id) });
+    V.instanced(targetGroup, floorQuad(), material, list.map(c => cellPart(c, 0)), { receive: true });
+  }
+  // Custom structure interior floors (greenhouse brick/flagstone, cabin wood floor)
+  const interiorFloorGroups = new Map();
+  for (const it of (lvl.furniture || [])) {
+    if (it.interior && it.interior.customized) {
+      const inLvl = it.interior;
+      const isTH = it.type === 'treehouse';
+      const floorH = isTH ? 54.1 : 0.05;
+      const ox = inLvl.ox !== undefined ? inLvl.ox : 2;
+      const oy = inLvl.oy !== undefined ? inLvl.oy : 2;
+      const rw = inLvl.rw || (inLvl.w - ox * 2);
+      const rh = inLvl.rh || (inLvl.h - oy * 2);
+      for (let iy = oy; iy < oy + rh; iy++) {
+        for (let ix = ox; ix < ox + rw; ix++) {
+          const k = ix + ',' + iy;
+          let matId = (inLvl.floors && inLvl.floors[k]) || null;
+          if (!matId) {
+            if (it.type === 'greenhouse') {
+              matId = (ix === 4 || ix === 5) ? 'flagstone' : 'brick';
+            } else if (it.type === 'treehouse') {
+              matId = 'wood';
+            }
+          }
+          if (!matId) continue;
+          const wCoord = HP.interiorCellToWorld ? HP.interiorCellToWorld(it, ix, iy) : null;
+          if (!wCoord) continue;
+          const groupKey = matId + '@' + floorH;
+          if (!interiorFloorGroups.has(groupKey)) interiorFloorGroups.set(groupKey, { matId, floorH, cells: [] });
+          interiorFloorGroups.get(groupKey).cells.push(wCoord);
+        }
+      }
+    }
+  }
+  for (const [key, { matId, floorH, cells: iCells }] of interiorFloorGroups) {
+    const material = HP.graphics3d ? HP.graphics3d.floorMaterial(matId) :
+      new THREE.MeshLambertMaterial({ color: floorColor(matId) });
+    V.instanced(targetGroup, floorQuad(), material, iCells.map(c => cellPart(c, floorH)), { receive: true });
+  }
+  return cells;
+};
+
+W3.updateFloors = function () {
+  if (!W3.levelGroup || !W3.floorGroup) {
+    W3.buildLevel();
+    return;
+  }
+  const lvl = HP.cur();
+  if (!lvl) return;
+  const V = HP.cull3d;
+  const nextFLG = new THREE.Group();
+  W3._buildFloorMeshes(nextFLG, lvl);
+
+  if (W3.floorGroup) {
+    if (V && V.removeGroup) V.removeGroup(W3.floorGroup);
+    W3.levelGroup.remove(W3.floorGroup);
+    disposeGroup(W3.floorGroup);
+  }
+  W3.floorGroup = nextFLG;
+  W3.levelGroup.add(nextFLG);
+  if (HP.graphics3d) HP.graphics3d.applyMaterials(nextFLG);
+  if (V && V.invalidate) V.invalidate(); else if (V) V.dirty = true;
 };
 
 

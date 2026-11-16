@@ -221,6 +221,9 @@ function roomUI() {
     HP.pushUndo();
     for (const [x, y] of r.cells) HP.cur().floors[HP.cellKey(x, y)] = id;
     HP.invalidateRegions(); HP.saveState();
+    if (HP.in3D && HP.world3d && HP.world3d.updateFloors) {
+      HP.world3d.updateFloors();
+    }
   });
   wallSwatches($('#room-wall-sw'), HP.roomWallColor(r), col => {
     HP.pushUndo();
@@ -285,6 +288,9 @@ HP.deleteRoom = function (r, mode) {
   }
   HP.selectedRoom = null;
   HP.invalidateRegions(); HP.saveState(); refreshInspector();
+  if (HP.in3D && HP.world3d && HP.world3d.updateFloors) {
+    HP.world3d.updateFloors();
+  }
 };
 
 /* settings panel (gear tool) */

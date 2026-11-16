@@ -301,6 +301,9 @@ const floorTool = {
       if (HP.floorName) HP.cur().roomNames[k] = HP.floorName;
     }
     HP.saveState(); HP.invalidateRegions();
+    if (HP.in3D && HP.world3d && HP.world3d.updateFloors) {
+      HP.world3d.updateFloors();
+    }
     HP.status('Room painted: ' + (HP.floorName || 'Room') + ' — ' + r.m2.toFixed(1) + ' m²');
   },
   move(p) {
@@ -316,6 +319,9 @@ const floorTool = {
     if (drag) {
       HP.saveState();
       HP.status('Path painted — ' + drag.n + ' cells · ' + (drag.n * 0.25).toFixed(1) + ' m²');
+      if (HP.in3D && HP.world3d && HP.world3d.updateFloors) {
+        HP.world3d.updateFloors();
+      }
     }
     drag = null;
   },
@@ -345,7 +351,10 @@ const eraseTool = {
       if (HP.selectedFeature && HP.selectedFeature.k === k) HP.selectedFeature = null;
     }
     if (fk) delete HP.cur().fences[fk];
-    if (pathK) delete HP.cur().floors[pathK];
+    if (pathK) {
+      delete HP.cur().floors[pathK];
+      if (HP.in3D && HP.world3d && HP.world3d.updateFloors) HP.world3d.updateFloors();
+    }
     HP.saveState(); HP.invalidateRegions(); HP.refreshContext();
   },
   up() { drag = null; },

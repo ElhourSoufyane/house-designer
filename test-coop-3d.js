@@ -258,6 +258,19 @@ async function run() {
   await new Promise(r => setTimeout(r, 120));
   assert('updateApertures called on swing flip', updateAperturesCalled === true);
   assert('buildLevel NOT called on swing flip (zero-lag in-place update)', buildCalledOnSwing === false);
+
+  // 12. Test instant zero-lag room floor change without full buildLevel
+  let buildCalledOnFloor = false;
+  let updateFloorsCalled = false;
+  HP.world3d.buildLevel = () => { buildCalledOnFloor = true; };
+  HP.world3d.updateFloors = () => { updateFloorsCalled = true; };
+
+  const floorState = JSON.parse(JSON.stringify(HP.state));
+  floorState.levels[0].floors['2,2'] = 'tile';
+  HP.sync.applyState({ t: 'state', rev: Date.now(), origin: 'partner-1', state: floorState, nextId: 102 }, dummyConn);
+  await new Promise(r => setTimeout(r, 120));
+  assert('updateFloors called on room floor change', updateFloorsCalled === true);
+  assert('buildLevel NOT called on floor change (zero-lag in-place update)', buildCalledOnFloor === false);
   HP.world3d.buildLevel = origBuild;
 
   console.log(`\nResults: ${pass} passed, ${fail} failed.`);

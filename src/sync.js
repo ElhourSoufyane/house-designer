@@ -290,6 +290,7 @@ const peerBase = {};                                   // originPeerId -> last r
 function mergeRemote(cur, base, inc, incStamps, baseStamps) {
   let staticChanged = false;
   let aperturesChanged = false;
+  let floorsChanged = false;
   let furnitureChanged = false;
   if (cur.levels.length < inc.levels.length) {
     staticChanged = true;
@@ -305,7 +306,9 @@ function mergeRemote(cur, base, inc, incStamps, baseStamps) {
       for (const k in bd)
         if (!(k in id) && k in cd && cmpStamp(md[k], bsd[k]) <= 0) {   // they deleted; we haven't re-edited
           delete cd[k]; delete md[k];
-          staticChanged = true;
+          if (d === 'floors') floorsChanged = true;
+          else if (d === 'roomNames') { /* room names don't change 3D */ }
+          else staticChanged = true;
         }
       for (const k in id) {
         if (k in bd && JSON.stringify(id[k]) === JSON.stringify(bd[k])) continue;  // unchanged
@@ -323,6 +326,10 @@ function mergeRemote(cur, base, inc, incStamps, baseStamps) {
               } else {
                 staticChanged = true;
               }
+            } else if (d === 'floors') {
+              floorsChanged = true;
+            } else if (d === 'roomNames') {
+              // room names do not change 3D geometry
             } else {
               staticChanged = true;
             }
@@ -367,7 +374,7 @@ function mergeRemote(cur, base, inc, incStamps, baseStamps) {
   /* inc.level is deliberately NOT synced — the viewed floor is a personal
      view choice, not shared house data. Her climbing stairs shouldn't drag
      my screen to floor 2. (Adopted once on join in applyState.) */
-  return { staticChanged, aperturesChanged, furnitureChanged };
+  return { staticChanged, aperturesChanged, floorsChanged, furnitureChanged };
 }
 
 function applyState(msg, fromConn) {
@@ -390,6 +397,7 @@ function applyState(msg, fromConn) {
   const baseStamps = peerStamps[origin];
   let staticChanged = false;
   let aperturesChanged = false;
+  let floorsChanged = false;
   let furnitureChanged = false;
   if (!peerBase[origin]) {
     HP.state = inc;                                // first state from them → adopt wholesale
@@ -409,6 +417,7 @@ function applyState(msg, fromConn) {
     const delta = mergeRemote(HP.state, peerBase[origin], inc, msg.stamps, baseStamps);  // apply only THEIR delta
     staticChanged = delta.staticChanged;
     aperturesChanged = delta.aperturesChanged;
+    floorsChanged = delta.floorsChanged;
     furnitureChanged = delta.furnitureChanged;
   }
   peerBase[origin] = msg.state;
@@ -429,7 +438,7 @@ function applyState(msg, fromConn) {
   }
   /* Only invalidate heavy static layer (wipes offscreen canvas) when structural elements change.
      Furniture moves/adds do NOT invalidate static layers — zero white flash / reload look on tablets! */
-  if (staticChanged) {
+  if (staticChanged || floorsChanged) {
     HP.invalidateRegions();
   }
   if (HP.refreshContext) HP.refreshContext();
@@ -443,21 +452,18 @@ function applyState(msg, fromConn) {
 
   // Coalesced 3D rebuild (40ms debounce): never freeze frames on incoming edits!
   if (HP.in3D && HP.request3DRebuild) {
-    HP.request3DRebuild(40, { staticChanged, aperturesChanged, furnitureChanged });
+    HP.request3DRebuild(40, { staticChanged, aperturesChanged, floorsChanged, furnitureChanged });
   } else if (HP.in3D && HP.world3d && HP.world3d.scene && HP.world3d.levelGroup) {
-    if (staticChanged || !HP.world3d.furnitureGroup) {
+    if (staticChanged || !HP.world3d.furnitureGroup || !HP.world3d.floorGroup) {
       HP.invalidateRegions();
       HP.world3d.buildLevel();
-    } else if (aperturesChanged && HP.world3d.updateApertures) {
-      HP.world3d.updateApertures();
+    } else {
+      if (aperturesChanged && HP.world3d.updateApertures) HP.world3d.updateApertures();
+      if (floorsChanged && HP.world3d.updateFloors) HP.world3d.updateFloors();
       if (furnitureChanged) {
         if (HP.world3d.updateFurnitureAsync) HP.world3d.updateFurnitureAsync();
         else if (HP.world3d.updateFurniture) HP.world3d.updateFurniture();
       }
-    } else if (HP.world3d.updateFurnitureAsync) {
-      HP.world3d.updateFurnitureAsync();
-    } else {
-      HP.world3d.updateFurniture();
     }
   }
 

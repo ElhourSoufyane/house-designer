@@ -153,30 +153,37 @@
   let rebuildTimer = null;
   let pendingStaticChanged = false;
   let pendingAperturesChanged = false;
+  let pendingFloorsChanged = false;
   let pendingFurnitureChanged = false;
   HP.request3DRebuild = function (delay = 40, opts = {}) {
     if (!HP.in3D || !HP.world3d || !HP.world3d.scene || !HP.world3d.levelGroup) return;
     if (opts.staticChanged) pendingStaticChanged = true;
     if (opts.aperturesChanged) pendingAperturesChanged = true;
+    if (opts.floorsChanged) pendingFloorsChanged = true;
     if (opts.furnitureChanged) pendingFurnitureChanged = true;
     if (rebuildTimer) clearTimeout(rebuildTimer);
     rebuildTimer = setTimeout(() => {
       rebuildTimer = null;
       const mustRebuildStatic = pendingStaticChanged;
       const mustUpdateApertures = pendingAperturesChanged;
+      const mustUpdateFloors = pendingFloorsChanged;
       const mustUpdateFurniture = pendingFurnitureChanged;
       pendingStaticChanged = false;
       pendingAperturesChanged = false;
+      pendingFloorsChanged = false;
       pendingFurnitureChanged = false;
       if (HP.in3D && HP.world3d) {
-        if (mustRebuildStatic || !HP.world3d.furnitureGroup) {
+        if (mustRebuildStatic || !HP.world3d.furnitureGroup || !HP.world3d.floorGroup) {
           HP.invalidateRegions();
           HP.world3d.buildLevel();
         } else {
           if (mustUpdateApertures && HP.world3d.updateApertures) {
             HP.world3d.updateApertures();
           }
-          if (mustUpdateFurniture || !mustUpdateApertures) {
+          if (mustUpdateFloors && HP.world3d.updateFloors) {
+            HP.world3d.updateFloors();
+          }
+          if (mustUpdateFurniture || (!mustUpdateApertures && !mustUpdateFloors)) {
             if (HP.world3d.updateFurnitureAsync) {
               HP.world3d.updateFurnitureAsync();
             } else if (HP.world3d.updateFurniture) {
