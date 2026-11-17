@@ -1098,9 +1098,21 @@ function projectStats() {
   const gw = HP.state.w || HP.GRID_W, gh = HP.state.h || HP.GRID_H;
   let rooms = 0, pieces = 0;
   const interiors = [];
+  const curReg = HP.regions || (HP.computeRegions && HP.computeRegions());
+  let curCount = 0;
+  if (curReg && curReg.regionOf) {
+    for (let j = 0; j < curReg.regionOf.length; j++) if (curReg.regionOf[j] >= 0) curCount++;
+  }
   for (let i = 0; i < HP.state.levels.length; i++) {
     const lvl = HP.state.levels[i];
-    interiors.push(HP.interiorCells(i) * m2);
+    let floorArea = 0;
+    if (i === HP.state.level) {
+      floorArea = curCount * m2;
+    } else {
+      if (lvl._cachedArea === undefined) lvl._cachedArea = HP.interiorCells(i) * m2;
+      floorArea = lvl._cachedArea;
+    }
+    interiors.push(floorArea);
     rooms += new Set(Object.values(lvl.roomNames)).size;
     pieces += lvl.furniture.length;
   }

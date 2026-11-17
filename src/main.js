@@ -5,9 +5,11 @@ const MARGIN = 2;                       // cells of margin baked into static lay
 let staticLayer = null, staticDirty = true;
 let dpr = 1;
 const _inv = HP.invalidateRegions;
-HP.invalidateRegions = function () { staticDirty = true; _inv(); };
+HP.invalidateRegions = function () { staticDirty = true; belowDirty = true; _inv(); };
 
-HP.resetLayers = function () { staticLayer = null; belowLayer = null; staticDirty = true; };
+let groundLayer = null, groundDirty = true;
+let belowLayer = null, belowDirty = true, lastBelowLevel = -1;
+HP.resetLayers = function () { staticLayer = null; belowLayer = null; groundLayer = null; groundDirty = true; belowDirty = true; staticDirty = true; };
 
 /* ================= STATIC LAYER ================= */
 let staticScale = 1;                                 // bake res factor — big plots bake at 0.5
@@ -17,8 +19,12 @@ function rebuildStatic() {
   const w = Math.ceil((W + MARGIN * 2) * C * staticScale),
         h = Math.ceil((H + MARGIN * 2) * C * staticScale);
   if (!staticLayer) staticLayer = document.createElement('canvas');
-  staticLayer.width = w; staticLayer.height = h;
+  if (staticLayer.width !== w || staticLayer.height !== h) {
+    staticLayer.width = w; staticLayer.height = h;
+  }
   const g = staticLayer.getContext('2d');
+  g.setTransform(1, 0, 0, 1, 0, 0);
+  g.clearRect(0, 0, w, h);
   g.save();
   g.scale(staticScale, staticScale);
   g.translate(MARGIN * C, MARGIN * C);
@@ -34,58 +40,72 @@ function rebuildStatic() {
 }
 
 function drawGround(g) {
-  const C = HP.CELL;
-  // lot slightly lighter than far grass + soft edge shadow
-  g.save();
-  g.shadowColor = 'rgba(0,0,0,.35)'; g.shadowBlur = 22; g.shadowOffsetY = 8;
-  g.fillStyle = HP.state.bg || '#aebfa0';
-  g.fillRect(-MARGIN * C * 0.4, -MARGIN * C * 0.4,
-    HP.GRID_W * C + MARGIN * C * 0.8, HP.GRID_H * C + MARGIN * C * 0.8);
-  g.restore();
-  // lawn mow stripes (deterministic)
-  g.fillStyle = 'rgba(255,255,255,.045)';
-  for (let y = 0; y < HP.GRID_H * C; y += C * 8)
-    g.fillRect(-MARGIN * C * 0.4, y, HP.GRID_W * C + MARGIN * C * 0.8, C * 4);
-  // grass speckle: dark flecks + light blades (deterministic)
-  g.fillStyle = 'rgba(0,0,0,.05)';
-  for (let i = 0; i < 900; i++) {
-    const x = ((i * 2654435761) % 1000) / 1000 * HP.GRID_W * C;
-    const y = ((i * 40503) % 977) / 977 * HP.GRID_H * C;
-    g.fillRect(x, y, 3, 3);
+  const C = HP.CELL, W = HP.GRID_W, H = HP.GRID_H;
+  const gw = Math.ceil((W + MARGIN * 2) * C), gh = Math.ceil((H + MARGIN * 2) * C);
+  if (!groundLayer) groundLayer = document.createElement('canvas');
+  if (groundDirty || groundLayer.width !== gw || groundLayer.height !== gh) {
+    groundLayer.width = gw; groundLayer.height = gh;
+    const gg = groundLayer.getContext('2d');
+    gg.translate(MARGIN * C, MARGIN * C);
+    gg.save();
+    gg.shadowColor = 'rgba(0,0,0,.35)'; gg.shadowBlur = 22; gg.shadowOffsetY = 8;
+    gg.fillStyle = HP.state.bg || '#aebfa0';
+    gg.fillRect(-MARGIN * C * 0.4, -MARGIN * C * 0.4,
+      W * C + MARGIN * C * 0.8, H * C + MARGIN * C * 0.8);
+    gg.restore();
+    gg.fillStyle = 'rgba(255,255,255,.045)';
+    for (let y = 0; y < H * C; y += C * 8)
+      gg.fillRect(-MARGIN * C * 0.4, y, W * C + MARGIN * C * 0.8, C * 4);
+    gg.fillStyle = 'rgba(0,0,0,.05)';
+    for (let i = 0; i < 900; i++) {
+      const x = ((i * 2654435761) % 1000) / 1000 * W * C;
+      const y = ((i * 40503) % 977) / 977 * H * C;
+      gg.fillRect(x, y, 3, 3);
+    }
+    gg.fillStyle = 'rgba(255,255,255,.06)';
+    for (let i = 0; i < 700; i++) {
+      const x = ((i * 2246822519) % 1000) / 1000 * W * C;
+      const y = ((i * 74121) % 983) / 983 * H * C;
+      gg.fillRect(x, y, 2, 4);
+    }
+    groundDirty = false;
   }
-  g.fillStyle = 'rgba(255,255,255,.06)';
-  for (let i = 0; i < 700; i++) {
-    const x = ((i * 2246822519) % 1000) / 1000 * HP.GRID_W * C;
-    const y = ((i * 74121) % 983) / 983 * HP.GRID_H * C;
-    g.fillRect(x, y, 2, 4);
-  }
+  g.drawImage(groundLayer, -MARGIN * C, -MARGIN * C);
 }
 
 /* the world below: a real dimmed render of the level underneath — upstairs
    sits on top of the yard instead of a green void. Reuses the normal draw
    functions under a temporary level swap (region cache saved/restored). */
-let belowLayer = null;
 function drawBelowWorld(g) {
   if (HP.state.level <= 0 || HP.showUnderlay === false) return;
   const C = HP.CELL, s = staticScale,
         w = Math.ceil((HP.GRID_W + MARGIN * 2) * C * s),
         h = Math.ceil((HP.GRID_H + MARGIN * 2) * C * s);
   if (!belowLayer) belowLayer = document.createElement('canvas');
-  belowLayer.width = w; belowLayer.height = h;
-  const bg = belowLayer.getContext('2d');
-  bg.save();
-  bg.scale(s, s);
-  bg.translate(MARGIN * C, MARGIN * C);
-  const saveLvl = HP.state.level, saveReg = HP.regions;
-  HP.state.level = saveLvl - 1; HP.regions = null;
-  drawGround(bg);
-  drawFloors(bg);
-  drawLabels(bg);
-  drawWalls(bg);
-  drawFences(bg);
-  for (const it of HP.cur().furniture) HP.drawItem(bg, it);
-  HP.state.level = saveLvl; HP.regions = saveReg;
-  bg.restore();
+  if (belowLayer.width !== w || belowLayer.height !== h) {
+    belowLayer.width = w; belowLayer.height = h;
+    belowDirty = true;
+  }
+  if (belowDirty || lastBelowLevel !== HP.state.level - 1) {
+    const bg = belowLayer.getContext('2d');
+    bg.setTransform(1, 0, 0, 1, 0, 0);
+    bg.clearRect(0, 0, w, h);
+    bg.save();
+    bg.scale(s, s);
+    bg.translate(MARGIN * C, MARGIN * C);
+    const saveLvl = HP.state.level, saveReg = HP.regions;
+    HP.state.level = saveLvl - 1; HP.regions = null;
+    drawGround(bg);
+    drawFloors(bg);
+    drawLabels(bg);
+    drawWalls(bg);
+    drawFences(bg);
+    for (const it of HP.cur().furniture) HP.drawItem(bg, it);
+    HP.state.level = saveLvl; HP.regions = saveReg;
+    bg.restore();
+    belowDirty = false;
+    lastBelowLevel = HP.state.level - 1;
+  }
   g.globalAlpha = 0.6;                      // world below, clearly faded
   g.drawImage(belowLayer, 0, 0, belowLayer.width / s, belowLayer.height / s);
   g.globalAlpha = 1;
@@ -1663,8 +1683,8 @@ function drawLabels(g) {
 }
 
 /* ================= WALLS ================= */
-function wallThick(seg) {                    // exterior → thicker
-  const { regionOf } = HP.computeRegions();
+function wallThick(seg, regionOf) {                    // exterior → thicker
+  if (!regionOf) regionOf = HP.computeRegions().regionOf;
   const out = (x, y) => !HP.cellIn(x, y) || regionOf[y * HP.GRID_W + x] < 0;
   if (seg.d === 'h') return (out(seg.x, seg.y - 1) || out(seg.x, seg.y)) ? 0.44 : 0.3;
   return (out(seg.x - 1, seg.y) || out(seg.x, seg.y)) ? 0.44 : 0.3;
@@ -1700,10 +1720,8 @@ function drawWallCore(g, s, t, w) {
     }
   }
 
-  // Architectural hatching & patterns per style
+  // Architectural hatching & patterns per style (no costly canvas clip)
   if (style === 'brick') {
-    g.save();
-    g.beginPath(); g.rect(rx, ry, rw, rh); g.clip();
     const isH = s.d === 'h';
     const bLen = 12; // brick length in 2D px
     const bPal = ['#883424', '#943b2b', '#7a2d1f', '#a04533', '#5a2116'];
@@ -1729,48 +1747,40 @@ function drawWallCore(g, s, t, w) {
     g.strokeStyle = 'rgba(45, 20, 12, 0.45)';
     g.lineWidth = 0.8;
     g.strokeRect(rx, ry, rw, rh);
-    g.restore();
   } else if (style === 'stone') {
-    g.save();
-    g.beginPath(); g.rect(rx, ry, rw, rh); g.clip();
     g.strokeStyle = 'rgba(40, 35, 30, 0.4)'; g.lineWidth = 0.9;
+    g.beginPath();
     if (s.d === 'h') {
       for (let x = rx + 6; x < rx + rw - 3; x += 9) {
-        g.beginPath(); g.moveTo(x, ry); g.lineTo(x, ry + rh); g.stroke();
+        g.moveTo(x, ry); g.lineTo(x, ry + rh);
       }
     } else {
       for (let y = ry + 6; y < ry + rh - 3; y += 9) {
-        g.beginPath(); g.moveTo(rx, y); g.lineTo(rx + rw, y); g.stroke();
+        g.moveTo(rx, y); g.lineTo(rx + rw, y);
       }
     }
-    g.restore();
+    g.stroke();
   } else if (style === 'wood') {
-    g.save();
-    g.beginPath(); g.rect(rx, ry, rw, rh); g.clip();
     g.strokeStyle = 'rgba(80, 50, 20, 0.38)'; g.lineWidth = 0.9;
+    g.beginPath();
     if (s.d === 'h') {
-      g.beginPath();
       g.moveTo(rx, ry + rh * 0.33); g.lineTo(rx + rw, ry + rh * 0.33);
       g.moveTo(rx, ry + rh * 0.67); g.lineTo(rx + rw, ry + rh * 0.67);
-      g.stroke();
     } else {
-      g.beginPath();
       g.moveTo(rx + rw * 0.33, ry); g.lineTo(rx + rw * 0.33, ry + rh);
       g.moveTo(rx + rw * 0.67, ry); g.lineTo(rx + rw * 0.67, ry + rh);
-      g.stroke();
     }
-    g.restore();
+    g.stroke();
   } else if (style === 'tile') {
-    g.save();
-    g.beginPath(); g.rect(rx, ry, rw, rh); g.clip();
     g.strokeStyle = 'rgba(90, 100, 110, 0.35)'; g.lineWidth = 0.8;
+    g.beginPath();
     for (let x = rx + 5; x < rx + rw; x += 5) {
-      g.beginPath(); g.moveTo(x, ry); g.lineTo(x, ry + rh); g.stroke();
+      g.moveTo(x, ry); g.lineTo(x, ry + rh);
     }
     for (let y = ry + 5; y < ry + rh; y += 5) {
-      g.beginPath(); g.moveTo(rx, y); g.lineTo(rx + rw, y); g.stroke();
+      g.moveTo(rx, y); g.lineTo(rx + rw, y);
     }
-    g.restore();
+    g.stroke();
   } else if (style === 'glass') {
     g.strokeStyle = '#2b8eb5'; g.lineWidth = 1.6;
     g.beginPath();
@@ -1783,23 +1793,31 @@ function drawWallCore(g, s, t, w) {
 function drawWalls(g) {
   const C = HP.CELL;
   const lvl = HP.cur();
+  const gdList = [];
+  for (const it of (lvl.furniture || [])) {
+    if (/garagedoor/i.test(it.type)) {
+      const bw = it.w || 3, bh = it.h || 1, rot = (it.rot || 0) % 4;
+      const w = rot % 2 === 0 ? bw : bh, h = rot % 2 === 0 ? bh : bw;
+      gdList.push({ x0: it.x, y0: it.y, x1: it.x + w, y1: it.y + h });
+    }
+  }
+  const { regionOf } = HP.computeRegions();
   for (const k in lvl.walls) {
     const s = HP.parseWallKey(k);
     const feat = lvl.walls[k].f;
     if (feat === 'door') continue;              // doors draw dynamically (open/close state)
-    // Garage doors replace wall segments in the 2D editor plan
-    const gdIntersect = (lvl.furniture || []).some(it => {
-      if (!/garagedoor/i.test(it.type)) return false;
-      const bw = it.w || 3, bh = it.h || 1, rot = (it.rot || 0) % 4;
-      const w = rot % 2 === 0 ? bw : bh, h = rot % 2 === 0 ? bh : bw;
-      if (s.d === 'h') {
-        return (s.y === it.y || s.y === it.y + h) && (s.x >= it.x && s.x < it.x + w);
-      } else {
-        return (s.x === it.x || s.x === it.x + w) && (s.y >= it.y && s.y < it.y + h);
+    if (gdList.length) {
+      let gdHit = false;
+      for (const gd of gdList) {
+        if (s.d === 'h') {
+          if ((s.y === gd.y0 || s.y === gd.y1) && (s.x >= gd.x0 && s.x < gd.x1)) { gdHit = true; break; }
+        } else {
+          if ((s.x === gd.x0 || s.x === gd.x1) && (s.y >= gd.y0 && s.y < gd.y1)) { gdHit = true; break; }
+        }
       }
-    });
-    if (gdIntersect) continue;
-    const t = wallThick(s) * C;
+      if (gdHit) continue;
+    }
+    const t = wallThick(s, regionOf) * C;
     // body: dark shell + light/painted core (architectural plan look)
     g.fillStyle = '#2e3138';
     if (s.d === 'h') g.fillRect(s.x * C, s.y * C - t / 2, C + 0.6, t);
@@ -1814,6 +1832,7 @@ function drawWalls(g) {
 function drawDoors(g) {
   const C = HP.CELL, lvl = HP.cur();
   const isDoor = (d, x, y) => { const w = lvl.walls[d + ',' + x + ',' + y]; return w && w.f === 'door'; };
+  const { regionOf } = HP.computeRegions();
   for (const k in lvl.walls) {
     if (lvl.walls[k].f !== 'door') continue;
     const s = HP.parseWallKey(k);
@@ -1823,14 +1842,14 @@ function drawDoors(g) {
     else             { for (let y = s.y - 1; isDoor('v', s.x, y); y--) offset++; }
     if (offset % 2 === 1) continue;
     const pair = s.d === 'h' ? isDoor('h', s.x + 1, s.y) : isDoor('v', s.x, s.y + 1);
-    const t = wallThick(s) * C;
+    const t = wallThick(s, regionOf) * C;
     // same body + gap + leaf the static pass used to draw
     g.fillStyle = '#2e3138';
     if (s.d === 'h') g.fillRect(s.x * C, s.y * C - t / 2, C + 0.6, t);
     else g.fillRect(s.x * C - t / 2, s.y * C, t, C + 0.6);
     drawWallCore(g, s, t, lvl.walls[k]);
     drawGap(g, s, t, pair);
-    (pair ? drawDoubleDoor : drawDoor)(g, s, t);
+    (pair ? drawDoubleDoor : drawDoor)(g, s, t, regionOf);
   }
 }
 
@@ -1853,8 +1872,8 @@ function drawGap(g, s, t, dbl) {
   }
 }
 
-function insideDir(s) {                      // which side is inside? for door swing
-  const { regionOf } = HP.computeRegions();
+function insideDir(s, regionOf) {                      // which side is inside? for door swing
+  if (!regionOf) regionOf = HP.computeRegions().regionOf;
   const inr = (x, y) => HP.cellIn(x, y) && regionOf[y * HP.GRID_W + x] >= 0;
   const base = s.d === 'h' ? (inr(s.x, s.y) ? 1 : -1) : (inr(s.x, s.y) ? 1 : -1);
   const lvl = HP.cur();
@@ -1870,8 +1889,8 @@ function insideDir(s) {                      // which side is inside? for door s
   return base;
 }
 
-function drawDoor(g, s, t) {
-  const C = HP.CELL, dir = insideDir(s);
+function drawDoor(g, s, t, regionOf) {
+  const C = HP.CELL, dir = insideDir(s, regionOf);
   const rec = HP.cur().walls[s.d + ',' + s.x + ',' + s.y];
   const closed = rec && rec.c;
   const style = (rec && rec.doorStyle) || 'panel';
@@ -2000,8 +2019,8 @@ function drawDoor(g, s, t) {
 }
 
 /* double door: 2-cell opening, jambs at outer ends, two leaves swung inward */
-function drawDoubleDoor(g, s, t) {
-  const C = HP.CELL, dir = insideDir(s);
+function drawDoubleDoor(g, s, t, regionOf) {
+  const C = HP.CELL, dir = insideDir(s, regionOf);
   const rec = HP.cur().walls[s.d + ',' + s.x + ',' + s.y];
   const style = (rec && rec.doorStyle) || 'panel';
   const isSlide = style === 'slide' || style === 'slideglass';
@@ -2187,10 +2206,11 @@ function drawWindow(g, s, t) {
 function drawWindows(g) {
   const C = HP.CELL, lvl = HP.cur();
   if (!lvl || !lvl.walls) return;
+  const { regionOf } = HP.computeRegions();
   for (const k in lvl.walls) {
     if (lvl.walls[k].f !== 'window') continue;
     const s = HP.parseWallKey(k);
-    const t = wallThick(s) * C;
+    const t = wallThick(s, regionOf) * C;
     drawWindow(g, s, t);
   }
 }

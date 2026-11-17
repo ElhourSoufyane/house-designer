@@ -579,7 +579,7 @@ HP.disconnectSelected = function () {
   HP.saveState(); HP.markDirty(); HP.refreshContext();
 };
 
-HP.invalidateRegions = () => { HP.regions = null; HP.dirty = true; };
+HP.invalidateRegions = () => { HP.regions = null; if (HP.cur()) delete HP.cur()._cachedArea; HP.dirty = true; };
 HP.markDirty = () => { HP.dirty = true; };
 
 /* ---------- misc ---------- */
