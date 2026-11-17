@@ -277,6 +277,7 @@ K.boot = function () {
   el.canvas.addEventListener('click', () => {
     if (HP.sound3d) HP.sound3d.start();
     if (!locked && started && !paused) requestLock();
+    else if (locked && started && !paused) interact();
   });
   el.canvas.addEventListener('touchstart', () => { if (HP.sound3d) HP.sound3d.start(); }, { passive: true });
   document.addEventListener('visibilitychange', () => {
@@ -369,13 +370,27 @@ function showOverlay(title, sub) {
    current) — an open leaf still blocks where it physically stands   */
 function leafBox(d, ang) {
   if (d.slide) {
-    if (d.open < 0.2)
-      return { x0: d.a.x0 - 0.4, x1: d.a.x1 + 0.4, z0: d.a.z0 - 0.4, z1: d.a.z1 + 0.4 };
-    const P = d.pivot.position, L = d.leaf, g = L && L.geometry && L.geometry.parameters;
-    if (!g) return { x0: d.a.x0 - 0.4, x1: d.a.x1 + 0.4, z0: d.a.z0 - 0.4, z1: d.a.z1 + 0.4 };
-    const hx = (g.width || 2.6) / 2, hz = (g.depth || 2.6) / 2;
-    const cx = P.x + (L.position ? L.position.x : 0), cz = P.z + (L.position ? L.position.z : 0);
-    return { x0: cx - hx, x1: cx + hx, z0: cz - hz, z1: cz + hz };
+    if (d.open > 0.5) {
+      const P = d.pivot.position, L = d.leaf, g = L && L.geometry && L.geometry.parameters;
+      if (!g) return { x0: 0, x1: 0, z0: 0, z1: 0 };
+      const hx = (g.width || 2.6) / 2, hz = (g.depth || 2.6) / 2;
+      const cx = P.x + (L.position ? L.position.x : 0), cz = P.z + (L.position ? L.position.z : 0);
+      return { x0: cx - hx, x1: cx + hx, z0: cz - hz, z1: cz + hz };
+    }
+    const isH = d.a.d === 'h';
+    if (d.a.dbl) {
+      const mid = isH ? (d.a.x0 + d.a.x1) / 2 : (d.a.z0 + d.a.z1) / 2;
+      if (d.li === 0) {
+        return isH
+          ? { x0: d.a.x0 - 0.4, x1: mid, z0: d.a.z0 - 0.4, z1: d.a.z1 + 0.4 }
+          : { x0: d.a.x0 - 0.4, x1: d.a.x1 + 0.4, z0: d.a.z0 - 0.4, z1: mid };
+      } else {
+        return isH
+          ? { x0: mid, x1: d.a.x1 + 0.4, z0: d.a.z0 - 0.4, z1: d.a.z1 + 0.4 }
+          : { x0: d.a.x0 - 0.4, x1: d.a.x1 + 0.4, z0: mid, z1: d.a.z1 + 0.4 };
+      }
+    }
+    return { x0: d.a.x0 - 0.4, x1: d.a.x1 + 0.4, z0: d.a.z0 - 0.4, z1: d.a.z1 + 0.4 };
   }
   const th = ang === undefined ? d.pivot.rotation.y : ang;
   if (d.casement) {
@@ -407,6 +422,7 @@ function leafBox(d, ang) {
   }
   return { x0, x1, z0, z1 };
 }
+K._leafBox = leafBox;
 
 /* the leaf's four corners at a hypothetical angle — for swing tests  */
 function leafCorners(d, ang) {
@@ -545,29 +561,33 @@ function swingLimit(d) {
    (including handle) against solids at its actual height, in both
    directions; moved furniture can obstruct closing as well as opening. */
 function slideWindow(d, from, to) {
-  const origin = (d.pivot && d.pivot.parent && d.pivot.parent.position) ? d.pivot.parent.position : { x: 0, y: 0, z: 0 };
+  if (!d.slide) return to;
   const travel = Math.hypot(d.slide.x, d.slide.y, d.slide.z);
-  const steps = Math.max(1, Math.ceil(Math.abs(to - from) * travel / 0.25));
+  if (travel < 0.001) return to;
+  const origin = (d.pivot && d.pivot.parent && d.pivot.parent.position) ? d.pivot.parent.position : { x: 0, y: 0, z: 0 };
+  const steps = Math.max(1, Math.ceil(Math.abs(to - from) * travel / 0.35));
   let safe = from;
-  const isParallelWall = b => !d.window && b.tag === 'wall' && d.a && b.d === d.a.d;
+  const isWallBox = b => b.tag === 'wall' || b.tag === 'corner' || b.tag === 'post' || b.tag === 'header' || b.tag === 'sill';
   const testHits = (f) => {
     const x = origin.x + d.base.x + d.slide.x * f;
     const y = origin.y + d.base.y + (d.window ? 0 : d.halfY) + d.slide.y * f;
     const z = origin.z + d.base.z + d.slide.z * f;
-    return b => !isParallelWall(b) &&
-      x + d.halfX > b.x0 + 0.001 && x - d.halfX < b.x1 - 0.001 &&
-      y + d.halfY > b.y0 + 0.001 && y - d.halfY < b.y1 - 0.001 &&
-      z + d.halfZ > b.z0 + 0.001 && z - d.halfZ < b.z1 - 0.001;
+    return b => {
+      if (!d.window && isWallBox(b)) return false; // sliding doors mount on and slide along walls
+      return x + d.halfX > b.x0 + 0.001 && x - d.halfX < b.x1 - 0.001 &&
+             y + d.halfY > b.y0 + 0.001 && y - d.halfY < b.y1 - 0.001 &&
+             z + d.halfZ > b.z0 + 0.001 && z - d.halfZ < b.z1 - 0.001;
+    };
   };
   const initHits = testHits(from);
-  const initialOverlaps = new Set(
-    (HP.world3d.colliders || []).concat(HP.world3d.geom.boxes || []).filter(initHits)
-  );
+  const solids = d.window
+    ? (HP.world3d.colliders || []).concat(HP.world3d.geom.boxes || [])
+    : (HP.world3d.colliders || []);
+  const initialOverlaps = new Set(solids.filter(initHits));
   for (let i = 1; i <= steps; i++) {
     const f = from + (to - from) * i / steps;
     const hits = testHits(f);
-    if ((HP.world3d.colliders || []).some(b => !initialOverlaps.has(b) && hits(b)) ||
-        (HP.world3d.geom.boxes || []).some(b => !initialOverlaps.has(b) && hits(b))) {
+    if (solids.some(b => !initialOverlaps.has(b) && hits(b))) {
       d.vel = 0;
       return safe;
     }

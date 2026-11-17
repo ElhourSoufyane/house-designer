@@ -161,67 +161,135 @@ function canvas(size) {
 }
 function texture(kind) {
   if (textures.has(kind)) return textures.get(kind);
-  const size = G.current ? G.current.texture : 256, c = canvas(size);
+  const size = Math.max(512, G.current ? G.current.texture : 512), c = canvas(size);
   if (!c) return null; // Headless physics tests do not need a canvas.
   const ctx = c.getContext('2d');
   let seed = 129;
   const rand = () => { seed = (seed * 1664525 + 1013904223) >>> 0; return seed / 4294967296; };
-  ctx.fillStyle = kind === 'wood' ? '#b79a77' : kind === 'grass' ? '#788b53' :
-    kind === 'fabric' ? '#e3dfd3' : kind === 'brick' ? '#a54a36' :
-    kind === 'stone' ? '#868278' : '#eee9df';
-  ctx.fillRect(0, 0, size, size);
-  for (let i = 0; i < size * 22; i++) {
-    ctx.fillStyle = rand() > 0.5 ? 'rgba(255,255,255,.09)' : 'rgba(35,28,18,.07)';
-    ctx.fillRect(rand() * size, rand() * size, kind === 'wood' ? 1 : 2,
-      kind === 'wood' ? 4 + rand() * 40 : 1);
-  }
+
   if (kind === 'brick') {
-    const rows = 16, rowH = size / rows, brickW = size / 8;
-    ctx.strokeStyle = 'rgba(235, 230, 220, 0.82)';
-    ctx.lineWidth = Math.max(1.2, size / 128);
-    for (let r = 0; r <= rows; r++) {
-      const y = r * rowH;
-      ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(size, y); ctx.stroke();
+    // Ultra-realistic architectural running-bond terracotta brick masonry
+    // 1. Sandy mortar bed
+    ctx.fillStyle = '#d5cdc1';
+    ctx.fillRect(0, 0, size, size);
+    for (let i = 0; i < size * 16; i++) {
+      ctx.fillStyle = rand() > 0.5 ? 'rgba(255,255,255,.18)' : 'rgba(50,42,32,.12)';
+      ctx.fillRect(rand() * size, rand() * size, 1.5, 1.5);
     }
+    // 2. Individual varied terracotta bricks
+    const rows = 16, rowH = size / rows, brickW = size / 6.5, mortar = 3.2;
+    const brickPal = ['#9e3a29', '#aa4330', '#8e3122', '#b64d37', '#7b281b', '#bf553f', '#a43e2c', '#853021'];
     for (let r = 0; r < rows; r++) {
-      const y = r * rowH;
+      const y = r * rowH + mortar / 2;
+      const h = rowH - mortar;
       const offset = (r % 2) * (brickW / 2);
-      for (let x = offset; x < size + brickW; x += brickW) {
-        ctx.beginPath(); ctx.moveTo(x % size, y); ctx.lineTo(x % size, y + rowH); ctx.stroke();
+      for (let x = offset - brickW; x < size + brickW; x += brickW) {
+        const bx = x, bw = brickW - mortar;
+        const col = brickPal[Math.floor(rand() * brickPal.length)];
+        ctx.fillStyle = col;
+        ctx.beginPath();
+        if (ctx.roundRect) ctx.roundRect(bx, y, bw, h, 2);
+        else ctx.rect(bx, y, bw, h);
+        ctx.fill();
+
+        // Subtle clay stratification streaks
+        ctx.fillStyle = 'rgba(0,0,0,0.06)';
+        for (let k = 0; k < 3; k++) {
+          ctx.fillRect(bx, y + (k + 1) * (h / 4), bw, 1.2);
+        }
+        // Iron spot pores / kiln marks
+        ctx.fillStyle = 'rgba(30,15,10,0.22)';
+        for (let k = 0; k < 6; k++) {
+          ctx.fillRect(bx + rand() * bw, y + rand() * h, 1.2, 1.2);
+        }
+        // Bevel highlight top/left
+        ctx.fillStyle = 'rgba(255,255,255,0.18)';
+        ctx.fillRect(bx, y, bw, 1.2);
+        ctx.fillRect(bx, y, 1.2, h);
+        // Bevel shadow bottom/right
+        ctx.fillStyle = 'rgba(0,0,0,0.28)';
+        ctx.fillRect(bx, y + h - 1.2, bw, 1.2);
+        ctx.fillRect(bx + bw - 1.2, y, 1.2, h);
       }
     }
-  }
-  if (kind === 'stone') {
-    const rows = 10, rowH = size / rows;
-    ctx.strokeStyle = 'rgba(50, 46, 40, 0.65)';
-    ctx.lineWidth = Math.max(1.4, size / 110);
-    for (let r = 0; r <= rows; r++) {
-      const y = r * rowH;
-      ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(size, y); ctx.stroke();
-    }
+  } else if (kind === 'stone') {
+    // Ultra-realistic hand-cut stacked ashlar limestone/slate masonry
+    ctx.fillStyle = '#2d2822';
+    ctx.fillRect(0, 0, size, size);
+    const rows = 12, rowH = size / rows, mortar = 3.0;
+    const stonePal = ['#8d867a', '#9b9284', '#77736b', '#68655e', '#a3998a', '#5b5852', '#837c70', '#90897d'];
     for (let r = 0; r < rows; r++) {
-      const y = r * rowH;
-      const step = (size / 5) * (0.8 + (r % 3) * 0.2);
-      const shift = ((r * 37) % 100) / 100 * size;
-      for (let x = shift; x < shift + size; x += step) {
-        const sx = x % size;
-        ctx.beginPath(); ctx.moveTo(sx, y); ctx.lineTo(sx, y + rowH); ctx.stroke();
+      const y = r * rowH + mortar / 2;
+      const h = rowH - mortar;
+      let x = -((r * 47) % 60);
+      while (x < size + 100) {
+        const sw = (size / 4.8) * (0.65 + rand() * 0.7);
+        const col = stonePal[Math.floor(rand() * stonePal.length)];
+        ctx.fillStyle = col;
+        ctx.beginPath();
+        if (ctx.roundRect) ctx.roundRect(x, y, sw - mortar, h, 2);
+        else ctx.rect(x, y, sw - mortar, h);
+        ctx.fill();
+
+        // Stratified horizontal cleft lines
+        ctx.fillStyle = 'rgba(0,0,0,0.1)';
+        for (let k = 0; k < 4; k++) {
+          ctx.fillRect(x, y + rand() * h, sw - mortar, 1.5);
+        }
+        // Chiseled bevel highlights
+        ctx.fillStyle = 'rgba(255,255,255,0.22)';
+        ctx.fillRect(x, y, sw - mortar, 1.5);
+        ctx.fillRect(x, y, 1.5, h);
+        // Shadow creases
+        ctx.fillStyle = 'rgba(0,0,0,0.35)';
+        ctx.fillRect(x, y + h - 1.5, sw - mortar, 1.5);
+        ctx.fillRect(x + sw - mortar - 1.5, y, 1.5, h);
+
+        x += sw;
       }
     }
-  }
-  if (kind === 'wood') {
-    ctx.strokeStyle = 'rgba(54,36,22,.28)'; ctx.lineWidth = 1;
-    for (let x = 0; x < 4; x++) {
-      ctx.strokeRect(x * size / 4, 0, size / 4, size);
-      ctx.beginPath(); const y = (x % 2 ? 0.3 : 0.75) * size;
-      ctx.moveTo(x * size / 4, y); ctx.lineTo((x + 1) * size / 4, y); ctx.stroke();
+  } else if (kind === 'wood') {
+    // Ultra-realistic vertical architectural timber cladding
+    const planks = 8, pW = size / planks;
+    const woodPal = ['#b7956f', '#c19f79', '#ab8a64', '#bd9c75', '#a5845e', '#ba9872'];
+    for (let p = 0; p < planks; p++) {
+      const px = p * pW;
+      ctx.fillStyle = woodPal[p % woodPal.length];
+      ctx.fillRect(px, 0, pW, size);
+      // Fine wood grain fibers
+      for (let g = 0; g < 35; g++) {
+        ctx.fillStyle = rand() > 0.5 ? 'rgba(70,45,22,0.12)' : 'rgba(255,255,255,0.08)';
+        ctx.fillRect(px + rand() * pW, 0, 1.2, size);
+      }
+      // V-groove shadow between planks
+      ctx.fillStyle = 'rgba(35,20,10,0.65)';
+      ctx.fillRect(px + pW - 2, 0, 2, size);
+      // Edge bevel highlight
+      ctx.fillStyle = 'rgba(255,255,255,0.16)';
+      ctx.fillRect(px, 0, 1.2, size);
     }
-  }
-  if (kind === 'tile') {
-    ctx.strokeStyle = 'rgba(100,95,83,.28)'; ctx.lineWidth = 2;
-    ctx.strokeRect(0, 0, size, size);
-  }
-  if (kind === 'art') {
+  } else if (kind === 'tile') {
+    // Luxury ceramic subway tiles
+    ctx.fillStyle = '#b6b0a4'; // Grout bed
+    ctx.fillRect(0, 0, size, size);
+    const rows = 12, cols = 6, tW = size / cols, tH = size / rows, grout = 2.4;
+    for (let r = 0; r < rows; r++) {
+      const y = r * tH + grout / 2;
+      const h = tH - grout;
+      const offset = (r % 2) * (tW / 2);
+      for (let x = offset - tW; x < size + tW; x += tW) {
+        ctx.fillStyle = '#f4efe6';
+        ctx.fillRect(x, y, tW - grout, h);
+        // Glossy bevel highlight
+        ctx.fillStyle = 'rgba(255,255,255,0.45)';
+        ctx.fillRect(x, y, tW - grout, 1.5);
+        ctx.fillRect(x, y, 1.5, h);
+        ctx.fillStyle = 'rgba(0,0,0,0.12)';
+        ctx.fillRect(x, y + h - 1.5, tW - grout, 1.5);
+        ctx.fillRect(x + tW - grout - 1.5, y, 1.5, h);
+      }
+    }
+  } else if (kind === 'art') {
     ctx.fillStyle = '#dfd2b5'; ctx.fillRect(0, 0, size, size);
     ctx.fillStyle = '#a85f40'; ctx.beginPath();
     ctx.arc(size * 0.65, size * 0.28, size * 0.19, 0, Math.PI * 2); ctx.fill();
@@ -233,8 +301,7 @@ function texture(kind) {
     ctx.moveTo(0, size); ctx.lineTo(0, size * 0.84);
     ctx.quadraticCurveTo(size * 0.7, size * 0.43, size, size);
     ctx.fill();
-  }
-  if (kind === 'water') {
+  } else if (kind === 'water') {
     ctx.fillStyle = '#82c3c8'; ctx.fillRect(0, 0, size, size);
     ctx.strokeStyle = 'rgba(239,255,241,.38)'; ctx.lineWidth = 1.4;
     for (let j = -1; j < 14; j++) {
@@ -245,32 +312,144 @@ function texture(kind) {
       }
       ctx.stroke();
     }
+  } else {
+    // Plaster / Default wall
+    ctx.fillStyle = '#f5f0e6';
+    ctx.fillRect(0, 0, size, size);
+    for (let i = 0; i < size * 18; i++) {
+      ctx.fillStyle = rand() > 0.5 ? 'rgba(255,255,255,.14)' : 'rgba(40,32,22,.06)';
+      ctx.fillRect(rand() * size, rand() * size, 1.5, 1.5);
+    }
   }
+
   const t = new THREE.CanvasTexture(c);
   t.wrapS = t.wrapT = THREE.RepeatWrapping; t.encoding = THREE.sRGBEncoding;
   t.anisotropy = G.current ? G.current.anisotropy : 1;
   textures.set(kind, t); return t;
 }
+
+function bumpTexture(kind) {
+  const key = 'bump_' + kind;
+  if (textures.has(key)) return textures.get(key);
+  const size = Math.max(512, G.current ? G.current.texture : 512), c = canvas(size);
+  if (!c) return null;
+  const ctx = c.getContext('2d');
+  let seed = 129;
+  const rand = () => { seed = (seed * 1664525 + 1013904223) >>> 0; return seed / 4294967296; };
+
+  if (kind === 'brick') {
+    // Bump map: mortar is deep (#101010), bricks are raised (#e5e5e5)
+    ctx.fillStyle = '#101010';
+    ctx.fillRect(0, 0, size, size);
+    const rows = 16, rowH = size / rows, brickW = size / 6.5, mortar = 3.2;
+    for (let r = 0; r < rows; r++) {
+      const y = r * rowH + mortar / 2, h = rowH - mortar;
+      const offset = (r % 2) * (brickW / 2);
+      for (let x = offset - brickW; x < size + brickW; x += brickW) {
+        const bx = x, bw = brickW - mortar;
+        ctx.fillStyle = '#d8d8d8';
+        ctx.beginPath();
+        if (ctx.roundRect) ctx.roundRect(bx, y, bw, h, 2);
+        else ctx.rect(bx, y, bw, h);
+        ctx.fill();
+        // Edge bevel gradient
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(bx + 1.5, y + 1.5, bw - 3, h - 3);
+        // Micro surface grain
+        for (let k = 0; k < 12; k++) {
+          ctx.fillStyle = rand() > 0.5 ? '#ffffff' : '#888888';
+          ctx.fillRect(bx + rand() * bw, y + rand() * h, 1.5, 1.5);
+        }
+      }
+    }
+  } else if (kind === 'stone') {
+    // Bump map: mortar is deep (#080808), stones are raised with chiseled facets (#d0d0d0)
+    ctx.fillStyle = '#080808';
+    ctx.fillRect(0, 0, size, size);
+    const rows = 12, rowH = size / rows, mortar = 3.0;
+    for (let r = 0; r < rows; r++) {
+      const y = r * rowH + mortar / 2, h = rowH - mortar;
+      let x = -((r * 47) % 60);
+      while (x < size + 100) {
+        const sw = (size / 4.8) * (0.65 + rand() * 0.7);
+        ctx.fillStyle = '#b0b0b0';
+        ctx.beginPath();
+        if (ctx.roundRect) ctx.roundRect(x, y, sw - mortar, h, 2);
+        else ctx.rect(x, y, sw - mortar, h);
+        ctx.fill();
+        ctx.fillStyle = '#e0e0e0';
+        ctx.fillRect(x + 2, y + 2, sw - mortar - 4, h - 4);
+        // Clefts
+        for (let k = 0; k < 3; k++) {
+          ctx.fillStyle = '#777777';
+          ctx.fillRect(x, y + rand() * h, sw - mortar, 1.5);
+        }
+        x += sw;
+      }
+    }
+  } else if (kind === 'wood') {
+    ctx.fillStyle = '#d0d0d0';
+    ctx.fillRect(0, 0, size, size);
+    const planks = 8, pW = size / planks;
+    for (let p = 0; p < planks; p++) {
+      const px = p * pW;
+      ctx.fillStyle = '#080808';
+      ctx.fillRect(px + pW - 2.5, 0, 2.5, size);
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(px, 0, 1.5, size);
+    }
+  } else if (kind === 'tile') {
+    ctx.fillStyle = '#101010';
+    ctx.fillRect(0, 0, size, size);
+    const rows = 12, cols = 6, tW = size / cols, tH = size / rows, grout = 2.4;
+    for (let r = 0; r < rows; r++) {
+      const y = r * tH + grout / 2, h = tH - grout;
+      const offset = (r % 2) * (tW / 2);
+      for (let x = offset - tW; x < size + tW; x += tW) {
+        ctx.fillStyle = '#d8d8d8';
+        ctx.fillRect(x, y, tW - grout, h);
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(x + 1.5, y + 1.5, tW - grout - 3, h - 3);
+      }
+    }
+  } else {
+    // Plaster subtle stipple
+    ctx.fillStyle = '#808080';
+    ctx.fillRect(0, 0, size, size);
+    for (let i = 0; i < size * 12; i++) {
+      ctx.fillStyle = rand() > 0.5 ? '#999999' : '#666666';
+      ctx.fillRect(rand() * size, rand() * size, 1.5, 1.5);
+    }
+  }
+
+  const t = new THREE.CanvasTexture(c);
+  t.wrapS = t.wrapT = THREE.RepeatWrapping; t.encoding = THREE.sRGBEncoding;
+  t.anisotropy = G.current ? G.current.anisotropy : 1;
+  textures.set(key, t); return t;
+}
+
 G.material = function (kind, color) {
   const key = kind + ':' + (color || '');
   if (materials.has(key)) return materials.get(key);
   const smooth = /metal|glass|water|ceramic/.test(kind);
   const m = new THREE.MeshStandardMaterial({
-    color: color || 0xffffff, roughness: smooth ? 0.27 : (kind === 'brick' || kind === 'stone' ? 0.92 : 0.86),
-    metalness: kind === 'metal' ? 0.45 : 0,
+    color: color || 0xffffff,
+    roughness: kind === 'glass' ? 0.04 : (smooth ? 0.22 : (kind === 'brick' || kind === 'stone' ? 0.88 : 0.82)),
+    metalness: kind === 'metal' ? 0.55 : (kind === 'glass' ? 0.12 : 0),
     map: texture(kind === 'art' ? 'art' : kind === 'water' ? 'water' :
       kind === 'wood' ? 'wood' : kind === 'fabric' ? 'fabric' :
       kind === 'grass' ? 'grass' : kind === 'tile' ? 'tile' :
       kind === 'brick' ? 'brick' : kind === 'stone' ? 'stone' : 'plaster'),
   });
   /* sky IBL is a fill, not a second sun — keeps shadows readable      */
-  m.envMapIntensity = smooth ? 0.9 : 0.5;
+  m.envMapIntensity = kind === 'glass' ? 1.4 : (smooth ? 0.95 : 0.5);
   m.userData.envBase = m.envMapIntensity;
-  if (kind === 'brick' || kind === 'stone') {
-    m.bumpMap = m.map; m.bumpScale = kind === 'brick' ? 0.35 : 0.5;
+  if (kind === 'brick' || kind === 'stone' || kind === 'wood' || kind === 'tile') {
+    m.bumpMap = bumpTexture(kind);
+    m.bumpScale = kind === 'brick' ? 0.65 : (kind === 'stone' ? 0.75 : (kind === 'wood' ? 0.28 : 0.4));
   }
   if (kind === 'glass') {
-    m.transparent = true; m.opacity = 0.28; m.depthWrite = false;
+    m.transparent = true; m.opacity = 0.26; m.depthWrite = false;
     m.side = THREE.DoubleSide;
     m.emissive.set(0xffc27a); m.emissiveIntensity = 0;   // warm glow at night
     m.userData.nightGlow = 0.55;

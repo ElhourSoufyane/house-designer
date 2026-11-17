@@ -567,7 +567,7 @@ t('Escape resume also preserves position', pos().x === beforePause.x && pos().z 
 {
   HP.state = JSON.parse(JSON.stringify(house.state));
   const fix = HP.cur();
-  for (let x = 10; x <= 22; x++) {
+  for (let x = 10; x <= 24; x++) {
     fix.walls[`h,${x},10`] = { f: null };
   }
   fix.walls['h,11,10'] = { f: 'door', swing: 'in', doorStyle: 'slide' };
@@ -575,6 +575,9 @@ t('Escape resume also preserves position', pos().x === beforePause.x && pos().z 
   fix.walls['h,15,10'] = { f: 'door', swing: 'in', doorStyle: 'modern' };
   fix.walls['h,17,10'] = { f: 'door', swing: 'in', doorStyle: 'slideglass' };
   fix.walls['h,19,10'] = { f: 'door', swing: 'in', doorStyle: 'panel' };
+  // Double sliding door
+  fix.walls['h,21,10'] = { f: 'door', swing: 'in', doorStyle: 'slide' };
+  fix.walls['h,22,10'] = { f: 'door', swing: 'in', doorStyle: 'slide' };
 
   // Wall styles
   fix.walls['h,10,10'].style = 'brick';
@@ -617,6 +620,36 @@ t('Escape resume also preserves position', pos().x === beforePause.x && pos().z 
     t('in-place door style switch updated dp.doorStyle', dPanel.doorStyle === 'slide');
     t('in-place door style switch gave slide vector', !!(dPanel.slide && dPanel.slide.x));
   }
+
+  // Test double sliding doors
+  const dblPivots = W3.doorPivots.filter(p => p.a.k === 'h,21,10' || p.a.k === 'h,22,10');
+  t('double sliding door has 2 leaves', dblPivots.length === 2);
+  t('double sliding door both have slide vector', dblPivots.every(p => p.slide && p.doorStyle === 'slide'));
+  for (const dp of dblPivots) dp.latched = true;
+  run(2);
+  t('double sliding doors both slide open', dblPivots.every(p => p.open > 0.3));
+  // Check leaf 0 slid left, leaf 1 slid right (opposite directions)
+  const d0 = dblPivots.find(p => p.li === 0);
+  const d1 = dblPivots.find(p => p.li === 1);
+  if (d0 && d1) {
+    t('double sliding door leaf 0 slides left', d0.pivot.position.x < d0.base.x);
+    t('double sliding door leaf 1 slides right', d1.pivot.position.x > d1.base.x);
+  }
+  // Check doorway is clear to walk through when open
+  const midX = (d0.a.x0 + d0.a.x1) / 2;
+  const doorwayZ = d0.a.z0;
+  // A player bounding box at the center of the doorway: [midX - 7, doorwayZ - 7, midX + 7, doorwayZ + 7]
+  const playerBox = { min: { x: midX - 6, y: 0, z: doorwayZ - 6 }, max: { x: midX + 6, y: 40, z: doorwayZ + 6 } };
+  let blocked = false;
+  for (const dp of dblPivots) {
+    const lb = HP.walk3d._leafBox ? HP.walk3d._leafBox(dp) : null;
+    if (lb) {
+      if (playerBox.max.x > lb.x0 && playerBox.min.x < lb.x1 && playerBox.max.z > lb.z0 && playerBox.min.z < lb.z1) {
+        blocked = true;
+      }
+    }
+  }
+  t('open double sliding door does not block walk-through passage', !blocked);
 }
 
 console.log(`\n${fail ? 'FAILURES: ' + fail : 'ALL PASS'} (${pass} checks)`);

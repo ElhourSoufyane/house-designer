@@ -442,6 +442,128 @@ function wallSwatches(wrap, activeCol, onPick) {
   wrap.appendChild(ci);
 }
 
+/* Wall and Door style definitions with rich visual preview cards */
+const WALL_MATERIAL_DEFS = {
+  plaster: {
+    name: 'Plaster',
+    desc: 'Smooth painted architectural plaster',
+    svg: `<svg width="100%" height="100%" viewBox="0 0 80 40"><rect width="80" height="40" fill="#f5f0e6"/><circle cx="20" cy="15" r="1.2" fill="#e2dcd2"/><circle cx="55" cy="28" r="1.5" fill="#e2dcd2"/><circle cx="68" cy="10" r="1.2" fill="#e2dcd2"/><circle cx="35" cy="30" r="1.2" fill="#e2dcd2"/></svg>`
+  },
+  brick: {
+    name: 'Brick',
+    desc: 'Terracotta kiln-fired running bond',
+    svg: `<svg width="100%" height="100%" viewBox="0 0 80 40"><rect width="80" height="40" fill="#d5cdc1"/><rect x="2" y="2" width="22" height="7" rx="1" fill="#9e3a29"/><rect x="28" y="2" width="22" height="7" rx="1" fill="#b64d37"/><rect x="54" y="2" width="24" height="7" rx="1" fill="#8e3122"/><rect x="0" y="11" width="13" height="7" rx="1" fill="#aa4330"/><rect x="17" y="11" width="22" height="7" rx="1" fill="#7b281b"/><rect x="43" y="11" width="22" height="7" rx="1" fill="#bf553f"/><rect x="69" y="11" width="11" height="7" rx="1" fill="#9e3a29"/><rect x="2" y="20" width="22" height="7" rx="1" fill="#8e3122"/><rect x="28" y="20" width="22" height="7" rx="1" fill="#aa4330"/><rect x="54" y="20" width="24" height="7" rx="1" fill="#b64d37"/><rect x="0" y="29" width="13" height="7" rx="1" fill="#b64d37"/><rect x="17" y="29" width="22" height="7" rx="1" fill="#9e3a29"/><rect x="43" y="29" width="22" height="7" rx="1" fill="#7b281b"/><rect x="69" y="29" width="11" height="7" rx="1" fill="#8e3122"/></svg>`
+  },
+  stone: {
+    name: 'Stone',
+    desc: 'Stacked ashlar limestone & slate',
+    svg: `<svg width="100%" height="100%" viewBox="0 0 80 40"><rect width="80" height="40" fill="#2d2822"/><rect x="2" y="2" width="34" height="9" rx="1.5" fill="#8d867a"/><rect x="40" y="2" width="38" height="9" rx="1.5" fill="#77736b"/><rect x="2" y="14" width="22" height="10" rx="1.5" fill="#a3998a"/><rect x="27" y="14" width="30" height="10" rx="1.5" fill="#68655e"/><rect x="60" y="14" width="18" height="10" rx="1.5" fill="#9b9284"/><rect x="2" y="27" width="45" height="11" rx="1.5" fill="#77736b"/><rect x="50" y="27" width="28" height="11" rx="1.5" fill="#8d867a"/></svg>`
+  },
+  wood: {
+    name: 'Wood',
+    desc: 'Vertical timber slat cladding',
+    svg: `<svg width="100%" height="100%" viewBox="0 0 80 40"><rect width="80" height="40" fill="#2a1a0c"/><rect x="0" y="0" width="18" height="40" fill="#b7956f"/><line x1="9" y1="0" x2="9" y2="40" stroke="rgba(0,0,0,0.15)" stroke-width="1"/><rect x="20" y="0" width="18" height="40" fill="#c19f79"/><line x1="29" y1="0" x2="29" y2="40" stroke="rgba(0,0,0,0.15)" stroke-width="1"/><rect x="40" y="0" width="18" height="40" fill="#ab8a64"/><line x1="49" y1="0" x2="49" y2="40" stroke="rgba(0,0,0,0.15)" stroke-width="1"/><rect x="60" y="0" width="20" height="40" fill="#bd9c75"/><line x1="70" y1="0" x2="70" y2="40" stroke="rgba(0,0,0,0.15)" stroke-width="1"/></svg>`
+  },
+  tile: {
+    name: 'Tile',
+    desc: 'Glossy ceramic subway tiles',
+    svg: `<svg width="100%" height="100%" viewBox="0 0 80 40"><rect width="80" height="40" fill="#b6b0a4"/><rect x="2" y="2" width="23" height="16" fill="#f4efe6"/><rect x="28" y="2" width="23" height="16" fill="#f4efe6"/><rect x="54" y="2" width="24" height="16" fill="#f4efe6"/><rect x="2" y="21" width="23" height="17" fill="#f4efe6"/><rect x="28" y="21" width="23" height="17" fill="#f4efe6"/><rect x="54" y="21" width="24" height="17" fill="#f4efe6"/></svg>`
+  },
+  glass: {
+    name: 'Glass',
+    desc: 'Architectural curtain partition',
+    svg: `<svg width="100%" height="100%" viewBox="0 0 80 40"><rect width="80" height="40" fill="#1e2023"/><rect x="2" y="3" width="76" height="34" fill="#cde5eb" fill-opacity="0.55"/><polygon points="20,3 32,3 12,37 0,37" fill="#ffffff" fill-opacity="0.35"/><line x1="40" y1="0" x2="40" y2="40" stroke="#1e2023" stroke-width="2"/></svg>`
+  }
+};
+
+const DOOR_STYLE_DEFS = {
+  panel: {
+    name: 'Classic',
+    desc: '4-panel stile & rail with brass lever',
+    svg: `<svg width="100%" height="100%" viewBox="0 0 60 40"><rect x="18" y="2" width="24" height="36" rx="1.5" fill="#f2ece2" stroke="#4a3e35" stroke-width="1.2"/><rect x="21" y="5" width="8" height="12" rx="1" fill="#ded7ca" stroke="#b0a89a" stroke-width="0.8"/><rect x="31" y="5" width="8" height="12" rx="1" fill="#ded7ca" stroke="#b0a89a" stroke-width="0.8"/><rect x="21" y="20" width="8" height="15" rx="1" fill="#ded7ca" stroke="#b0a89a" stroke-width="0.8"/><rect x="31" y="20" width="8" height="15" rx="1" fill="#ded7ca" stroke="#b0a89a" stroke-width="0.8"/><circle cx="39" cy="20" r="1.4" fill="#c89d46"/><line x1="39" y1="20" x2="35" y2="20" stroke="#c89d46" stroke-width="1.2"/></svg>`
+  },
+  slide: {
+    name: 'Sliding Barn',
+    desc: 'Timber slab with Z-brace & track rollers',
+    svg: `<svg width="100%" height="100%" viewBox="0 0 60 40"><line x1="4" y1="4" x2="56" y2="4" stroke="#1a1b1d" stroke-width="2.5"/><circle cx="24" cy="4" r="2.2" fill="#1a1b1d"/><circle cx="44" cy="4" r="2.2" fill="#1a1b1d"/><rect x="16" y="7" width="34" height="31" rx="1" fill="#6a4c33" stroke="#422e1e" stroke-width="1"/><line x1="16" y1="22" x2="50" y2="22" stroke="#583e29" stroke-width="2"/><line x1="16" y1="7" x2="50" y2="22" stroke="#583e29" stroke-width="1.8"/><line x1="50" y1="22" x2="16" y2="38" stroke="#583e29" stroke-width="1.8"/><rect x="44" y="20" width="2" height="6" rx="0.5" fill="#1a1b1d"/></svg>`
+  },
+  glass: {
+    name: 'Glass French',
+    desc: 'Dark bronze frame & 8 divided lites',
+    svg: `<svg width="100%" height="100%" viewBox="0 0 60 40"><rect x="18" y="2" width="24" height="36" rx="1.5" fill="#1f2124"/><rect x="21" y="5" width="18" height="30" fill="#bfe3ea" fill-opacity="0.6"/><line x1="30" y1="5" x2="30" y2="35" stroke="#1f2124" stroke-width="1.2"/><line x1="21" y1="13" x2="39" y2="13" stroke="#1f2124" stroke-width="1"/><line x1="21" y1="21" x2="39" y2="21" stroke="#1f2124" stroke-width="1"/><line x1="21" y1="29" x2="39" y2="29" stroke="#1f2124" stroke-width="1"/><circle cx="38" cy="21" r="1.2" fill="#1a1c1e"/></svg>`
+  },
+  modern: {
+    name: 'Modern',
+    desc: 'Flush walnut slab with metallic inlays',
+    svg: `<svg width="100%" height="100%" viewBox="0 0 60 40"><rect x="18" y="2" width="24" height="36" rx="1.5" fill="#2d2e32" stroke="#1c1d1f" stroke-width="1.2"/><line x1="20" y1="10" x2="40" y2="10" stroke="#dce0e5" stroke-width="1"/><line x1="20" y1="17" x2="40" y2="17" stroke="#dce0e5" stroke-width="1"/><line x1="20" y1="24" x2="40" y2="24" stroke="#dce0e5" stroke-width="1"/><line x1="20" y1="31" x2="40" y2="31" stroke="#dce0e5" stroke-width="1"/><line x1="38" y1="14" x2="38" y2="28" stroke="#dce0e5" stroke-width="1.8"/></svg>`
+  },
+  slideglass: {
+    name: 'Slide Glass',
+    desc: 'Aluminum patio slider with clear glass',
+    svg: `<svg width="100%" height="100%" viewBox="0 0 60 40"><rect x="10" y="3" width="40" height="34" fill="#282b30" stroke="#1c1d1f" stroke-width="1"/><rect x="13" y="6" width="16" height="28" fill="#bfe3ea" fill-opacity="0.6"/><rect x="31" y="6" width="16" height="28" fill="#bfe3ea" fill-opacity="0.6"/><line x1="29" y1="3" x2="29" y2="37" stroke="#282b30" stroke-width="2"/><line x1="27" y1="15" x2="27" y2="25" stroke="#d0d3d8" stroke-width="1.4"/></svg>`
+  }
+};
+
+function renderWallStylePicker(container, curStyle, onSelect) {
+  let html = '<div class="style-grid">';
+  for (const k in WALL_MATERIAL_DEFS) {
+    const def = WALL_MATERIAL_DEFS[k];
+    const on = k === curStyle ? 'on' : '';
+    html += `
+      <div class="style-card ${on}" data-style="${k}">
+        <div class="style-thumb">${def.svg}</div>
+        <div class="style-name">${def.name}</div>
+        <div class="style-desc">${def.desc}</div>
+      </div>
+    `;
+  }
+  html += '</div>';
+  const curDef = WALL_MATERIAL_DEFS[curStyle] || WALL_MATERIAL_DEFS.plaster;
+  html += `
+    <div class="style-live-preview">
+      <div class="style-live-thumb">${curDef.svg}</div>
+      <div class="style-live-info">
+        <b>${curDef.name} Material</b>
+        <span>${curDef.desc}</span>
+      </div>
+    </div>
+  `;
+  container.innerHTML = html;
+  container.querySelectorAll('.style-card').forEach(c => {
+    c.onclick = () => onSelect(c.dataset.style);
+  });
+}
+
+function renderDoorStylePicker(container, curStyle, onSelect) {
+  let html = '<div class="style-grid">';
+  for (const k in DOOR_STYLE_DEFS) {
+    const def = DOOR_STYLE_DEFS[k];
+    const on = k === curStyle ? 'on' : '';
+    html += `
+      <div class="style-card ${on}" data-style="${k}">
+        <div class="style-thumb">${def.svg}</div>
+        <div class="style-name">${def.name}</div>
+        <div class="style-desc">${def.desc}</div>
+      </div>
+    `;
+  }
+  html += '</div>';
+  const curDef = DOOR_STYLE_DEFS[curStyle] || DOOR_STYLE_DEFS.panel;
+  html += `
+    <div class="style-live-preview">
+      <div class="style-live-thumb">${curDef.svg}</div>
+      <div class="style-live-info">
+        <b>${curDef.name} Door</b>
+        <span>${curDef.desc}</span>
+      </div>
+    </div>
+  `;
+  container.innerHTML = html;
+  container.querySelectorAll('.style-card').forEach(c => {
+    c.onclick = () => onSelect(c.dataset.style);
+  });
+}
+
 /* wall-tool mode & paint picker */
 function wallUI() {
   const top = $('#wall-panel'); if (!top) return;
@@ -452,27 +574,18 @@ function wallUI() {
       <button class="seg-btn" data-m="room">Paint Room</button>
       <button class="seg-btn" data-m="wall">Paint Wall</button>
     </div>
-    <div class="field"><label>Wall Material / Style</label>
-      <div class="seg wrap" id="wall-style-seg">
-        <button class="seg-btn ${(HP.wallStyle || 'plaster') === 'plaster' ? 'on' : ''}" data-style="plaster">Plaster</button>
-        <button class="seg-btn ${HP.wallStyle === 'brick' ? 'on' : ''}" data-style="brick">Brick</button>
-        <button class="seg-btn ${HP.wallStyle === 'stone' ? 'on' : ''}" data-style="stone">Stone</button>
-        <button class="seg-btn ${HP.wallStyle === 'wood' ? 'on' : ''}" data-style="wood">Wood</button>
-        <button class="seg-btn ${HP.wallStyle === 'tile' ? 'on' : ''}" data-style="tile">Tile</button>
-        <button class="seg-btn ${HP.wallStyle === 'glass' ? 'on' : ''}" data-style="glass">Glass</button>
-      </div>
+    <div class="field"><label>Default Wall Material / Style</label>
+      <div id="wall-style-picker-wrap"></div>
     </div>
-    <div class="field"><label>Wall Paint Colour</label><div class="swatches" id="wall-sw"></div></div>
+    <div class="field" style="margin-top:10px"><label>Wall Paint Colour</label><div class="swatches" id="wall-sw"></div></div>
     <div class="hint" id="wall-mode-hint"></div>`;
   top.appendChild(s);
-  const wallStSeg = $('#wall-style-seg');
-  if (wallStSeg) {
-    wallStSeg.querySelectorAll('.seg-btn').forEach(b => {
-      b.onclick = () => {
-        HP.wallStyle = b.dataset.style;
-        wallStSeg.querySelectorAll('.seg-btn').forEach(btn => btn.classList.toggle('on', btn === b));
-        HP.status('Wall style set to: ' + HP.wallStyle);
-      };
+  const pWrap = $('#wall-style-picker-wrap');
+  if (pWrap) {
+    renderWallStylePicker(pWrap, HP.wallStyle || 'plaster', st => {
+      HP.wallStyle = st;
+      renderWallStylePicker(pWrap, st, arguments.callee || (newSt => { HP.wallStyle = newSt; wallUI(); }));
+      HP.status('Default wall style set to: ' + st);
     });
   }
   const mseg = $('#wall-mode'), mhint = $('#wall-mode-hint');
@@ -518,14 +631,7 @@ function wallSelectedUI(selWall) {
   s.innerHTML = `
     <div class="field">
       <label>Wall Material / Style</label>
-      <div class="seg wrap" id="selwall-style-seg">
-        <button class="seg-btn ${curStyle === 'plaster' ? 'on' : ''}" data-style="plaster">Plaster</button>
-        <button class="seg-btn ${curStyle === 'brick' ? 'on' : ''}" data-style="brick">Brick</button>
-        <button class="seg-btn ${curStyle === 'stone' ? 'on' : ''}" data-style="stone">Stone</button>
-        <button class="seg-btn ${curStyle === 'wood' ? 'on' : ''}" data-style="wood">Wood</button>
-        <button class="seg-btn ${curStyle === 'tile' ? 'on' : ''}" data-style="tile">Tile</button>
-        <button class="seg-btn ${curStyle === 'glass' ? 'on' : ''}" data-style="glass">Glass</button>
-      </div>
+      <div id="selwall-style-picker-wrap"></div>
     </div>
     <div class="field" style="margin-top:10px">
       <label>Wall Paint Colour</label>
@@ -542,20 +648,17 @@ function wallSelectedUI(selWall) {
   `;
   top.appendChild(s);
 
-  const styleSeg = $('#selwall-style-seg');
-  if (styleSeg) {
-    styleSeg.querySelectorAll('.seg-btn').forEach(b => {
-      b.onclick = () => {
-        HP.pushUndo();
-        const st = b.dataset.style;
-        w.style = st;
-        HP.wallStyle = st;
-        HP.saveState();
-        HP.markDirty();
-        if (HP.world3d && HP.world3d.buildLevel) HP.world3d.buildLevel();
-        wallSelectedUI(selWall);
-        HP.status('Wall style set to: ' + st);
-      };
+  const pWrap = $('#selwall-style-picker-wrap');
+  if (pWrap) {
+    renderWallStylePicker(pWrap, curStyle, st => {
+      HP.pushUndo();
+      w.style = st;
+      HP.wallStyle = st;
+      HP.saveState();
+      HP.markDirty();
+      if (HP.world3d && HP.world3d.buildLevel) HP.world3d.buildLevel();
+      wallSelectedUI(selWall);
+      HP.status('Wall style set to: ' + st);
     });
   }
 
@@ -790,13 +893,7 @@ function doorUI() {
     </div>
     <div class="field" style="margin-top:10px">
       <label>Default Door Style</label>
-      <div class="seg wrap" id="door-tool-style-seg">
-        <button class="seg-btn ${curStyle === 'panel' ? 'on' : ''}" data-style="panel">Classic</button>
-        <button class="seg-btn ${curStyle === 'slide' ? 'on' : ''}" data-style="slide">Sliding</button>
-        <button class="seg-btn ${curStyle === 'glass' ? 'on' : ''}" data-style="glass">Glass</button>
-        <button class="seg-btn ${curStyle === 'modern' ? 'on' : ''}" data-style="modern">Modern</button>
-        <button class="seg-btn ${curStyle === 'slideglass' ? 'on' : ''}" data-style="slideglass">Slide Glass</button>
-      </div>
+      <div id="door-tool-style-picker-wrap"></div>
     </div>
     <div class="hint" style="margin-top:10px;line-height:1.45">
       <b>Tips:</b><br>
@@ -816,14 +913,12 @@ function doorUI() {
       };
     });
   }
-  const sSeg = $('#door-tool-style-seg');
-  if (sSeg) {
-    sSeg.querySelectorAll('.seg-btn').forEach(b => {
-      b.onclick = () => {
-        HP.defaultDoorStyle = b.dataset.style;
-        HP.status('New doors style: ' + HP.defaultDoorStyle);
-        doorUI();
-      };
+  const dWrap = $('#door-tool-style-picker-wrap');
+  if (dWrap) {
+    renderDoorStylePicker(dWrap, curStyle, st => {
+      HP.defaultDoorStyle = st;
+      HP.status('New doors style: ' + st);
+      doorUI();
     });
   }
 }
@@ -888,13 +983,7 @@ function featureSelectedUI(feat) {
     ${isDoor ? `
     <div class="field" style="margin-top:10px">
       <label>Door Style</label>
-      <div class="seg wrap" id="feat-doorstyle-seg">
-        <button class="seg-btn ${(w.doorStyle || 'panel') === 'panel' ? 'on' : ''}" data-style="panel">Classic</button>
-        <button class="seg-btn ${(w.doorStyle) === 'slide' ? 'on' : ''}" data-style="slide">Sliding</button>
-        <button class="seg-btn ${(w.doorStyle) === 'glass' ? 'on' : ''}" data-style="glass">Glass</button>
-        <button class="seg-btn ${(w.doorStyle) === 'modern' ? 'on' : ''}" data-style="modern">Modern</button>
-        <button class="seg-btn ${(w.doorStyle) === 'slideglass' ? 'on' : ''}" data-style="slideglass">Slide Glass</button>
-      </div>
+      <div id="feat-doorstyle-picker-wrap"></div>
     </div>
     ` : ''}
     <div class="field" style="margin-top:10px">
@@ -933,19 +1022,16 @@ function featureSelectedUI(feat) {
     });
   }
   
-  const styleSeg = $('#feat-doorstyle-seg');
-  if (styleSeg) {
-    styleSeg.querySelectorAll('.seg-btn').forEach(b => {
-      b.onclick = () => {
-        HP.pushUndo();
-        const st = b.dataset.style;
-        setDoorStyle(feat.k, st);
-        HP.defaultDoorStyle = st;
-        HP.saveState();
-        HP.markDirty();
-        featureSelectedUI(feat);
-        HP.status('Door style set to: ' + st);
-      };
+  const dWrap = $('#feat-doorstyle-picker-wrap');
+  if (dWrap) {
+    renderDoorStylePicker(dWrap, w.doorStyle || 'panel', st => {
+      HP.pushUndo();
+      setDoorStyle(feat.k, st);
+      HP.defaultDoorStyle = st;
+      HP.saveState();
+      HP.markDirty();
+      featureSelectedUI(feat);
+      HP.status('Door style set to: ' + st);
     });
   }
 

@@ -894,19 +894,8 @@ function populateDoorLeaf(dp, a, leaves, li, span, s0, s1, post0, post1, leafMat
         else du = lw * 0.95;
       }
     } else {
-      if (post0 && !post1) {
-        // Obstructed at s0: leaf 0 bypass slides towards s1; leaf 1 stays fixed
-        du = li === 0 ? span / 2 : 0;
-      } else if (post1 && !post0) {
-        // Obstructed at s1: leaf 1 bypass slides towards s0; leaf 0 stays fixed
-        du = li === 1 ? -span / 2 : 0;
-      } else if (post0 && post1) {
-        // Obstructed at both ends: leaf 0 bypass slides towards s1
-        du = li === 0 ? span / 2 : 0;
-      } else {
-        // Clear on both ends: both leaves slide outwards
-        du = li === 0 ? -lw * 0.95 : lw * 0.95;
-      }
+      // Double sliding doors: both leaves slide outwards to open the doorway completely
+      du = li === 0 ? -lw * 0.95 : lw * 0.95;
     }
     const slideVec = isH ? { x: du, y: 0, z: 0 } : { x: 0, y: 0, z: du };
 
@@ -1123,10 +1112,10 @@ W3.buildLevel = function () {
   };
   if (!W3._wallMat) W3._wallMat = getWallMat('plaster');
   const styleDefaultCol = (style, ext) => {
-    if (style === 'brick') return '#a54a36';
-    if (style === 'stone') return '#868278';
-    if (style === 'wood') return '#b8956e';
-    if (style === 'tile') return '#dedcd7';
+    if (style === 'brick') return '#ffffff';
+    if (style === 'stone') return '#ffffff';
+    if (style === 'wood') return '#ffffff';
+    if (style === 'tile') return '#ffffff';
     if (style === 'glass') return '#cde5eb';
     return ext ? '#e9e2d2' : '#f4efe4';
   };
@@ -1200,6 +1189,19 @@ W3.buildLevel = function () {
     if (!parts || !parts.length) continue;
     const mat = getWallMat(st);
     V.instanced(sg, unitBox(), mat, parts, { cast: st !== 'glass', receive: true });
+    // For glass curtain walls, add extruded architectural aluminum top/bottom glazing channels
+    if (st === 'glass' && HP.graphics3d) {
+      const frameMat = HP.graphics3d.material('metal', '#1e2023');
+      const channelParts = [];
+      for (const p of parts) {
+        // Base channel at y=0..1.8
+        const pBot = { ...p, y: 0.9, h: 1.8, w: p.w, d: p.d };
+        // Header channel at y=72.2..74
+        const pTop = { ...p, y: 73.1, h: 1.8, w: p.w, d: p.d };
+        channelParts.push(pBot, pTop);
+      }
+      V.instanced(sg, unitBox(), frameMat, channelParts, { cast: true, receive: true });
+    }
   }
   if (HP.graphics3d) {
     // Trim follows the actual solid wall faces; never spans a doorway.
