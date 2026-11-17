@@ -64,10 +64,11 @@ const files = [
 for (const f of files) copyFile(f);
 
 // Minimal runtime package.json
+const pkgData = JSON.parse(fs.readFileSync(path.join(root, 'package.json'), 'utf8'));
 const runtimePkg = {
   name: "house-designer",
   productName: "House Designer",
-  version: "1.0.0",
+  version: pkgData.version || "1.3.14",
   main: "electron-main.js",
   description: "Cozy 2D & 3D Architectural Home Designer with Live Co-op"
 };
@@ -80,7 +81,8 @@ copyDir(path.join(root, 'src'), path.join(stage, 'src'));
 
 console.log('Staged clean app files in dist-src/. Running electron-packager...');
 
-const packagerCmd = `npx.cmd electron-packager "${stage}" "House Designer" --platform=win32 --arch=x64 --icon="${path.join(root, 'assets/icon.ico')}" --out="${path.join(root, 'dist')}" --overwrite`;
+const packagerBin = path.join(root, 'node_modules', '.bin', 'electron-packager.cmd');
+const packagerCmd = `"${packagerBin}" "${stage}" "House Designer" --platform=win32 --arch=x64 --icon="${path.join(root, 'assets/icon.ico')}" --out="${path.join(root, 'dist')}" --overwrite`;
 
 execSync(packagerCmd, { stdio: 'inherit', cwd: root });
 
