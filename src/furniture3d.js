@@ -8710,7 +8710,7 @@ F.builder = function (group) {
         // Modern Architectural Hearth & Open Fireplace (Floating slate hearth, recessed open firebox chamber, cast-iron grate, glowing embers, split birch logs, limestone mantel)
         // 1. Floating Low-Profile Honed Slate Hearth Plinth (y=0 to 0.10)
         box('dark', 0, 0.03, 0.06, 0.96, 0.05, 0.78, '#15171a');              // recessed dark shadow plinth
-        box('stone', 0, 0.08, 0.08, 1.0, 0.06, 0.82, '#282a2d');               // honed charcoal slate hearth bench
+        box('ceramic', 0, 0.08, 0.08, 1.0, 0.06, 0.82, '#282a2d');            // honed charcoal slate hearth bench
 
         // 2. Open Architectural Firebox Surround (Left & Right Jambs + Top Lintel Header — leaves a generous OPEN CHAMBER!)
         // Left pillar jamb
@@ -8741,7 +8741,7 @@ F.builder = function (group) {
         cyl('wood', 0, 0.27, 0.06, 0.045, 0.24, 0.045, '#d8d2c4');             // top crossed birch log 3
 
         // 6. Minimalist Floating Honed Limestone Mantel Shelf (y=0.68) with Styling
-        box('stone', 0, 0.68, 0.06, 1.04, 0.045, 0.74, HP.shade(color, 1.14)); // cantilevered mantel shelf
+        box('ceramic', 0, 0.68, 0.06, 1.04, 0.045, 0.74, HP.shade(color, 1.15)); // cantilevered honed mantel shelf
         // Brushed brass modern circular clock on left mantel
         cyl('metal', -0.28, 0.76, 0.08, 0.08, 0.09, 0.08, '#c9a44e', true);
         cyl('dark', -0.28, 0.76, 0.12, 0.06, 0.01, 0.06, '#121416');

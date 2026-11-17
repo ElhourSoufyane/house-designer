@@ -213,37 +213,67 @@ function texture(kind) {
       }
     }
   } else if (kind === 'stone') {
-    // Ultra-realistic hand-cut stacked ashlar limestone/slate masonry
-    ctx.fillStyle = '#2d2822';
+    // Ultra-realistic luxury architectural ashlar limestone / quarried stacked masonry
+    // 1. Sandy limestone mortar background bed
+    ctx.fillStyle = '#d8d2c6';
     ctx.fillRect(0, 0, size, size);
-    const rows = 12, rowH = size / rows, mortar = 3.0;
-    const stonePal = ['#8d867a', '#9b9284', '#77736b', '#68655e', '#a3998a', '#5b5852', '#837c70', '#90897d'];
+    for (let i = 0; i < size * 10; i++) {
+      ctx.fillStyle = rand() > 0.5 ? 'rgba(255,255,255,0.22)' : 'rgba(70,58,45,0.08)';
+      ctx.fillRect(rand() * size, rand() * size, 1.2, 1.2);
+    }
+
+    // 2. 6 architectural courses of quarried ashlar stones with natural varied widths
+    const rows = 6, rowH = size / rows, mortar = 2.0;
+    // Rich, warm, luminous natural stone palette (limestone, sandstone, soft warm travertine)
+    // High luminosity (avg ~0.90) so multiplying with any object color produces rich, natural stone tones!
+    const stonePal = [
+      '#f2ece1', '#ede6dc', '#e6dfd3', '#f5efe5',
+      '#ded6c9', '#e9e2d5', '#e3dbce', '#ebd8c9'
+    ];
+
     for (let r = 0; r < rows; r++) {
       const y = r * rowH + mortar / 2;
       const h = rowH - mortar;
-      let x = -((r * 47) % 60);
-      while (x < size + 100) {
-        const sw = (size / 4.8) * (0.65 + rand() * 0.7);
+      let x = -((r * 73) % 90);
+      while (x < size + 120) {
+        // Vary stone widths naturally (some long stretchers, some shorter headers)
+        const sw = (size / 3.4) * (0.65 + rand() * 0.75);
         const col = stonePal[Math.floor(rand() * stonePal.length)];
+        const bw = sw - mortar;
+
+        // Base stone block with subtle rounded dressed edges
         ctx.fillStyle = col;
         ctx.beginPath();
-        if (ctx.roundRect) ctx.roundRect(x, y, sw - mortar, h, 2);
-        else ctx.rect(x, y, sw - mortar, h);
+        if (ctx.roundRect) ctx.roundRect(x, y, bw, h, 2.5);
+        else ctx.rect(x, y, bw, h);
         ctx.fill();
 
-        // Stratified horizontal cleft lines
-        ctx.fillStyle = 'rgba(0,0,0,0.1)';
-        for (let k = 0; k < 4; k++) {
-          ctx.fillRect(x, y + rand() * h, sw - mortar, 1.5);
+        // Delicate organic sedimentary strata (wavy horizontal mineral veins)
+        for (let v = 0; v < 3; v++) {
+          const vy = y + (v + 1) * (h / 4) + (rand() - 0.5) * 4;
+          ctx.strokeStyle = rand() > 0.5 ? 'rgba(80,65,45,0.05)' : 'rgba(255,255,255,0.10)';
+          ctx.lineWidth = 1.0 + rand() * 1.5;
+          ctx.beginPath();
+          ctx.moveTo(x, vy);
+          ctx.quadraticCurveTo(x + bw * 0.5, vy + (rand() - 0.5) * 3, x + bw, vy);
+          ctx.stroke();
         }
-        // Chiseled bevel highlights
+
+        // Microscopic stone pore and mineral grain
+        for (let g = 0; g < bw * 0.35; g++) {
+          ctx.fillStyle = rand() > 0.5 ? 'rgba(255,255,255,0.16)' : 'rgba(50,38,25,0.06)';
+          ctx.fillRect(x + rand() * bw, y + rand() * h, 1.2, 1.2);
+        }
+
+        // Soft dressed stone top/left edge light reflection
         ctx.fillStyle = 'rgba(255,255,255,0.22)';
-        ctx.fillRect(x, y, sw - mortar, 1.5);
-        ctx.fillRect(x, y, 1.5, h);
-        // Shadow creases
-        ctx.fillStyle = 'rgba(0,0,0,0.35)';
-        ctx.fillRect(x, y + h - 1.5, sw - mortar, 1.5);
-        ctx.fillRect(x + sw - mortar - 1.5, y, 1.5, h);
+        ctx.fillRect(x, y, bw, 1.2);
+        ctx.fillRect(x, y, 1.2, h);
+
+        // Soft natural bottom/right joint ambient occlusion
+        ctx.fillStyle = 'rgba(40,30,20,0.16)';
+        ctx.fillRect(x, y + h - 1.2, bw, 1.2);
+        ctx.fillRect(x + bw - 1.2, y, 1.2, h);
 
         x += sw;
       }
@@ -363,27 +393,39 @@ function bumpTexture(kind) {
       }
     }
   } else if (kind === 'stone') {
-    // Bump map: mortar is deep (#080808), stones are raised with chiseled facets (#d0d0d0)
-    ctx.fillStyle = '#080808';
+    // Ultra-smooth architectural bump map: soft recessed mortar (#686868), raised dressed stone face (#dedede)
+    ctx.fillStyle = '#686868';
     ctx.fillRect(0, 0, size, size);
-    const rows = 12, rowH = size / rows, mortar = 3.0;
+    const rows = 6, rowH = size / rows, mortar = 2.0;
     for (let r = 0; r < rows; r++) {
       const y = r * rowH + mortar / 2, h = rowH - mortar;
-      let x = -((r * 47) % 60);
-      while (x < size + 100) {
-        const sw = (size / 4.8) * (0.65 + rand() * 0.7);
-        ctx.fillStyle = '#b0b0b0';
+      let x = -((r * 73) % 90);
+      while (x < size + 120) {
+        const sw = (size / 3.4) * (0.65 + rand() * 0.75);
+        const bw = sw - mortar;
+
+        // Base stone height with subtle chamfered edge falloff
+        ctx.fillStyle = '#c4c4c4';
         ctx.beginPath();
-        if (ctx.roundRect) ctx.roundRect(x, y, sw - mortar, h, 2);
-        else ctx.rect(x, y, sw - mortar, h);
+        if (ctx.roundRect) ctx.roundRect(x, y, bw, h, 2.5);
+        else ctx.rect(x, y, bw, h);
         ctx.fill();
-        ctx.fillStyle = '#e0e0e0';
-        ctx.fillRect(x + 2, y + 2, sw - mortar - 4, h - 4);
-        // Clefts
-        for (let k = 0; k < 3; k++) {
-          ctx.fillStyle = '#777777';
-          ctx.fillRect(x, y + rand() * h, sw - mortar, 1.5);
+
+        // Raised plateau
+        const pad = Math.min(3, Math.min(bw, h) * 0.12);
+        ctx.fillStyle = '#dcdcdc';
+        ctx.beginPath();
+        if (ctx.roundRect) ctx.roundRect(x + pad, y + pad, bw - pad * 2, h - pad * 2, 2);
+        else ctx.rect(x + pad, y + pad, bw - pad * 2, h - pad * 2);
+        ctx.fill();
+
+        // Subtle organic surface cleft variation
+        for (let k = 0; k < 2; k++) {
+          const cy = y + pad + rand() * (h - pad * 2);
+          ctx.fillStyle = 'rgba(125,125,125,0.25)';
+          ctx.fillRect(x + pad, cy, bw - pad * 2, 1.2);
         }
+
         x += sw;
       }
     }
@@ -434,7 +476,7 @@ G.material = function (kind, color) {
   const smooth = /metal|glass|water|ceramic/.test(kind);
   const m = new THREE.MeshStandardMaterial({
     color: color || 0xffffff,
-    roughness: kind === 'glass' ? 0.04 : (smooth ? 0.22 : (kind === 'brick' || kind === 'stone' ? 0.88 : 0.82)),
+    roughness: kind === 'glass' ? 0.04 : (smooth ? 0.22 : (kind === 'stone' ? 0.76 : (kind === 'brick' ? 0.82 : (kind === 'wood' ? 0.58 : 0.82)))),
     metalness: kind === 'metal' ? 0.55 : (kind === 'glass' ? 0.12 : 0),
     map: texture(kind === 'art' ? 'art' : kind === 'water' ? 'water' :
       kind === 'wood' ? 'wood' : kind === 'fabric' ? 'fabric' :
@@ -442,11 +484,11 @@ G.material = function (kind, color) {
       kind === 'brick' ? 'brick' : kind === 'stone' ? 'stone' : 'plaster'),
   });
   /* sky IBL is a fill, not a second sun — keeps shadows readable      */
-  m.envMapIntensity = kind === 'glass' ? 1.4 : (smooth ? 0.95 : 0.5);
+  m.envMapIntensity = kind === 'glass' ? 1.4 : (smooth ? 0.95 : (kind === 'stone' ? 0.65 : 0.5));
   m.userData.envBase = m.envMapIntensity;
   if (kind === 'brick' || kind === 'stone' || kind === 'wood' || kind === 'tile') {
     m.bumpMap = bumpTexture(kind);
-    m.bumpScale = kind === 'brick' ? 0.65 : (kind === 'stone' ? 0.75 : (kind === 'wood' ? 0.28 : 0.4));
+    m.bumpScale = kind === 'stone' ? 0.18 : (kind === 'brick' ? 0.28 : (kind === 'wood' ? 0.18 : 0.25));
   }
   if (kind === 'glass') {
     m.transparent = true; m.opacity = 0.26; m.depthWrite = false;
