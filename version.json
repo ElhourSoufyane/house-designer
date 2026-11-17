@@ -1,8 +1,8 @@
 {
-  "version": "1.3.13",
-  "build": 1794870083022,
-  "updatedAt": "2026-11-16T23:01:23.022Z",
-  "notes": "Instant zero-lag room flooring changes in 3D walkthrough with dedicated floor group and fast-path mesh rebuilding",
+  "version": "1.3.14",
+  "build": 1794943800000,
+  "updatedAt": "2026-11-17T18:42:00.000Z",
+  "notes": "Fix kitchen countertops using smooth ceramic quartz instead of rough stone wall masonry and synchronize cache busting",
   "files": [
     "version.json",
     "index.html",

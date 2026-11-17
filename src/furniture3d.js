@@ -253,7 +253,7 @@ F.builder = function (group) {
   }
   function cabinet(color) {
     box('wood', 0, 0.48, 0, 0.94, 0.88, 0.9, color);
-    box('stone', 0, 0.94, 0, 0.98, 0.07, 0.94);
+    box('ceramic', 0, 0.94, 0, 0.98, 0.07, 0.94, '#fafaf8');
     for (const x of [-0.23, 0.23]) {
       box('wood', x, 0.49, 0.458, 0.445, 0.81, 0.025, color);
       box('metal', x > 0 ? x - 0.14 : x + 0.14, 0.58, 0.482, 0.025, 0.13, 0.025, null, true);
@@ -7946,7 +7946,7 @@ F.builder = function (group) {
         cyl('metal', 0, 0.88, 0, 0.40, 0.04, 0.40, '#1a1d22');
         // Honed circular white Carrara marble top with beveled profile
         cyl('ceramic', 0, 0.94, 0, 0.64, 0.08, 0.64, '#fafaf8');
-        cyl('stone', 0, 0.985, 0, 0.60, 0.02, 0.60, '#eae7e0');
+        cyl('ceramic', 0, 0.985, 0, 0.60, 0.02, 0.60, '#f2f0eb');
       } else if (/^piano$|grand.*piano/.test(t)) {
         // Luxury Concert Grand Piano (Mirror ebony lacquer case, propped acoustic lid, spruce soundboard, golden harp, authentic 88-key bed & tufted bench)
         // 1. 3 Heavy Architectural Grand Legs with Polished Brass Spade Casters
@@ -8547,7 +8547,7 @@ F.builder = function (group) {
         // Modern Minimal Counter Long (3 bays: 3-drawer stack + 2 double cabinets)
         box('dark', 0, 0.035, 0.04, 0.98, 0.07, 0.88, '#1e2226');
         box('wood', 0, 0.48, 0, 0.98, 0.82, 0.92, color);
-        box('stone', 0, 0.935, 0.01, 0.995, 0.07, 0.98, '#e6e2d8');
+        box('ceramic', 0, 0.935, 0.01, 0.995, 0.07, 0.98, '#fafaf8');
         box('dark', 0, 0.885, 0.455, 0.98, 0.03, 0.03, '#22252a');
         box('wood', -0.325, 0.77, 0.465, 0.31, 0.18, 0.025, color);
         box('wood', -0.325, 0.52, 0.465, 0.31, 0.26, 0.025, color);
@@ -8563,7 +8563,7 @@ F.builder = function (group) {
         // Modern Minimal Counter (2 bays: cutlery drawers + lower cabinets)
         box('dark', 0, 0.035, 0.04, 0.96, 0.07, 0.88, '#1e2226');
         box('wood', 0, 0.48, 0, 0.96, 0.82, 0.92, color);
-        box('stone', 0, 0.935, 0.01, 0.99, 0.07, 0.98, '#e6e2d8');
+        box('ceramic', 0, 0.935, 0.01, 0.99, 0.07, 0.98, '#fafaf8');
         box('dark', 0, 0.885, 0.455, 0.96, 0.03, 0.03, '#22252a');
         for (const sx of [-0.24, 0.24]) {
           box('wood', sx, 0.75, 0.465, 0.465, 0.22, 0.025, color);
