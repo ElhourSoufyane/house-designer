@@ -503,6 +503,110 @@ function wallUI() {
   });
 }
 
+function wallSelectedUI(selWall) {
+  const top = $('#insp-top'); if (!top) return;
+  top.innerHTML = '';
+  const lvl = HP.cur();
+  const w = lvl && lvl.walls && lvl.walls[selWall.k];
+  if (!w) { HP.selectedWall = null; return; }
+  $('#edit-title').textContent = 'Wall Properties';
+
+  const curStyle = w.style || 'plaster';
+  const curColor = w.c || '';
+  const s = document.createElement('div');
+  s.className = 'insp-section';
+  s.innerHTML = `
+    <div class="field">
+      <label>Wall Material / Style</label>
+      <div class="seg wrap" id="selwall-style-seg">
+        <button class="seg-btn ${curStyle === 'plaster' ? 'on' : ''}" data-style="plaster">Plaster</button>
+        <button class="seg-btn ${curStyle === 'brick' ? 'on' : ''}" data-style="brick">Brick</button>
+        <button class="seg-btn ${curStyle === 'stone' ? 'on' : ''}" data-style="stone">Stone</button>
+        <button class="seg-btn ${curStyle === 'wood' ? 'on' : ''}" data-style="wood">Wood</button>
+        <button class="seg-btn ${curStyle === 'tile' ? 'on' : ''}" data-style="tile">Tile</button>
+        <button class="seg-btn ${curStyle === 'glass' ? 'on' : ''}" data-style="glass">Glass</button>
+      </div>
+    </div>
+    <div class="field" style="margin-top:10px">
+      <label>Wall Paint Colour</label>
+      <div class="swatches" id="selwall-sw"></div>
+    </div>
+    <div class="field" style="margin-top:10px">
+      <button class="ibtn" id="selwall-room-btn" style="width:100%;margin-bottom:8px">
+        🏠 Apply Style to Entire Room
+      </button>
+      <button class="btn-danger" id="selwall-del-btn" style="width:100%">
+        Delete Wall
+      </button>
+    </div>
+  `;
+  top.appendChild(s);
+
+  const styleSeg = $('#selwall-style-seg');
+  if (styleSeg) {
+    styleSeg.querySelectorAll('.seg-btn').forEach(b => {
+      b.onclick = () => {
+        HP.pushUndo();
+        const st = b.dataset.style;
+        w.style = st;
+        HP.wallStyle = st;
+        HP.saveState();
+        HP.markDirty();
+        if (HP.world3d && HP.world3d.buildLevel) HP.world3d.buildLevel();
+        wallSelectedUI(selWall);
+        HP.status('Wall style set to: ' + st);
+      };
+    });
+  }
+
+  wallSwatches($('#selwall-sw'), curColor, col => {
+    HP.pushUndo();
+    w.c = col;
+    HP.saveState();
+    HP.markDirty();
+    if (HP.world3d && HP.world3d.buildLevel) HP.world3d.buildLevel();
+    wallSelectedUI(selWall);
+    HP.status('Wall painted: ' + col);
+  });
+
+  const roomBtn = $('#selwall-room-btn');
+  if (roomBtn) {
+    roomBtn.onclick = () => {
+      const seg = HP.parseWallKey(selWall.k);
+      const isH = seg.d === 'h';
+      const rA = isH ? HP.regionAt(seg.x, seg.y - 1) : HP.regionAt(seg.x - 1, seg.y);
+      const rB = HP.regionAt(seg.x, seg.y);
+      const targetRoom = rA || rB;
+      if (targetRoom) {
+        HP.pushUndo();
+        HP.setRoomWallStyle(targetRoom, w.style || 'plaster');
+        HP.saveState();
+        HP.markDirty();
+        if (HP.world3d && HP.world3d.buildLevel) HP.world3d.buildLevel();
+        HP.status('Applied ' + (w.style || 'plaster') + ' to all walls in ' + (targetRoom.name || 'room'));
+      } else {
+        HP.status('No adjacent room found to style.');
+      }
+    };
+  }
+
+  const delBtn = $('#selwall-del-btn');
+  if (delBtn) {
+    delBtn.onclick = () => {
+      HP.pushUndo();
+      delete lvl.walls[selWall.k];
+      HP.selectedWall = null;
+      HP.invalidateRegions();
+      HP.saveState();
+      HP.markDirty();
+      if (HP.world3d && HP.world3d.buildLevel) HP.world3d.buildLevel();
+      HP.refreshContext();
+      HP.status('Wall deleted.');
+    };
+  }
+}
+HP.wallSelectedUI = wallSelectedUI;
+
 /* floor-tool material picker */
 function floorUI() {
   const top = $('#floor-panel');
@@ -937,6 +1041,7 @@ function refreshInspector(force) {
   if (HP.pending) placingUI();
   else if (HP.selected) itemUI(HP.selected);
   else if (HP.selectedFeature) featureSelectedUI(HP.selectedFeature);
+  else if (HP.selectedWall) wallSelectedUI(HP.selectedWall);
   else if (HP.selectedRoom) roomUI();
   $('#edit-panel').classList.toggle('hidden', !top.firstChild);
   if (insp.dataset.sec === 'wall') wallUI();

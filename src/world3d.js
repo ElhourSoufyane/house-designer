@@ -628,20 +628,128 @@ function buildOverheadTrack(a, span, leaves, s0, s1, flipVal, parentGroup) {
   const isH = a.d === 'h';
   const trackLen = leaves === 2 ? span * 2.2 : span * 2.1;
   const trackH = 1.6, trackD = 1.8;
-  const trackMat = HP.graphics3d ? HP.graphics3d.material('metal', '#1e2022') : new THREE.MeshLambertMaterial({ color: 0x1e2022 });
+  const trackMat = HP.graphics3d ? HP.graphics3d.material('metal', '#1a1b1d') : new THREE.MeshLambertMaterial({ color: 0x1a1b1d });
+  const group = new THREE.Group();
+
   const tGeo = new THREE.BoxGeometry(isH ? trackLen : trackD, trackH, isH ? trackD : trackLen);
   const trackMesh = new THREE.Mesh(tGeo, trackMat);
+  trackMesh.castShadow = true;
+  group.add(trackMesh);
+
+  // End stop bumpers on both ends of the track
+  const bumpGeo = new THREE.BoxGeometry(isH ? 0.8 : trackD + 0.6, trackH + 0.6, isH ? trackD + 0.6 : 0.8);
+  const bump1 = new THREE.Mesh(bumpGeo, trackMat);
+  const bump2 = new THREE.Mesh(bumpGeo, trackMat);
+  const halfLen = trackLen / 2;
+  bump1.position.set(isH ? -halfLen : 0, 0, isH ? 0 : -halfLen);
+  bump2.position.set(isH ? halfLen : 0, 0, isH ? 0 : halfLen);
+  group.add(bump1); group.add(bump2);
+
+  // Wall standoff mounting spacers
+  const standoffGeo = new THREE.BoxGeometry(isH ? 0.9 : 1.2, 0.9, isH ? 1.2 : 0.9);
+  const wallOffset = (flipVal > 0 ? 0.6 : -0.6);
+  for (let f = -0.4; f <= 0.41; f += 0.2) {
+    const so = new THREE.Mesh(standoffGeo, trackMat);
+    so.position.set(isH ? halfLen * f : wallOffset, 0, isH ? wallOffset : halfLen * f);
+    group.add(so);
+  }
+
   const lh = HP.geom3d.DOOR_H + 1;
   const mid = (s0 + s1) / 2;
   const faceZ = isH ? (flipVal > 0 ? a.z0 - 1.2 : a.z1 + 1.2) : mid;
   const faceX = isH ? mid : (flipVal > 0 ? a.x0 - 1.2 : a.x1 + 1.2);
-  trackMesh.position.set(faceX, lh + 2, faceZ);
-  trackMesh.castShadow = true;
-  parentGroup.add(trackMesh);
-  return trackMesh;
+  group.position.set(faceX, lh + 2, faceZ);
+  parentGroup.add(group);
+  return group;
 }
 
-function populateDoorLeaf(dp, a, leaves, li, span, s0, s1, post1, leafMat, knobMat, knobGeo) {
+function buildDoorFrame(a, s0, s1, parentGroup) {
+  const isH = a.d === 'h';
+  const span = s1 - s0;
+  const midU = (s0 + s1) / 2;
+  const wThick = isH ? Math.abs(a.z1 - a.z0) : Math.abs(a.x1 - a.x0);
+  const wMid = isH ? (a.z0 + a.z1) / 2 : (a.x0 + a.x1) / 2;
+  const dh = HP.geom3d.DOOR_H; // 58
+
+  const lvl = HP.cur();
+  const rec = lvl && lvl.walls && lvl.walls[a.k];
+  const doorStyle = (rec && rec.doorStyle) || 'panel';
+  const isModern = doorStyle === 'modern' || doorStyle === 'slideglass';
+  const isSlide = doorStyle === 'slide';
+  const isGlass = doorStyle === 'glass';
+
+  let frameMat;
+  if (isModern) {
+    frameMat = HP.graphics3d ? HP.graphics3d.material('metal', '#282a2e') : new THREE.MeshLambertMaterial({ color: 0x282a2e });
+  } else if (isGlass) {
+    frameMat = HP.graphics3d ? HP.graphics3d.material('metal', '#1d1f22') : new THREE.MeshLambertMaterial({ color: 0x1d1f22 });
+  } else if (isSlide) {
+    frameMat = HP.graphics3d ? HP.graphics3d.material('wood', '#3d2c1d') : new THREE.MeshLambertMaterial({ color: 0x3d2c1d });
+  } else {
+    frameMat = HP.graphics3d ? HP.graphics3d.material('wood', '#eee9df') : new THREE.MeshLambertMaterial({ color: 0xeee9df });
+  }
+  const sillMat = HP.graphics3d ? HP.graphics3d.material('metal', '#3e4146') : new THREE.MeshLambertMaterial({ color: 0x3e4146 });
+
+  const group = new THREE.Group();
+  const jt = 0.8;
+  const jd = Math.max(3.2, wThick + 0.4);
+
+  // Top header jamb
+  const headGeo = new THREE.BoxGeometry(isH ? span : jd, jt, isH ? jd : span);
+  const headMesh = new THREE.Mesh(headGeo, frameMat);
+  headMesh.position.set(isH ? midU : wMid, dh - jt / 2, isH ? wMid : midU);
+  headMesh.castShadow = headMesh.receiveShadow = true;
+  group.add(headMesh);
+
+  // Left jamb
+  const sideGeo = new THREE.BoxGeometry(isH ? jt : jd, dh - jt, isH ? jd : jt);
+  const leftMesh = new THREE.Mesh(sideGeo, frameMat);
+  leftMesh.position.set(isH ? s0 + jt / 2 : wMid, (dh - jt) / 2, isH ? wMid : s0 + jt / 2);
+  leftMesh.castShadow = leftMesh.receiveShadow = true;
+  group.add(leftMesh);
+
+  // Right jamb
+  const rightMesh = new THREE.Mesh(sideGeo, frameMat);
+  rightMesh.position.set(isH ? s1 - jt / 2 : wMid, (dh - jt) / 2, isH ? wMid : s1 - jt / 2);
+  rightMesh.castShadow = rightMesh.receiveShadow = true;
+  group.add(rightMesh);
+
+  // Floor sill / threshold
+  const sillH = 0.35, sillD = jd + 0.4;
+  const sillGeo = new THREE.BoxGeometry(isH ? span : sillD, sillH, isH ? sillD : span);
+  const sillMesh = new THREE.Mesh(sillGeo, sillMat);
+  sillMesh.position.set(isH ? midU : wMid, sillH / 2, isH ? wMid : midU);
+  sillMesh.receiveShadow = true;
+  group.add(sillMesh);
+
+  // Casing trim bands on both wall faces
+  const casingW = 1.0, casingT = 0.25;
+  const casingGeoH = new THREE.BoxGeometry(isH ? span + casingW * 2 : casingT, casingW, isH ? casingT : span + casingW * 2);
+  const casingGeoV = new THREE.BoxGeometry(isH ? casingW : casingT, dh + casingW, isH ? casingT : casingW);
+
+  for (const f of [-1, 1]) {
+    const facePos = wMid + f * (wThick / 2 + casingT / 2);
+    const ch = new THREE.Mesh(casingGeoH, frameMat);
+    ch.position.set(isH ? midU : facePos, dh + casingW / 2, isH ? facePos : midU);
+    ch.castShadow = true;
+    group.add(ch);
+
+    const cl = new THREE.Mesh(casingGeoV, frameMat);
+    cl.position.set(isH ? s0 - casingW / 2 : facePos, (dh + casingW) / 2, isH ? facePos : s0 - casingW / 2);
+    cl.castShadow = true;
+    group.add(cl);
+
+    const cr = new THREE.Mesh(casingGeoV, frameMat);
+    cr.position.set(isH ? s1 + casingW / 2 : facePos, (dh + casingW) / 2, isH ? facePos : s1 + casingW / 2);
+    cr.castShadow = true;
+    group.add(cr);
+  }
+
+  parentGroup.add(group);
+  return group;
+}
+
+function populateDoorLeaf(dp, a, leaves, li, span, s0, s1, post0, post1, leafMat, knobMat, knobGeo) {
   const lvl = HP.cur();
   const rec = lvl && lvl.walls && lvl.walls[a.k];
   const doorStyle = (rec && rec.doorStyle) || 'panel';
@@ -653,6 +761,9 @@ function populateDoorLeaf(dp, a, leaves, li, span, s0, s1, post1, leafMat, knobM
   const lh = HP.geom3d.DOOR_H + 1;
   const pivot = dp.pivot;
 
+  const box3d = (sizeU, sizeY, sizeV) => new THREE.BoxGeometry(isH ? sizeU : sizeV, sizeY, isH ? sizeV : sizeU);
+  const setPos = (mesh, u, py, v) => mesh.position.set(isH ? u : v, py, isH ? v : u);
+
   while (pivot.children.length) {
     const c = pivot.children[0];
     pivot.remove(c);
@@ -662,7 +773,7 @@ function populateDoorLeaf(dp, a, leaves, li, span, s0, s1, post1, leafMat, knobM
   const lw = isSlide
     ? (leaves === 2 ? span / 2 + 1.2 : span + 1.6)
     : (leaves === 2 ? span / 2 + 1 : span + (post1 ? 0 : 1));
-  const dep = isSlide ? 2.6 : 5;
+  const dep = isSlide ? 2.6 : 4.4;
 
   let leaf, knob;
 
@@ -673,56 +784,129 @@ function populateDoorLeaf(dp, a, leaves, li, span, s0, s1, post1, leafMat, knobM
     } else {
       closedCenter = li === 0 ? s0 + span / 4 : s1 - span / 4;
     }
-    const faceZ = isH ? (flipVal > 0 ? a.z0 - (dep / 2 + 0.4) : a.z1 + (dep / 2 + 0.4)) : closedCenter;
-    const faceX = isH ? closedCenter : (flipVal > 0 ? a.x0 - (dep / 2 + 0.4) : a.x1 + (dep / 2 + 0.4));
+    const bypassOffset = leaves === 2 ? (li === 0 ? -0.4 : 0.4) : 0;
+    const faceZ = isH ? (flipVal > 0 ? a.z0 - (dep / 2 + 0.4 + bypassOffset) : a.z1 + (dep / 2 + 0.4 + bypassOffset)) : closedCenter;
+    const faceX = isH ? closedCenter : (flipVal > 0 ? a.x0 - (dep / 2 + 0.4 + bypassOffset) : a.x1 + (dep / 2 + 0.4 + bypassOffset));
     pivot.position.set(faceX, 0, faceZ);
 
-    let mat = isGlass
-      ? (HP.graphics3d ? HP.graphics3d.material('glass') : new THREE.MeshLambertMaterial({ color: 0x9fd4e8, transparent: true, opacity: 0.5 }))
-      : isModern
-      ? (HP.graphics3d ? HP.graphics3d.material('wood', '#2e2f33') : leafMat)
-      : (HP.graphics3d ? HP.graphics3d.material('wood', '#7c5a38') : leafMat);
-
-    if (isGlass) {
+    if (doorStyle === 'slideglass') {
+      // Sliding Glass Door: sleek aluminum perimeter frame with crystal clear glass
       const frameMat = HP.graphics3d ? HP.graphics3d.material('metal', '#282b30') : knobMat;
-      const fGeo = new THREE.BoxGeometry(isH ? lw : dep, lh, isH ? dep : lw);
-      const fMesh = new THREE.Mesh(fGeo, frameMat);
-      fMesh.position.set(0, lh / 2 - 0.5, 0);
-      fMesh.castShadow = fMesh.receiveShadow = true;
-      pivot.add(fMesh);
+      const glassMat = HP.graphics3d ? HP.graphics3d.material('glass', '#bfe3ea') : new THREE.MeshLambertMaterial({ color: 0x9fd4e8, transparent: true, opacity: 0.35 });
 
-      const pW = Math.max(2, lw - 5);
-      const pH = Math.max(2, lh - 6);
-      const pGeo = new THREE.BoxGeometry(isH ? pW : 0.6, pH, isH ? 0.6 : pW);
-      leaf = new THREE.Mesh(pGeo, mat);
-      leaf.position.set(0, lh / 2 - 0.5, 0);
-      pivot.add(leaf);
-    } else {
-      leaf = new THREE.Mesh(new THREE.BoxGeometry(isH ? lw : dep, lh, isH ? dep : lw), mat);
+      leaf = new THREE.Mesh(box3d(lw, lh, dep), frameMat);
       leaf.position.set(0, lh / 2 - 0.5, 0);
       leaf.castShadow = leaf.receiveShadow = true;
       pivot.add(leaf);
+
+      const pW = Math.max(2, lw - 4.4);
+      const pH = Math.max(2, lh - 5.6);
+      const glassMesh = new THREE.Mesh(box3d(pW, pH, 0.6), glassMat);
+      leaf.add(glassMesh);
+
+      // Integrated vertical pull handle along leading stile
+      const pullMat = HP.graphics3d ? HP.graphics3d.material('metal', '#d0d3d8') : knobMat;
+      const handleU = leaves === 2 ? (li === 0 ? lw / 2 - 2.2 : -lw / 2 + 2.2) : (lw / 2 - 2.2);
+      knob = new THREE.Mesh(box3d(0.8, 16, dep + 0.4), pullMat);
+      setPos(knob, handleU, 27, 0);
+      pivot.add(knob);
+    } else {
+      // Sliding Barn Door ('slide'): Rustic timber slab with perimeter frame, battens & Z-brace
+      const woodMat = HP.graphics3d ? HP.graphics3d.material('wood', '#6a4c33') : leafMat;
+      const braceMat = HP.graphics3d ? HP.graphics3d.material('wood', '#583e29') : leafMat;
+      const ironMat = HP.graphics3d ? HP.graphics3d.material('metal', '#1a1b1d') : knobMat;
+
+      leaf = new THREE.Mesh(box3d(lw, lh, dep), woodMat);
+      leaf.position.set(0, lh / 2 - 0.5, 0);
+      leaf.castShadow = leaf.receiveShadow = true;
+      pivot.add(leaf);
+
+      // Horizontal mid rail
+      const midRail = new THREE.Mesh(box3d(lw - 0.4, 4.0, dep + 0.2), braceMat);
+      leaf.add(midRail);
+
+      // Vertical plank seam grooves on front and back
+      for (const pu of [-lw * 0.25, 0, lw * 0.25]) {
+        for (const side of [-1, 1]) {
+          const seam = new THREE.Mesh(box3d(0.2, lh - 2, 0.15), braceMat);
+          setPos(seam, pu, 0, side * (dep / 2 + 0.05));
+          leaf.add(seam);
+        }
+      }
+
+      // Diagonal Z-brace battens on front and back
+      const bLen = Math.hypot(lw / 2, lh / 4);
+      const bAng = Math.atan2(lh / 4, lw / 2);
+      for (const side of [-1, 1]) {
+        const braceZ = side * (dep / 2 + 0.12);
+        // Upper diagonal brace
+        const b1 = new THREE.Mesh(box3d(bLen, 2.6, 0.25), braceMat);
+        setPos(b1, 0, lh / 4, braceZ);
+        if (isH) b1.rotation.z = -bAng; else b1.rotation.x = -bAng;
+        leaf.add(b1);
+
+        // Lower diagonal brace
+        const b2 = new THREE.Mesh(box3d(bLen, 2.6, 0.25), braceMat);
+        setPos(b2, 0, -lh / 4, braceZ);
+        if (isH) b2.rotation.z = bAng; else b2.rotation.x = bAng;
+        leaf.add(b2);
+      }
+
+      // Heavy Iron Hanger Straps with Pulley Roller Wheels
+      const hOffset = Math.max(3, lw * 0.32);
+      for (const ho of [-hOffset, hOffset]) {
+        // Vertical iron strap
+        const strap = new THREE.Mesh(box3d(1.4, 7.5, 0.6), ironMat);
+        setPos(strap, ho, lh + 1.2, 0);
+        pivot.add(strap);
+
+        // Roller pulley wheel on the track
+        const wheel = new THREE.Mesh(new THREE.CylinderGeometry(1.4, 1.4, 0.7, 12), ironMat);
+        if (isH) wheel.rotation.x = Math.PI / 2; else wheel.rotation.z = Math.PI / 2;
+        setPos(wheel, ho, lh + 3.8, 0);
+        pivot.add(wheel);
+
+        // Hex bolt rivets
+        const bolt = new THREE.Mesh(box3d(0.6, 0.6, 0.8), ironMat);
+        setPos(bolt, ho, lh - 1.2, 0);
+        pivot.add(bolt);
+      }
+
+      // Recessed flush cup pull handle
+      const handleU = leaves === 2 ? (li === 0 ? lw / 2 - 2.8 : -lw / 2 + 2.8) : (lw / 2 - 2.8);
+      knob = new THREE.Mesh(box3d(1.6, 8.5, dep + 0.3), ironMat);
+      setPos(knob, handleU, 27, 0);
+      pivot.add(knob);
     }
 
-    const hangerMat = HP.graphics3d ? HP.graphics3d.material('metal', '#1a1a1a') : knobMat;
-    const h1 = new THREE.Mesh(new THREE.BoxGeometry(isH ? 1.6 : 0.8, 4, isH ? 0.8 : 1.6), hangerMat);
-    const h2 = new THREE.Mesh(new THREE.BoxGeometry(isH ? 1.6 : 0.8, 4, isH ? 0.8 : 1.6), hangerMat);
-    const hOffset = Math.max(3, lw * 0.32);
-    h1.position.set(isH ? -hOffset : 0, lh + 1, isH ? 0 : -hOffset);
-    h2.position.set(isH ? hOffset : 0, lh + 1, isH ? 0 : hOffset);
-    pivot.add(h1); pivot.add(h2);
-
-    const pullMat = HP.graphics3d ? HP.graphics3d.material('metal', '#111111') : knobMat;
-    knob = new THREE.Mesh(new THREE.BoxGeometry(isH ? 1.2 : dep + 0.4, 8, isH ? dep + 0.4 : 1.2), pullMat);
-    const handleU = leaves === 2 ? (li === 0 ? lw / 2 - 3 : -lw / 2 + 3) : (lw / 2 - 3);
-    knob.position.set(isH ? handleU : 0, 27, isH ? 0 : handleU);
-    pivot.add(knob);
-
+    // Determine slide direction away from obstructions:
     let du = 0;
     if (leaves === 1) {
-      du = lw * 0.95;
+      if (post1 && !post0) du = -lw * 0.95;
+      else if (post0 && !post1) du = lw * 0.95;
+      else {
+        const seg = HP.parseWallKey(a.k);
+        const wLeft = isH ? lvl?.walls?.[`h,${seg.x - 1},${seg.y}`] : lvl?.walls?.[`v,${seg.x},${seg.y - 1}`];
+        const wRight = isH ? lvl?.walls?.[`h,${seg.x + 1},${seg.y}`] : lvl?.walls?.[`v,${seg.x},${seg.y + 1}`];
+        const leftIsWall = wLeft && !wLeft.f;
+        const rightIsWall = wRight && !wRight.f;
+        if (leftIsWall && !rightIsWall) du = -lw * 0.95;
+        else du = lw * 0.95;
+      }
     } else {
-      du = li === 0 ? -lw * 0.95 : lw * 0.95;
+      if (post0 && !post1) {
+        // Obstructed at s0: leaf 0 bypass slides towards s1; leaf 1 stays fixed
+        du = li === 0 ? span / 2 : 0;
+      } else if (post1 && !post0) {
+        // Obstructed at s1: leaf 1 bypass slides towards s0; leaf 0 stays fixed
+        du = li === 1 ? -span / 2 : 0;
+      } else if (post0 && post1) {
+        // Obstructed at both ends: leaf 0 bypass slides towards s1
+        du = li === 0 ? span / 2 : 0;
+      } else {
+        // Clear on both ends: both leaves slide outwards
+        du = li === 0 ? -lw * 0.95 : lw * 0.95;
+      }
     }
     const slideVec = isH ? { x: du, y: 0, z: 0 } : { x: 0, y: 0, z: du };
 
@@ -738,56 +922,138 @@ function populateDoorLeaf(dp, a, leaves, li, span, s0, s1, post1, leafMat, knobM
     const px = isH ? (li === 0 ? s0 : s1) : (flipVal > 0 ? a.x0 : a.x1);
     pivot.position.set(px, 0, pz);
 
-    const v = (dep / 2 - 0.3) * flipVal;
-    const kv = (dep - 0.5) * flipVal;
+    const v = (dep / 2 - 0.2) * flipVal;
+    const kv = (dep - 0.3) * flipVal;
 
-    let mat = isGlass
-      ? (HP.graphics3d ? HP.graphics3d.material('glass') : new THREE.MeshLambertMaterial({ color: 0x9fd4e8, transparent: true, opacity: 0.5 }))
-      : isModern
-      ? (HP.graphics3d ? HP.graphics3d.material('wood', '#2e2f33') : leafMat)
-      : leafMat;
+    if (doorStyle === 'modern') {
+      // Modern Flush Architectural Door
+      const slabMat = HP.graphics3d ? HP.graphics3d.material('wood', '#2d2e32') : leafMat;
+      const inlayMat = HP.graphics3d ? HP.graphics3d.material('metal', '#dce0e5') : knobMat;
+      const barMat = HP.graphics3d ? HP.graphics3d.material('metal', '#c8ccd2') : knobMat;
 
-    if (isGlass) {
-      const frameMat = HP.graphics3d ? HP.graphics3d.material('metal', '#282b30') : knobMat;
-      const fGeo = new THREE.BoxGeometry(isH ? lw : dep, lh, isH ? dep : lw);
-      const fMesh = new THREE.Mesh(fGeo, frameMat);
-      fMesh.position.set(
-        isH ? (li === 0 ? lw / 2 : -lw / 2) : v,
-        lh / 2 - 0.5,
-        isH ? v : (li === 0 ? lw / 2 : -lw / 2));
-      fMesh.castShadow = fMesh.receiveShadow = true;
-      pivot.add(fMesh);
-
-      const pW = Math.max(2, lw - 5);
-      const pH = Math.max(2, lh - 6);
-      leaf = new THREE.Mesh(new THREE.BoxGeometry(isH ? pW : 0.6, pH, isH ? 0.6 : pW), mat);
-      leaf.position.set(
-        isH ? (li === 0 ? lw / 2 : -lw / 2) : v,
-        lh / 2 - 0.5,
-        isH ? v : (li === 0 ? lw / 2 : -lw / 2));
-      pivot.add(leaf);
-    } else {
-      leaf = new THREE.Mesh(new THREE.BoxGeometry(isH ? lw : dep, lh, isH ? dep : lw), mat);
-      leaf.position.set(
-        isH ? (li === 0 ? lw / 2 : -lw / 2) : v,
-        lh / 2 - 0.5,
-        isH ? v : (li === 0 ? lw / 2 : -lw / 2));
+      leaf = new THREE.Mesh(box3d(lw, lh, dep), slabMat);
+      setPos(leaf, (li === 0 ? lw / 2 : -lw / 2), lh / 2 - 0.5, v);
       leaf.castShadow = leaf.receiveShadow = true;
       pivot.add(leaf);
-    }
 
-    if (isModern) {
-      const barMat = HP.graphics3d ? HP.graphics3d.material('metal', '#cccccc') : knobMat;
-      knob = new THREE.Mesh(new THREE.BoxGeometry(isH ? 0.9 : 0.9, 22, isH ? 0.9 : 0.9), barMat);
-      knob.position.set(isH ? (li === 0 ? lw - 5 : -lw + 5) : kv,
-                        27,
-                        isH ? kv : (li === 0 ? lw - 5 : -lw + 5));
+      // 4 horizontal brushed-aluminum inlay accent strips
+      const inW = lw - 2;
+      for (const yOff of [-14, -4, 6, 16]) {
+        for (const side of [-1, 1]) {
+          const strip = new THREE.Mesh(box3d(inW, 0.45, 0.2), inlayMat);
+          setPos(strip, 0, yOff, side * (dep / 2 + 0.08));
+          leaf.add(strip);
+        }
+      }
+
+      // Vertical architectural pull bar with standoffs
+      knob = new THREE.Group();
+      const pullBar = new THREE.Mesh(box3d(0.8, 22, 0.8), barMat);
+      pullBar.castShadow = true;
+      knob.add(pullBar);
+
+      // Standoff mounting brackets at top and bottom
+      for (const sy of [-8, 8]) {
+        const so = new THREE.Mesh(box3d(0.5, 0.5, 1.2), barMat);
+        setPos(so, 0, sy, -0.5 * flipVal);
+        knob.add(so);
+      }
+      setPos(knob, (li === 0 ? lw - 4.5 : -lw + 4.5), 27, kv);
+      pivot.add(knob);
+    } else if (doorStyle === 'glass') {
+      // Glass French Door with Divided Lites
+      const frameMat = HP.graphics3d ? HP.graphics3d.material('metal', '#222428') : knobMat;
+      const glassMat = HP.graphics3d ? HP.graphics3d.material('glass', '#bfe3ea') : new THREE.MeshLambertMaterial({ color: 0x9fd4e8, transparent: true, opacity: 0.35 });
+      const hardwareMat = HP.graphics3d ? HP.graphics3d.material('metal', '#1a1c1e') : knobMat;
+
+      leaf = new THREE.Mesh(box3d(lw, lh, dep), frameMat);
+      setPos(leaf, (li === 0 ? lw / 2 : -lw / 2), lh / 2 - 0.5, v);
+      leaf.castShadow = leaf.receiveShadow = true;
+      pivot.add(leaf);
+
+      const pW = Math.max(2, lw - 4.8);
+      const pH = Math.max(2, lh - 6.0);
+      const glassMesh = new THREE.Mesh(box3d(pW, pH, 0.5), glassMat);
+      leaf.add(glassMesh);
+
+      // Divided Lite Muntin Grille: 3 horizontal bars + 1 vertical bar
+      for (const my of [-9, 3, 15]) {
+        const hMuntin = new THREE.Mesh(box3d(pW, 0.5, 0.6), frameMat);
+        setPos(hMuntin, 0, my, 0);
+        leaf.add(hMuntin);
+      }
+      const vMuntin = new THREE.Mesh(box3d(0.5, pH, 0.6), frameMat);
+      leaf.add(vMuntin);
+
+      // Contemporary lever handle
+      knob = new THREE.Group();
+      const rosette = new THREE.Mesh(box3d(1.6, 2.2, 0.4), hardwareMat);
+      knob.add(rosette);
+      const leverDir = li === 0 ? -1 : 1;
+      const lever = new THREE.Mesh(box3d(3.4, 0.5, 0.5), hardwareMat);
+      setPos(lever, leverDir * 1.5, 0, 0);
+      knob.add(lever);
+      setPos(knob, (li === 0 ? lw - 4.2 : -lw + 4.2), 27, kv);
       pivot.add(knob);
     } else {
-      knob = new THREE.Mesh(knobGeo, knobMat);
-      knob.position.set(isH ? (li === 0 ? lw - 6 : -lw + 6) : kv,
-                        27,
-                        isH ? kv : (li === 0 ? lw - 6 : -lw + 6));
+      // Classic 4-Panel Stile-and-Rail Door ('panel')
+      const woodMat = HP.graphics3d ? HP.graphics3d.material('wood', '#f2ece2') : leafMat;
+      const panelTrimMat = HP.graphics3d ? HP.graphics3d.material('wood', '#e5dfd2') : leafMat;
+      const panelFieldMat = HP.graphics3d ? HP.graphics3d.material('wood', '#d9d2c4') : leafMat;
+      const brassMat = HP.graphics3d ? HP.graphics3d.material('metal', '#c89d46') : knobMat;
+
+      leaf = new THREE.Mesh(box3d(lw, lh, dep), woodMat);
+      setPos(leaf, (li === 0 ? lw / 2 : -lw / 2), lh / 2 - 0.5, v);
+      leaf.castShadow = leaf.receiveShadow = true;
+      pivot.add(leaf);
+
+      // 4 architectural recessed panels on front and back
+      const pW = Math.max(2, (lw - 6.5) / 2);
+      const panels = [
+        { y: 13, h: 20 },   // upper panel
+        { y: -11, h: 15 },  // lower panel
+      ];
+      for (const p of panels) {
+        for (const col of [-lw / 4 + 0.3, lw / 4 - 0.3]) {
+          for (const side of [-1, 1]) {
+            const pZ = side * (dep / 2 + 0.08);
+            // Raised moulding border
+            const trim = new THREE.Mesh(box3d(pW, p.h, 0.2), panelTrimMat);
+            setPos(trim, col, p.y, pZ);
+            leaf.add(trim);
+            // Recessed field
+            const field = new THREE.Mesh(box3d(pW - 1.0, p.h - 1.0, 0.15), panelFieldMat);
+            setPos(field, col, p.y, pZ - side * 0.04);
+            leaf.add(field);
+          }
+        }
+      }
+
+      // 3 Brass hinge barrels on hinge edge
+      for (const hy of [12, 29, 48]) {
+        const hinge = new THREE.Mesh(new THREE.CylinderGeometry(0.35, 0.35, 1.8, 8), brassMat);
+        hinge.position.set(0, hy, 0);
+        pivot.add(hinge);
+      }
+
+      // Polished brass lever handle & circular rosette
+      knob = new THREE.Group();
+      const rosette = new THREE.Mesh(new THREE.CylinderGeometry(1.0, 1.0, 0.3, 12), brassMat);
+      if (isH) rosette.rotation.x = Math.PI / 2; else rosette.rotation.z = Math.PI / 2;
+      knob.add(rosette);
+
+      const collar = new THREE.Mesh(new THREE.CylinderGeometry(0.4, 0.4, 0.6, 8), brassMat);
+      if (isH) collar.rotation.x = Math.PI / 2; else collar.rotation.z = Math.PI / 2;
+      setPos(collar, 0, 0, 0.3 * flipVal);
+      knob.add(collar);
+
+      const leverDir = li === 0 ? -1 : 1;
+      const lever = new THREE.Mesh(box3d(3.6, 0.5, 0.5), brassMat);
+      setPos(lever, leverDir * 1.6, -0.1, 0.6 * flipVal);
+      lever.castShadow = true;
+      knob.add(lever);
+
+      setPos(knob, (li === 0 ? lw - 4.5 : -lw + 4.5), 27, kv);
       pivot.add(knob);
     }
   }
@@ -803,6 +1069,8 @@ function populateDoorLeaf(dp, a, leaves, li, span, s0, s1, post1, leafMat, knobM
   dp.ly1 = lh;
   dp.s0 = s0;
   dp.s1 = s1;
+  dp.post0 = post0;
+  dp.post1 = post1;
 }
 
 /* ---------- level build ---------- */
@@ -1261,8 +1529,11 @@ W3.buildLevel = function () {
       sg.add(pivot);
       V.add(pivot, a.x0 - C, a.z0 - C, a.x1 + C, a.z1 + C);   // swing reach
       const dp = { pivot, a, open: 0, target: 0, vel: 0, holdT: 0, latched: false,
-                   flip: a.flip, s0, s1 };
-      populateDoorLeaf(dp, a, leaves, li, span, s0, s1, post1, leafMat, knobMat, knobGeo);
+                   flip: a.flip, s0, s1, post0, post1 };
+      populateDoorLeaf(dp, a, leaves, li, span, s0, s1, post0, post1, leafMat, knobMat, knobGeo);
+      if (li === 0) {
+        dp.frameMesh = buildDoorFrame(a, s0, s1, sg);
+      }
       if ((dp.doorStyle === 'slide' || dp.doorStyle === 'slideglass') && li === 0) {
         dp.trackMesh = buildOverheadTrack(a, span, leaves, s0, s1, a.flip !== undefined ? a.flip : 1, sg);
       }
@@ -2039,12 +2310,19 @@ W3.updateApertures = function () {
       const s1 = dp.s1 !== undefined ? dp.s1 : (dp.a.d === 'h' ? dp.a.x1 : dp.a.z1);
       const span = s1 - s0;
       const leaves = dp.a.dbl ? 2 : 1;
-      populateDoorLeaf(dp, dp.a, leaves, dp.li, span, s0, s1, false, W3._leafMat, W3._knobMat, W3._knobGeo);
+      populateDoorLeaf(dp, dp.a, leaves, dp.li, span, s0, s1, dp.post0, dp.post1, W3._leafMat, W3._knobMat, W3._knobGeo);
+      if (dp.frameMesh) {
+        if (dp.frameMesh.parent) dp.frameMesh.parent.remove(dp.frameMesh);
+        dp.frameMesh = null;
+      }
+      if (dp.li === 0 && dp.pivot && dp.pivot.parent) {
+        dp.frameMesh = buildDoorFrame(dp.a, s0, s1, dp.pivot.parent);
+      }
       if (dp.trackMesh) {
         if (dp.trackMesh.parent) dp.trackMesh.parent.remove(dp.trackMesh);
         dp.trackMesh = null;
       }
-      if ((dp.doorStyle === 'slide' || dp.doorStyle === 'slideglass') && dp.li === 0) {
+      if ((dp.doorStyle === 'slide' || dp.doorStyle === 'slideglass') && dp.li === 0 && dp.pivot && dp.pivot.parent) {
         dp.trackMesh = buildOverheadTrack(dp.a, span, leaves, s0, s1, targetFlip !== undefined ? targetFlip : 1, dp.pivot.parent);
       }
       dp.open = 0;

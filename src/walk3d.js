@@ -373,10 +373,9 @@ function leafBox(d, ang) {
       return { x0: d.a.x0 - 0.4, x1: d.a.x1 + 0.4, z0: d.a.z0 - 0.4, z1: d.a.z1 + 0.4 };
     const P = d.pivot.position, L = d.leaf, g = L && L.geometry && L.geometry.parameters;
     if (!g) return { x0: d.a.x0 - 0.4, x1: d.a.x1 + 0.4, z0: d.a.z0 - 0.4, z1: d.a.z1 + 0.4 };
-    const h = d.a.d === 'h';
-    const hw = (h ? g.width : g.depth) / 2, hd = (h ? g.depth : g.width) / 2;
+    const hx = (g.width || 2.6) / 2, hz = (g.depth || 2.6) / 2;
     const cx = P.x + (L.position ? L.position.x : 0), cz = P.z + (L.position ? L.position.z : 0);
-    return { x0: cx - hw, x1: cx + hw, z0: cz - hd, z1: cz + hd };
+    return { x0: cx - hx, x1: cx + hx, z0: cz - hz, z1: cz + hz };
   }
   const th = ang === undefined ? d.pivot.rotation.y : ang;
   if (d.casement) {
@@ -525,10 +524,11 @@ function chooseFlip(d) {
 /* furthest the leaf can swing before ~2px inside a static solid —
    doors can't fold through walls or furniture                      */
 function swingLimit(d) {
+  const maxDeg = (d.a && d.a.dbl) ? 90 : 166;
   const dir = (d.a.d === 'h' ? 1 : -1) * (d.li === 1 ? -1 : 1) * (d.flip || 1);
   const cs = HP.world3d.colliders || [];
   let good = 0;
-  for (let deg = 6; deg <= 166; deg += 4) {
+  for (let deg = 6; deg <= maxDeg; deg += 4) {
     const ang = deg * Math.PI / 180 * dir;
     let blocked = false;
     for (const b of cs) {
@@ -550,17 +550,24 @@ function slideWindow(d, from, to) {
   const steps = Math.max(1, Math.ceil(Math.abs(to - from) * travel / 0.25));
   let safe = from;
   const isParallelWall = b => !d.window && b.tag === 'wall' && d.a && b.d === d.a.d;
-  for (let i = 1; i <= steps; i++) {
-    const f = from + (to - from) * i / steps;
+  const testHits = (f) => {
     const x = origin.x + d.base.x + d.slide.x * f;
     const y = origin.y + d.base.y + (d.window ? 0 : d.halfY) + d.slide.y * f;
     const z = origin.z + d.base.z + d.slide.z * f;
-    const hits = b => !isParallelWall(b) &&
+    return b => !isParallelWall(b) &&
       x + d.halfX > b.x0 + 0.001 && x - d.halfX < b.x1 - 0.001 &&
       y + d.halfY > b.y0 + 0.001 && y - d.halfY < b.y1 - 0.001 &&
       z + d.halfZ > b.z0 + 0.001 && z - d.halfZ < b.z1 - 0.001;
-    if ((HP.world3d.colliders || []).some(hits) ||
-        (HP.world3d.geom.boxes || []).some(hits)) {
+  };
+  const initHits = testHits(from);
+  const initialOverlaps = new Set(
+    (HP.world3d.colliders || []).concat(HP.world3d.geom.boxes || []).filter(initHits)
+  );
+  for (let i = 1; i <= steps; i++) {
+    const f = from + (to - from) * i / steps;
+    const hits = testHits(f);
+    if ((HP.world3d.colliders || []).some(b => !initialOverlaps.has(b) && hits(b)) ||
+        (HP.world3d.geom.boxes || []).some(b => !initialOverlaps.has(b) && hits(b))) {
       d.vel = 0;
       return safe;
     }
@@ -961,8 +968,7 @@ function tick(t) {
                            d.base.y + d.slide.y * d.open,
                            d.base.z + d.slide.z * d.open);
     } else {
-      const ang = d.open * 2.9;                      // ~166° max — folds flat against the wall
-                                                     // (margin so the leaf never clips the face)
+      const ang = d.open * 2.9;
       const side = d.li === 1 ? -1 : 1;
       d.pivot.rotation.y = (d.a.d === 'h' ? ang * side : -ang * side) * (d.flip || 1);
     }

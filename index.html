@@ -134,7 +134,7 @@
 
 <!-- TOP BAR -->
 <header class="topbar">
-  <div class="logo"><svg class="ic"><use href="#i-logo"/></svg>House<span>Designer</span> <span class="ver-badge" id="btn-ver" title="Check for updates">v1.3.10 ✓</span></div>
+  <div class="logo"><svg class="ic"><use href="#i-logo"/></svg>House<span>Designer</span> <span class="ver-badge" id="btn-ver" title="Check for updates">v1.3.11 ✓</span></div>
   <button class="tbtn" id="btn-new">New</button>
   <button class="tbtn" id="btn-save" title="Download house as a backup file">Save</button>
   <button class="tbtn" id="btn-export">Export</button>
@@ -212,6 +212,10 @@
   <!-- RIGHT INSPECTOR — tool-scoped sections -->
   <aside class="inspector" id="inspector" data-sec="generic">
     <div class="insp-grabber" id="insp-grabber" role="button" aria-label="Close panel"><i></i><span class="gx">&#10005;</span></div>
+    <div class="insp-section tool-sec" data-sec="wall">
+      <div class="insp-title">Wall Options</div>
+      <div id="wall-panel"></div>
+    </div>
     <div class="insp-section tool-sec" data-sec="door">
       <div class="insp-title">Door Options</div>
       <div id="door-panel"></div>
@@ -390,7 +394,7 @@
 <script src="src/play3d-inpage.js?v=1794329900000"></script>
 <script>
 (async function initAppLifecycle() {
-  let CURRENT_VERSION = '1.3.10';
+  let CURRENT_VERSION = '1.3.11';
   if (window.electronAPI && window.electronAPI.getVersion) {
     try {
       const v = await window.electronAPI.getVersion();

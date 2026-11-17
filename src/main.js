@@ -2521,6 +2521,35 @@ function drawOverlays(g) {
       g.fillText(badgeText, bx, by);
     }
   }
+  // selection outline for regular wall
+  if (HP.selectedWall) {
+    const sw = HP.selectedWall;
+    const s = HP.parseWallKey(sw.k);
+    const rec = HP.cur() && HP.cur().walls && HP.cur().walls[sw.k];
+    if (rec) {
+      const isH = s.d === 'h';
+      const x0 = (isH ? s.x : s.x - 0.25) * C - 2;
+      const y0 = (isH ? s.y - 0.25 : s.y) * C - 2;
+      const bw = (isH ? C : 0.5 * C) + 4;
+      const bh = (isH ? 0.5 * C : C) + 4;
+      g.strokeStyle = '#22c55e'; g.lineWidth = 2.5; g.setLineDash([5, 3]);
+      g.strokeRect(x0, y0, bw, bh);
+      g.setLineDash([]);
+      const badgeText = (rec.style || 'plaster').toUpperCase();
+      g.font = 'bold 9px "Segoe UI", sans-serif';
+      const tw = g.measureText(badgeText).width + 8;
+      const bx = isH ? (s.x + 0.5) * C : (s.x * C);
+      const by = isH ? (s.y * C) : (s.y + 0.5) * C;
+      g.fillStyle = 'rgba(20,23,28,0.85)';
+      g.beginPath();
+      if (g.roundRect) g.roundRect(bx - tw / 2, by - 7, tw, 14, 3);
+      else g.rect(bx - tw / 2, by - 7, tw, 14);
+      g.fill();
+      g.fillStyle = '#22c55e';
+      g.textAlign = 'center'; g.textBaseline = 'middle';
+      g.fillText(badgeText, bx, by);
+    }
+  }
   // invalid-move tint on dragged item
   // (item itself already moves; footprint overlap drawn via ghost only)
 }

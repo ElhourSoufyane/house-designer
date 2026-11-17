@@ -39,6 +39,7 @@ const selectTool = {
     const mouse = !p.e || p.e.pointerType === 'mouse';
     if (it) {
       HP.selectedFeature = null;
+      HP.selectedWall = null;
       /* clicking a member of the marquee set moves the whole set        */
       const inSet = HP.selectedSet && HP.selectedSet.length && HP.selectedSet.includes(it);
       const members = inSet ? HP.selSet() : HP.groupOf(it);
@@ -55,14 +56,23 @@ const selectTool = {
       const wk = HP.nearestWallSeg(p.wx, p.wy, 0.65);
       const wRec = wk && HP.cur().walls && HP.cur().walls[wk];
       if (wRec && (wRec.f === 'door' || wRec.f === 'window')) {
-        HP.selected = null; HP.selectedSet = []; HP.selectedRoom = null;
+        HP.selected = null; HP.selectedSet = []; HP.selectedRoom = null; HP.selectedWall = null;
         HP.selectedFeature = { k: wk, kind: wRec.f, wall: wRec };
         drag = null;
         HP.status((wRec.f === 'door' ? 'Door' : 'Window') + ' selected — opens ' + (wRec.swing === 'out' ? 'Outside' : 'Inside'));
         HP.refreshContext(); HP.markDirty();
         return;
       }
+      if (wRec) {
+        HP.selected = null; HP.selectedSet = []; HP.selectedRoom = null; HP.selectedFeature = null;
+        HP.selectedWall = { k: wk, wall: wRec };
+        drag = null;
+        HP.status('Wall selected — Style: ' + (wRec.style || 'plaster'));
+        HP.refreshContext(); HP.markDirty();
+        return;
+      }
       HP.selectedFeature = null;
+      HP.selectedWall = null;
       if (p.e && p.e.shiftKey) {
         /* Shift + drag on empty space = box select; normal drag = pan     */
         HP.selected = null;
