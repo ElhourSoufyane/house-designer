@@ -1672,25 +1672,91 @@ function wallThick(seg) {                    // exterior → thicker
 
 function drawWallCore(g, s, t, w) {
   const C = HP.CELL, ca = w && w.ca, cb = w && w.cb;
+  const style = (w && w.style) || 'plaster';
   const painted = !!(ca || cb);
   const ti = Math.max(painted ? 4.6 : 2, t - (painted ? 4.6 : 8));
+  const styleDefCol = style === 'brick' ? '#b5523e' :
+                      style === 'stone' ? '#8a857b' :
+                      style === 'wood' ? '#be9866' :
+                      style === 'tile' ? '#dad6cf' :
+                      style === 'glass' ? 'rgba(165, 222, 242, 0.75)' : '#f5f3ec';
+
+  let rx, ry, rw, rh;
   if (!painted || ca === cb) {
-    g.fillStyle = ca || '#f5f3ec';
-    if (s.d === 'h') g.fillRect(s.x * C + 2, s.y * C - ti / 2, C - 3.4, ti);
-    else g.fillRect(s.x * C - ti / 2, s.y * C + 2, ti, C - 3.4);
-    return;
-  }
-  const h = ti / 2;
-  if (s.d === 'h') {
-    g.fillStyle = ca || '#f5f3ec';
-    g.fillRect(s.x * C + 2, s.y * C - h, C - 3.4, h);
-    g.fillStyle = cb || '#f5f3ec';
-    g.fillRect(s.x * C + 2, s.y * C, C - 3.4, h);
+    g.fillStyle = ca || styleDefCol;
+    if (s.d === 'h') { rx = s.x * C + 2; ry = s.y * C - ti / 2; rw = C - 3.4; rh = ti; }
+    else { rx = s.x * C - ti / 2; ry = s.y * C + 2; rw = ti; rh = C - 3.4; }
+    g.fillRect(rx, ry, rw, rh);
   } else {
-    g.fillStyle = ca || '#f5f3ec';
-    g.fillRect(s.x * C - h, s.y * C + 2, h, C - 3.4);
-    g.fillStyle = cb || '#f5f3ec';
-    g.fillRect(s.x * C, s.y * C + 2, h, C - 3.4);
+    const h = ti / 2;
+    if (s.d === 'h') {
+      rx = s.x * C + 2; ry = s.y * C - h; rw = C - 3.4; rh = ti;
+      g.fillStyle = ca || styleDefCol; g.fillRect(rx, ry, rw, h);
+      g.fillStyle = cb || styleDefCol; g.fillRect(rx, s.y * C, rw, h);
+    } else {
+      rx = s.x * C - h; ry = s.y * C + 2; rw = ti; rh = C - 3.4;
+      g.fillStyle = ca || styleDefCol; g.fillRect(rx, ry, h, rh);
+      g.fillStyle = cb || styleDefCol; g.fillRect(s.x * C, ry, h, rh);
+    }
+  }
+
+  // Architectural hatching & patterns per style
+  if (style === 'brick') {
+    g.save();
+    g.beginPath(); g.rect(rx, ry, rw, rh); g.clip();
+    g.strokeStyle = 'rgba(255, 255, 255, 0.45)'; g.lineWidth = 1;
+    const diagSpan = rw + rh;
+    for (let d = -rh; d < diagSpan; d += 6) {
+      g.beginPath(); g.moveTo(rx + d, ry); g.lineTo(rx + d + rh, ry + rh); g.stroke();
+    }
+    g.restore();
+  } else if (style === 'stone') {
+    g.save();
+    g.beginPath(); g.rect(rx, ry, rw, rh); g.clip();
+    g.strokeStyle = 'rgba(40, 35, 30, 0.4)'; g.lineWidth = 0.9;
+    if (s.d === 'h') {
+      for (let x = rx + 6; x < rx + rw - 3; x += 9) {
+        g.beginPath(); g.moveTo(x, ry); g.lineTo(x, ry + rh); g.stroke();
+      }
+    } else {
+      for (let y = ry + 6; y < ry + rh - 3; y += 9) {
+        g.beginPath(); g.moveTo(rx, y); g.lineTo(rx + rw, y); g.stroke();
+      }
+    }
+    g.restore();
+  } else if (style === 'wood') {
+    g.save();
+    g.beginPath(); g.rect(rx, ry, rw, rh); g.clip();
+    g.strokeStyle = 'rgba(80, 50, 20, 0.38)'; g.lineWidth = 0.9;
+    if (s.d === 'h') {
+      g.beginPath();
+      g.moveTo(rx, ry + rh * 0.33); g.lineTo(rx + rw, ry + rh * 0.33);
+      g.moveTo(rx, ry + rh * 0.67); g.lineTo(rx + rw, ry + rh * 0.67);
+      g.stroke();
+    } else {
+      g.beginPath();
+      g.moveTo(rx + rw * 0.33, ry); g.lineTo(rx + rw * 0.33, ry + rh);
+      g.moveTo(rx + rw * 0.67, ry); g.lineTo(rx + rw * 0.67, ry + rh);
+      g.stroke();
+    }
+    g.restore();
+  } else if (style === 'tile') {
+    g.save();
+    g.beginPath(); g.rect(rx, ry, rw, rh); g.clip();
+    g.strokeStyle = 'rgba(90, 100, 110, 0.35)'; g.lineWidth = 0.8;
+    for (let x = rx + 5; x < rx + rw; x += 5) {
+      g.beginPath(); g.moveTo(x, ry); g.lineTo(x, ry + rh); g.stroke();
+    }
+    for (let y = ry + 5; y < ry + rh; y += 5) {
+      g.beginPath(); g.moveTo(rx, y); g.lineTo(rx + rw, y); g.stroke();
+    }
+    g.restore();
+  } else if (style === 'glass') {
+    g.strokeStyle = '#2b8eb5'; g.lineWidth = 1.6;
+    g.beginPath();
+    if (s.d === 'h') { g.moveTo(rx, ry + rh / 2); g.lineTo(rx + rw, ry + rh / 2); }
+    else { g.moveTo(rx + rw / 2, ry); g.lineTo(rx + rw / 2, ry + rh); }
+    g.stroke();
   }
 }
 
@@ -1788,19 +1854,108 @@ function drawDoor(g, s, t) {
   const C = HP.CELL, dir = insideDir(s);
   const rec = HP.cur().walls[s.d + ',' + s.x + ',' + s.y];
   const closed = rec && rec.c;
-  g.strokeStyle = '#7c5a38'; g.fillStyle = '#7c5a38'; g.lineWidth = 3;
+  const style = (rec && rec.doorStyle) || 'panel';
+  const isSlide = style === 'slide' || style === 'slideglass';
+  const isGlass = style === 'glass' || style === 'slideglass';
+  const isModern = style === 'modern';
+
+  if (isSlide) {
+    const isH = s.d === 'h';
+    const jx = s.x * C, jy = s.y * C;
+    g.fillStyle = '#2e3138';
+    if (isH) {
+      g.fillRect(jx - 2, jy - t / 2, 5, t);
+      g.fillRect((s.x + 1) * C - 3, jy - t / 2, 5, t);
+    } else {
+      g.fillRect(jx - t / 2, jy - 2, t, 5);
+      g.fillRect(jx - t / 2, (s.y + 1) * C - 3, t, 5);
+    }
+
+    const trackOffset = dir * (t / 2 + 2.5);
+    g.strokeStyle = '#222222'; g.lineWidth = 2.2;
+    g.beginPath();
+    if (isH) {
+      g.moveTo(jx - 4, jy + trackOffset);
+      g.lineTo((s.x + 2) * C + 4, jy + trackOffset);
+    } else {
+      g.moveTo(jx + trackOffset, jy - 4);
+      g.lineTo(jx + trackOffset, (s.y + 2) * C + 4);
+    }
+    g.stroke();
+
+    const leafThick = 4.2;
+    const leafLen = C - 1;
+    let lx, ly, lw, lh;
+    if (isH) {
+      const u = closed ? jx + 2 : (s.x + 1) * C + 2;
+      lx = u; ly = jy + trackOffset - leafThick / 2;
+      lw = leafLen; lh = leafThick;
+    } else {
+      const v = closed ? jy + 2 : (s.y + 1) * C + 2;
+      lx = jx + trackOffset - leafThick / 2; ly = v;
+      lw = leafThick; lh = leafLen;
+    }
+
+    if (isGlass) {
+      g.fillStyle = 'rgba(165, 222, 242, 0.85)';
+      g.strokeStyle = '#387c96'; g.lineWidth = 1.2;
+    } else {
+      g.fillStyle = isModern ? '#2e2f33' : '#8c6843';
+      g.strokeStyle = '#1e2022'; g.lineWidth = 1.2;
+    }
+    g.fillRect(lx, ly, lw, lh);
+    g.strokeRect(lx, ly, lw, lh);
+
+    // Slide arrow showing gliding motion
+    g.strokeStyle = isGlass ? '#25657d' : '#ffffff';
+    g.lineWidth = 1.4;
+    const aDir = closed ? 1 : -1;
+    if (isH) {
+      const mx = lx + lw / 2, my = ly + lh / 2;
+      g.beginPath();
+      g.moveTo(mx - 4 * aDir, my); g.lineTo(mx + 4 * aDir, my);
+      g.lineTo(mx + 1.5 * aDir, my - 2);
+      g.moveTo(mx + 4 * aDir, my); g.lineTo(mx + 1.5 * aDir, my + 2);
+      g.stroke();
+    } else {
+      const mx = lx + lw / 2, my = ly + lh / 2;
+      g.beginPath();
+      g.moveTo(mx, my - 4 * aDir); g.lineTo(mx, my + 4 * aDir);
+      g.lineTo(mx - 2, my + 1.5 * aDir);
+      g.moveTo(mx, my + 4 * aDir); g.lineTo(mx + 2, my + 1.5 * aDir);
+      g.stroke();
+    }
+    return;
+  }
+
+  const doorColor = isGlass ? '#387c96' : isModern ? '#2e2f33' : '#7c5a38';
+  g.strokeStyle = doorColor; g.fillStyle = doorColor; g.lineWidth = 3;
   if (closed) {                                  // leaf shut across the doorway
     if (s.d === 'h') {
       const jy = s.y * C;
       g.fillRect(s.x * C - 2, jy - t / 2, 5, t);
       g.fillRect((s.x + 1) * C - 3, jy - t / 2, 5, t);
-      g.fillRect(s.x * C + 3, jy - 3.5, C - 6, 7);
+      if (isGlass) {
+        g.fillStyle = 'rgba(165, 222, 242, 0.85)';
+        g.fillRect(s.x * C + 3, jy - 3.5, C - 6, 7);
+        g.strokeRect(s.x * C + 3, jy - 3.5, C - 6, 7);
+        g.fillStyle = doorColor;
+      } else {
+        g.fillRect(s.x * C + 3, jy - 3.5, C - 6, 7);
+      }
       g.beginPath(); g.arc(s.x * C + C * 0.8, jy + 5.5, 1.7, 0, 7); g.fill();
     } else {
       const jx = s.x * C;
       g.fillRect(jx - t / 2, s.y * C - 2, t, 5);
       g.fillRect(jx - t / 2, (s.y + 1) * C - 3, t, 5);
-      g.fillRect(jx - 3.5, s.y * C + 3, 7, C - 6);
+      if (isGlass) {
+        g.fillStyle = 'rgba(165, 222, 242, 0.85)';
+        g.fillRect(jx - 3.5, s.y * C + 3, 7, C - 6);
+        g.strokeRect(jx - 3.5, s.y * C + 3, 7, C - 6);
+        g.fillStyle = doorColor;
+      } else {
+        g.fillRect(jx - 3.5, s.y * C + 3, 7, C - 6);
+      }
       g.beginPath(); g.arc(jx + 5.5, s.y * C + C * 0.8, 1.7, 0, 7); g.fill();
     }
     return;
@@ -1811,7 +1966,7 @@ function drawDoor(g, s, t) {
     g.fillRect((s.x + 1) * C - 3, jy - t / 2, 5, t);
     g.beginPath();                                       // leaf (opened into room)
     g.moveTo(jx, jy); g.lineTo(jx, jy + dir * C * 0.9); g.stroke();
-    g.strokeStyle = 'rgba(60,50,40,.55)'; g.lineWidth = 1.2;
+    g.strokeStyle = isGlass ? 'rgba(56, 124, 150, 0.65)' : 'rgba(60,50,40,.55)'; g.lineWidth = 1.2;
     g.beginPath(); g.arc(jx, jy, C * 0.9, dir > 0 ? 0 : -Math.PI / 2, dir > 0 ? Math.PI / 2 : 0); g.stroke();
   } else {
     const jx = s.x * C, jy = s.y * C;
@@ -1819,7 +1974,7 @@ function drawDoor(g, s, t) {
     g.fillRect(jx - t / 2, (s.y + 1) * C - 3, t, 5);
     g.beginPath();
     g.moveTo(jx, jy); g.lineTo(jx + dir * C * 0.9, jy); g.stroke();
-    g.strokeStyle = 'rgba(60,50,40,.55)'; g.lineWidth = 1.2;
+    g.strokeStyle = isGlass ? 'rgba(56, 124, 150, 0.65)' : 'rgba(60,50,40,.55)'; g.lineWidth = 1.2;
     g.beginPath(); g.arc(jx, jy, C * 0.9, dir > 0 ? 0 : Math.PI / 2, dir > 0 ? Math.PI / 2 : Math.PI); g.stroke();
   }
 }
@@ -1828,18 +1983,105 @@ function drawDoor(g, s, t) {
 function drawDoubleDoor(g, s, t) {
   const C = HP.CELL, dir = insideDir(s);
   const rec = HP.cur().walls[s.d + ',' + s.x + ',' + s.y];
-  if (rec && rec.c) {                              // both leaves shut, meeting in the middle
-    g.fillStyle = '#7c5a38';
+  const style = (rec && rec.doorStyle) || 'panel';
+  const isSlide = style === 'slide' || style === 'slideglass';
+  const isGlass = style === 'glass' || style === 'slideglass';
+  const isModern = style === 'modern';
+  const closed = rec && rec.c;
+
+  if (isSlide) {
+    const isH = s.d === 'h';
+    const xL = s.x * C, xR = (s.x + 2) * C;
+    const yT = s.y * C, yB = (s.y + 2) * C;
+    g.fillStyle = '#2e3138';
+    if (isH) {
+      g.fillRect(xL - 2, yT - t / 2, 5, t);
+      g.fillRect(xR - 3, yT - t / 2, 5, t);
+    } else {
+      g.fillRect(xL - t / 2, yT - 2, t, 5);
+      g.fillRect(xL - t / 2, yB - 3, t, 5);
+    }
+    const trackOffset = dir * (t / 2 + 2.5);
+    g.strokeStyle = '#222222'; g.lineWidth = 2.2;
+    g.beginPath();
+    if (isH) {
+      g.moveTo(xL - C, yT + trackOffset);
+      g.lineTo(xR + C, yT + trackOffset);
+    } else {
+      g.moveTo(xL + trackOffset, yT - C);
+      g.lineTo(xL + trackOffset, yB + C);
+    }
+    g.stroke();
+
+    const leafThick = 4.2, leafLen = C - 1;
+    let l1x, l1y, l2x, l2y, lw, lh;
+    if (isH) {
+      lw = leafLen; lh = leafThick;
+      l1x = closed ? xL + 1 : xL - C + 2; l1y = yT + trackOffset - leafThick / 2;
+      l2x = closed ? xL + C + 1 : xR + 1; l2y = yT + trackOffset - leafThick / 2;
+    } else {
+      lw = leafThick; lh = leafLen;
+      l1x = xL + trackOffset - leafThick / 2; l1y = closed ? yT + 1 : yT - C + 2;
+      l2x = xL + trackOffset - leafThick / 2; l2y = closed ? yT + C + 1 : yB + 1;
+    }
+
+    const drawLeafBox = (x, y) => {
+      if (isGlass) {
+        g.fillStyle = 'rgba(165, 222, 242, 0.85)'; g.strokeStyle = '#387c96'; g.lineWidth = 1.2;
+      } else {
+        g.fillStyle = isModern ? '#2e2f33' : '#8c6843'; g.strokeStyle = '#1e2022'; g.lineWidth = 1.2;
+      }
+      g.fillRect(x, y, lw, lh); g.strokeRect(x, y, lw, lh);
+    };
+    drawLeafBox(l1x, l1y);
+    drawLeafBox(l2x, l2y);
+
+    // Slide arrows (pointing apart when closed, toward center when open)
+    g.strokeStyle = isGlass ? '#25657d' : '#ffffff'; g.lineWidth = 1.4;
+    const aDir = closed ? -1 : 1;
+    if (isH) {
+      const m1x = l1x + lw / 2, my = l1y + lh / 2;
+      g.beginPath(); g.moveTo(m1x - 4 * aDir, my); g.lineTo(m1x + 4 * aDir, my); g.stroke();
+      const m2x = l2x + lw / 2;
+      g.beginPath(); g.moveTo(m2x + 4 * aDir, my); g.lineTo(m2x - 4 * aDir, my); g.stroke();
+    } else {
+      const mx = l1x + lw / 2, m1y = l1y + lh / 2;
+      g.beginPath(); g.moveTo(mx, m1y - 4 * aDir); g.lineTo(mx, m1y + 4 * aDir); g.stroke();
+      const m2y = l2y + lh / 2;
+      g.beginPath(); g.moveTo(mx, m2y + 4 * aDir); g.lineTo(mx, m2y - 4 * aDir); g.stroke();
+    }
+    return;
+  }
+
+  const doorColor = isGlass ? '#387c96' : isModern ? '#2e2f33' : '#7c5a38';
+  if (closed) {                              // both leaves shut, meeting in the middle
+    g.fillStyle = doorColor;
     if (s.d === 'h') {
       const y = s.y * C, xL = s.x * C, xR = (s.x + 2) * C;
       g.fillRect(xL - 2, y - t / 2, 5, t); g.fillRect(xR - 3, y - t / 2, 5, t);
-      g.fillRect(xL + 3, y - 3.5, C - 3, 7); g.fillRect(xL + C, y - 3.5, C - 6, 7);
+      if (isGlass) {
+        g.fillStyle = 'rgba(165, 222, 242, 0.85)';
+        g.fillRect(xL + 3, y - 3.5, C - 3, 7); g.fillRect(xL + C, y - 3.5, C - 6, 7);
+        g.strokeStyle = doorColor; g.lineWidth = 1.2;
+        g.strokeRect(xL + 3, y - 3.5, C - 3, 7); g.strokeRect(xL + C, y - 3.5, C - 6, 7);
+        g.fillStyle = doorColor;
+      } else {
+        g.fillRect(xL + 3, y - 3.5, C - 3, 7); g.fillRect(xL + C, y - 3.5, C - 6, 7);
+      }
       g.beginPath(); g.arc(xL + C - 5, y + 5.5, 1.7, 0, 7); g.fill();
       g.beginPath(); g.arc(xL + C + 5, y + 5.5, 1.7, 0, 7); g.fill();
     } else {
       const x = s.x * C, yT = s.y * C, yB = (s.y + 2) * C;
       g.fillRect(x - t / 2, yT - 2, t, 5); g.fillRect(x - t / 2, yB - 3, t, 5);
-      g.fillRect(x - 3.5, yT + 3, 7, C - 3); g.fillRect(x - 3.5, yT + C, 7, C - 6);
+      if (isGlass) {
+        g.fillStyle = 'rgba(165, 222, 242, 0.85)';
+        g.fillRect(x - 3.5, yT + 3, 7, C - 3); g.fillRect(x - 3.5, yT + C, 7, C - 6);
+        g.strokeStyle = doorColor; g.lineWidth = 1.2;
+        g.strokeRect(x - 3.5, yT + 3, 7, C - 3); g.strokeRect(x - 3.5, yT + C, 7, C - 6);
+        g.fillStyle = doorColor;
+      } else {
+        g.fillRect(x - 3.5, yT + 3, 7, C - 3); g.fillRect(x - 3.5, yT + C, 7, C - 6);
+      }
       g.beginPath(); g.arc(x + 5.5, yT + C - 5, 1.7, 0, 7); g.fill();
       g.beginPath(); g.arc(x + 5.5, yT + C + 5, 1.7, 0, 7); g.fill();
     }
@@ -1848,14 +2090,14 @@ function drawDoubleDoor(g, s, t) {
   const LEN = C * 0.95, ANG = Math.PI / 3;              // leaves ~60° open
   const dl = Math.cos(ANG) * LEN, dw = Math.sin(ANG) * LEN * dir;
   g.fillStyle = '#2e3138';
-  g.strokeStyle = '#7c5a38'; g.lineWidth = 3; g.lineCap = 'round';
+  g.strokeStyle = doorColor; g.lineWidth = 3; g.lineCap = 'round';
   if (s.d === 'h') {
     const y = s.y * C, xL = s.x * C, xR = (s.x + 2) * C;
     g.fillRect(xL - 2, y - t / 2, 5, t);                 // outer jamb caps
     g.fillRect(xR - 3, y - t / 2, 5, t);
     g.beginPath(); g.moveTo(xL, y); g.lineTo(xL + dl, y + dw); g.stroke();   // leaves
     g.beginPath(); g.moveTo(xR, y); g.lineTo(xR - dl, y + dw); g.stroke();
-    g.strokeStyle = 'rgba(60,50,40,.55)'; g.lineWidth = 1.2;                 // swing arcs
+    g.strokeStyle = isGlass ? 'rgba(56, 124, 150, 0.65)' : 'rgba(60,50,40,.55)'; g.lineWidth = 1.2;                 // swing arcs
     const aL = Math.atan2(dw, dl), aR = Math.atan2(dw, -dl);
     g.beginPath(); g.arc(xL, y, LEN, 0, aL, dir < 0); g.stroke();
     g.beginPath(); g.arc(xR, y, LEN, Math.PI, aR, dir > 0); g.stroke();
@@ -1868,7 +2110,7 @@ function drawDoubleDoor(g, s, t) {
     g.fillRect(x - t / 2, yB - 3, t, 5);
     g.beginPath(); g.moveTo(x, yT); g.lineTo(x + dx, yT + dy); g.stroke();
     g.beginPath(); g.moveTo(x, yB); g.lineTo(x + dx, yB - dy); g.stroke();
-    g.strokeStyle = 'rgba(60,50,40,.55)'; g.lineWidth = 1.2;
+    g.strokeStyle = isGlass ? 'rgba(56, 124, 150, 0.65)' : 'rgba(60,50,40,.55)'; g.lineWidth = 1.2;
     const aT = Math.atan2(dy, dx), aB = Math.atan2(-dy, dx);
     g.beginPath(); g.arc(x, yT, LEN, Math.PI / 2, aT, dir > 0); g.stroke();
     g.beginPath(); g.arc(x, yB, LEN, -Math.PI / 2, aB, dir < 0); g.stroke();

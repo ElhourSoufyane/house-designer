@@ -317,8 +317,8 @@ function mergeRemote(cur, base, inc, incStamps, baseStamps) {
           if (JSON.stringify(cd[k]) !== JSON.stringify(id[k])) {
             if (d === 'walls' && cd[k] && id[k]) {
               const oldW = cd[k], newW = id[k];
-              if (oldW.f === newW.f && oldW.ca === newW.ca && oldW.cb === newW.cb) {
-                if (oldW.swing !== newW.swing || oldW.c !== newW.c) {
+              if (oldW.f === newW.f && oldW.ca === newW.ca && oldW.cb === newW.cb && oldW.style === newW.style) {
+                if (oldW.swing !== newW.swing || oldW.c !== newW.c || oldW.doorStyle !== newW.doorStyle) {
                   aperturesChanged = true;
                 } else {
                   staticChanged = true;

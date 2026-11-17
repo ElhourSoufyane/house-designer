@@ -204,16 +204,47 @@ function roomUI() {
   const s = document.createElement('div');
   s.className = 'insp-section';
   $('#edit-title').textContent = 'Room Properties';
+  let curWallStyle = 'plaster';
+  for (const [x, y] of r.cells) {
+    const k1 = HP.wallKey('h', x, y), k2 = HP.wallKey('h', x, y + 1);
+    const k3 = HP.wallKey('v', x, y), k4 = HP.wallKey('v', x + 1, y);
+    const w = HP.cur().walls[k1] || HP.cur().walls[k2] || HP.cur().walls[k3] || HP.cur().walls[k4];
+    if (w && w.style) { curWallStyle = w.style; break; }
+  }
   s.innerHTML = `<div class="field"><label>Room Name</label>
       <input type="text" id="room-name-i" value="${(r.name || '').replace(/"/g, '&quot;')}" placeholder="e.g. Bedroom">
       <button class="ibtn primary" id="room-name-apply" style="display:none;margin-top:8px">Apply Name</button></div>
     <div class="field"><label>Flooring — click to apply</label><div class="fam-list" id="room-sw"></div></div>
+    <div class="field"><label>Wall Style / Material</label>
+      <div class="seg wrap" id="room-wall-style-seg">
+        <button class="seg-btn ${curWallStyle === 'plaster' ? 'on' : ''}" data-style="plaster">Plaster</button>
+        <button class="seg-btn ${curWallStyle === 'brick' ? 'on' : ''}" data-style="brick">Brick</button>
+        <button class="seg-btn ${curWallStyle === 'stone' ? 'on' : ''}" data-style="stone">Stone</button>
+        <button class="seg-btn ${curWallStyle === 'wood' ? 'on' : ''}" data-style="wood">Wood</button>
+        <button class="seg-btn ${curWallStyle === 'tile' ? 'on' : ''}" data-style="tile">Tile</button>
+        <button class="seg-btn ${curWallStyle === 'glass' ? 'on' : ''}" data-style="glass">Glass</button>
+      </div>
+    </div>
     <div class="field"><label>Wall Paint — click to apply</label><div class="swatches" id="room-wall-sw"></div></div>
     <div class="stat-row"><span class="k">Area</span><span class="v accent">${r.m2.toFixed(1)} m²</span></div>
     <div class="stat-row"><span class="k">Wall segments</span><span class="v">${cnt.walls}</span></div>
     <div class="stat-row"><span class="k">Doors</span><span class="v">${cnt.doors}</span></div>
     <div class="stat-row"><span class="k">Windows</span><span class="v">${cnt.wins}</span></div>`;
   top.appendChild(s);
+
+  const roomStyleSeg = $('#room-wall-style-seg');
+  if (roomStyleSeg) {
+    roomStyleSeg.querySelectorAll('.seg-btn').forEach(b => {
+      b.onclick = () => {
+        HP.pushUndo();
+        const st = b.dataset.style;
+        HP.setRoomWallStyle(r, st);
+        HP.invalidateRegions(); HP.saveState(); HP.markDirty();
+        roomUI();
+        HP.status('Room walls set to ' + st);
+      };
+    });
+  }
 
   const sw = $('#room-sw');
   const curFloor = HP.cur().floors[HP.cellKey(r.cells[0][0], r.cells[0][1])];
@@ -421,9 +452,29 @@ function wallUI() {
       <button class="seg-btn" data-m="room">Paint Room</button>
       <button class="seg-btn" data-m="wall">Paint Wall</button>
     </div>
+    <div class="field"><label>Wall Material / Style</label>
+      <div class="seg wrap" id="wall-style-seg">
+        <button class="seg-btn ${(HP.wallStyle || 'plaster') === 'plaster' ? 'on' : ''}" data-style="plaster">Plaster</button>
+        <button class="seg-btn ${HP.wallStyle === 'brick' ? 'on' : ''}" data-style="brick">Brick</button>
+        <button class="seg-btn ${HP.wallStyle === 'stone' ? 'on' : ''}" data-style="stone">Stone</button>
+        <button class="seg-btn ${HP.wallStyle === 'wood' ? 'on' : ''}" data-style="wood">Wood</button>
+        <button class="seg-btn ${HP.wallStyle === 'tile' ? 'on' : ''}" data-style="tile">Tile</button>
+        <button class="seg-btn ${HP.wallStyle === 'glass' ? 'on' : ''}" data-style="glass">Glass</button>
+      </div>
+    </div>
     <div class="field"><label>Wall Paint Colour</label><div class="swatches" id="wall-sw"></div></div>
     <div class="hint" id="wall-mode-hint"></div>`;
   top.appendChild(s);
+  const wallStSeg = $('#wall-style-seg');
+  if (wallStSeg) {
+    wallStSeg.querySelectorAll('.seg-btn').forEach(b => {
+      b.onclick = () => {
+        HP.wallStyle = b.dataset.style;
+        wallStSeg.querySelectorAll('.seg-btn').forEach(btn => btn.classList.toggle('on', btn === b));
+        HP.status('Wall style set to: ' + HP.wallStyle);
+      };
+    });
+  }
   const mseg = $('#wall-mode'), mhint = $('#wall-mode-hint');
   const HINTS = {
     draw: 'Drag between grid intersections to build walls. Pick a colour below to pre-paint new walls.',
@@ -573,17 +624,74 @@ function setFeatureSwing(k, swing) {
 }
 HP.setFeatureSwing = setFeatureSwing;
 
+HP.defaultDoorStyle = HP.defaultDoorStyle || 'panel';
+HP.wallStyle = HP.wallStyle || 'plaster';
+
+function setDoorStyle(k, style) {
+  const lvl = HP.cur();
+  if (!lvl || !lvl.walls) return;
+  const w = lvl.walls[k];
+  if (!w || w.f !== 'door') return;
+  const s = HP.parseWallKey(k);
+  w.doorStyle = style;
+  const adjKeys = [
+    s.d === 'h' ? 'h,' + (s.x + 1) + ',' + s.y : 'v,' + s.x + ',' + (s.y + 1),
+    s.d === 'h' ? 'h,' + (s.x - 1) + ',' + s.y : 'v,' + s.x + ',' + (s.y - 1)
+  ];
+  for (const ak of adjKeys) {
+    if (lvl.walls[ak] && lvl.walls[ak].f === 'door') {
+      lvl.walls[ak].doorStyle = style;
+    }
+  }
+  if (HP.in3D && HP.world3d && HP.world3d.updateApertures) {
+    HP.world3d.updateApertures();
+  }
+}
+HP.setDoorStyle = setDoorStyle;
+
+HP.setRoomWallStyle = function (r, style) {
+  if (!r || !r.cells) return 0;
+  const walls = HP.cur().walls;
+  let n = 0;
+  const setStyle = k => {
+    const w = walls[k]; if (!w) return;
+    w.style = style;
+    n++;
+  };
+  for (const [x, y] of r.cells) {
+    setStyle(HP.wallKey('h', x, y));
+    setStyle(HP.wallKey('h', x, y + 1));
+    setStyle(HP.wallKey('v', x, y));
+    setStyle(HP.wallKey('v', x + 1, y));
+  }
+  if (HP.in3D && HP.world3d && HP.world3d.buildLevel) {
+    HP.world3d.buildLevel();
+  }
+  return n;
+};
+
 function doorUI() {
   const top = $('#door-panel'); if (!top) return;
   top.innerHTML = '';
   const s = document.createElement('div');
   const curDef = HP.defaultDoorSwing || 'in';
+  const curStyle = HP.defaultDoorStyle || 'panel';
   s.innerHTML = `
     <div class="field">
       <label>Default Door Opening</label>
       <div class="seg" id="door-tool-seg">
         <button class="seg-btn ${curDef === 'in' ? 'on' : ''}" data-s="in">🚪 Inside</button>
         <button class="seg-btn ${curDef === 'out' ? 'on' : ''}" data-s="out">🚪 Outside</button>
+      </div>
+    </div>
+    <div class="field" style="margin-top:10px">
+      <label>Default Door Style</label>
+      <div class="seg wrap" id="door-tool-style-seg">
+        <button class="seg-btn ${curStyle === 'panel' ? 'on' : ''}" data-style="panel">Classic</button>
+        <button class="seg-btn ${curStyle === 'slide' ? 'on' : ''}" data-style="slide">Sliding</button>
+        <button class="seg-btn ${curStyle === 'glass' ? 'on' : ''}" data-style="glass">Glass</button>
+        <button class="seg-btn ${curStyle === 'modern' ? 'on' : ''}" data-style="modern">Modern</button>
+        <button class="seg-btn ${curStyle === 'slideglass' ? 'on' : ''}" data-style="slideglass">Slide Glass</button>
       </div>
     </div>
     <div class="hint" style="margin-top:10px;line-height:1.45">
@@ -600,6 +708,16 @@ function doorUI() {
       b.onclick = () => {
         HP.defaultDoorSwing = b.dataset.s;
         HP.status('New doors will open: ' + (HP.defaultDoorSwing === 'out' ? 'Outside (Outward)' : 'Inside (Inward)'));
+        doorUI();
+      };
+    });
+  }
+  const sSeg = $('#door-tool-style-seg');
+  if (sSeg) {
+    sSeg.querySelectorAll('.seg-btn').forEach(b => {
+      b.onclick = () => {
+        HP.defaultDoorStyle = b.dataset.style;
+        HP.status('New doors style: ' + HP.defaultDoorStyle);
         doorUI();
       };
     });
@@ -663,6 +781,18 @@ function featureSelectedUI(feat) {
         </button>
       </div>
     </div>
+    ${isDoor ? `
+    <div class="field" style="margin-top:10px">
+      <label>Door Style</label>
+      <div class="seg wrap" id="feat-doorstyle-seg">
+        <button class="seg-btn ${(w.doorStyle || 'panel') === 'panel' ? 'on' : ''}" data-style="panel">Classic</button>
+        <button class="seg-btn ${(w.doorStyle) === 'slide' ? 'on' : ''}" data-style="slide">Sliding</button>
+        <button class="seg-btn ${(w.doorStyle) === 'glass' ? 'on' : ''}" data-style="glass">Glass</button>
+        <button class="seg-btn ${(w.doorStyle) === 'modern' ? 'on' : ''}" data-style="modern">Modern</button>
+        <button class="seg-btn ${(w.doorStyle) === 'slideglass' ? 'on' : ''}" data-style="slideglass">Slide Glass</button>
+      </div>
+    </div>
+    ` : ''}
     <div class="field" style="margin-top:10px">
       <button class="ibtn" id="feat-flip-btn" style="width:100%;margin-bottom:8px">
         ⇄ Flip Inside / Outside
@@ -699,6 +829,22 @@ function featureSelectedUI(feat) {
     });
   }
   
+  const styleSeg = $('#feat-doorstyle-seg');
+  if (styleSeg) {
+    styleSeg.querySelectorAll('.seg-btn').forEach(b => {
+      b.onclick = () => {
+        HP.pushUndo();
+        const st = b.dataset.style;
+        setDoorStyle(feat.k, st);
+        HP.defaultDoorStyle = st;
+        HP.saveState();
+        HP.markDirty();
+        featureSelectedUI(feat);
+        HP.status('Door style set to: ' + st);
+      };
+    });
+  }
+
   const flipBtn = $('#feat-flip-btn');
   if (flipBtn) {
     flipBtn.onclick = () => {

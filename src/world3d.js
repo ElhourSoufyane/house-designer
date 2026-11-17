@@ -624,6 +624,187 @@ function populateWindowAssembly(assembly, sashMat, paneMat, targetDoorPivots) {
   }
 }
 
+function buildOverheadTrack(a, span, leaves, s0, s1, flipVal, parentGroup) {
+  const isH = a.d === 'h';
+  const trackLen = leaves === 2 ? span * 2.2 : span * 2.1;
+  const trackH = 1.6, trackD = 1.8;
+  const trackMat = HP.graphics3d ? HP.graphics3d.material('metal', '#1e2022') : new THREE.MeshLambertMaterial({ color: 0x1e2022 });
+  const tGeo = new THREE.BoxGeometry(isH ? trackLen : trackD, trackH, isH ? trackD : trackLen);
+  const trackMesh = new THREE.Mesh(tGeo, trackMat);
+  const lh = HP.geom3d.DOOR_H + 1;
+  const mid = (s0 + s1) / 2;
+  const faceZ = isH ? (flipVal > 0 ? a.z0 - 1.2 : a.z1 + 1.2) : mid;
+  const faceX = isH ? mid : (flipVal > 0 ? a.x0 - 1.2 : a.x1 + 1.2);
+  trackMesh.position.set(faceX, lh + 2, faceZ);
+  trackMesh.castShadow = true;
+  parentGroup.add(trackMesh);
+  return trackMesh;
+}
+
+function populateDoorLeaf(dp, a, leaves, li, span, s0, s1, post1, leafMat, knobMat, knobGeo) {
+  const lvl = HP.cur();
+  const rec = lvl && lvl.walls && lvl.walls[a.k];
+  const doorStyle = (rec && rec.doorStyle) || 'panel';
+  const isSlide = doorStyle === 'slide' || doorStyle === 'slideglass';
+  const isGlass = doorStyle === 'glass' || doorStyle === 'slideglass';
+  const isModern = doorStyle === 'modern';
+  const flipVal = a.flip !== undefined ? a.flip : 1;
+  const isH = a.d === 'h';
+  const lh = HP.geom3d.DOOR_H + 1;
+  const pivot = dp.pivot;
+
+  while (pivot.children.length) {
+    const c = pivot.children[0];
+    pivot.remove(c);
+    if (c.geometry && !c.geometry.userData?.shared3d) c.geometry.dispose();
+  }
+
+  const lw = isSlide
+    ? (leaves === 2 ? span / 2 + 1.2 : span + 1.6)
+    : (leaves === 2 ? span / 2 + 1 : span + (post1 ? 0 : 1));
+  const dep = isSlide ? 2.6 : 5;
+
+  let leaf, knob;
+
+  if (isSlide) {
+    let closedCenter = 0;
+    if (leaves === 1) {
+      closedCenter = (s0 + s1) / 2;
+    } else {
+      closedCenter = li === 0 ? s0 + span / 4 : s1 - span / 4;
+    }
+    const faceZ = isH ? (flipVal > 0 ? a.z0 - (dep / 2 + 0.4) : a.z1 + (dep / 2 + 0.4)) : closedCenter;
+    const faceX = isH ? closedCenter : (flipVal > 0 ? a.x0 - (dep / 2 + 0.4) : a.x1 + (dep / 2 + 0.4));
+    pivot.position.set(faceX, 0, faceZ);
+
+    let mat = isGlass
+      ? (HP.graphics3d ? HP.graphics3d.material('glass') : new THREE.MeshLambertMaterial({ color: 0x9fd4e8, transparent: true, opacity: 0.5 }))
+      : isModern
+      ? (HP.graphics3d ? HP.graphics3d.material('wood', '#2e2f33') : leafMat)
+      : (HP.graphics3d ? HP.graphics3d.material('wood', '#7c5a38') : leafMat);
+
+    if (isGlass) {
+      const frameMat = HP.graphics3d ? HP.graphics3d.material('metal', '#282b30') : knobMat;
+      const fGeo = new THREE.BoxGeometry(isH ? lw : dep, lh, isH ? dep : lw);
+      const fMesh = new THREE.Mesh(fGeo, frameMat);
+      fMesh.position.set(0, lh / 2 - 0.5, 0);
+      fMesh.castShadow = fMesh.receiveShadow = true;
+      pivot.add(fMesh);
+
+      const pW = Math.max(2, lw - 5);
+      const pH = Math.max(2, lh - 6);
+      const pGeo = new THREE.BoxGeometry(isH ? pW : 0.6, pH, isH ? 0.6 : pW);
+      leaf = new THREE.Mesh(pGeo, mat);
+      leaf.position.set(0, lh / 2 - 0.5, 0);
+      pivot.add(leaf);
+    } else {
+      leaf = new THREE.Mesh(new THREE.BoxGeometry(isH ? lw : dep, lh, isH ? dep : lw), mat);
+      leaf.position.set(0, lh / 2 - 0.5, 0);
+      leaf.castShadow = leaf.receiveShadow = true;
+      pivot.add(leaf);
+    }
+
+    const hangerMat = HP.graphics3d ? HP.graphics3d.material('metal', '#1a1a1a') : knobMat;
+    const h1 = new THREE.Mesh(new THREE.BoxGeometry(isH ? 1.6 : 0.8, 4, isH ? 0.8 : 1.6), hangerMat);
+    const h2 = new THREE.Mesh(new THREE.BoxGeometry(isH ? 1.6 : 0.8, 4, isH ? 0.8 : 1.6), hangerMat);
+    const hOffset = Math.max(3, lw * 0.32);
+    h1.position.set(isH ? -hOffset : 0, lh + 1, isH ? 0 : -hOffset);
+    h2.position.set(isH ? hOffset : 0, lh + 1, isH ? 0 : hOffset);
+    pivot.add(h1); pivot.add(h2);
+
+    const pullMat = HP.graphics3d ? HP.graphics3d.material('metal', '#111111') : knobMat;
+    knob = new THREE.Mesh(new THREE.BoxGeometry(isH ? 1.2 : dep + 0.4, 8, isH ? dep + 0.4 : 1.2), pullMat);
+    const handleU = leaves === 2 ? (li === 0 ? lw / 2 - 3 : -lw / 2 + 3) : (lw / 2 - 3);
+    knob.position.set(isH ? handleU : 0, 27, isH ? 0 : handleU);
+    pivot.add(knob);
+
+    let du = 0;
+    if (leaves === 1) {
+      du = lw * 0.95;
+    } else {
+      du = li === 0 ? -lw * 0.95 : lw * 0.95;
+    }
+    const slideVec = isH ? { x: du, y: 0, z: 0 } : { x: 0, y: 0, z: du };
+
+    dp.slide = slideVec;
+    dp.base = pivot.position.clone();
+    dp.halfX = (isH ? lw : dep) / 2;
+    dp.halfZ = (isH ? dep : lw) / 2;
+    dp.halfY = lh / 2;
+  } else {
+    dp.slide = null;
+    dp.base = null;
+    const pz = isH ? (flipVal > 0 ? a.z0 : a.z1) : (li === 0 ? s0 : s1);
+    const px = isH ? (li === 0 ? s0 : s1) : (flipVal > 0 ? a.x0 : a.x1);
+    pivot.position.set(px, 0, pz);
+
+    const v = (dep / 2 - 0.3) * flipVal;
+    const kv = (dep - 0.5) * flipVal;
+
+    let mat = isGlass
+      ? (HP.graphics3d ? HP.graphics3d.material('glass') : new THREE.MeshLambertMaterial({ color: 0x9fd4e8, transparent: true, opacity: 0.5 }))
+      : isModern
+      ? (HP.graphics3d ? HP.graphics3d.material('wood', '#2e2f33') : leafMat)
+      : leafMat;
+
+    if (isGlass) {
+      const frameMat = HP.graphics3d ? HP.graphics3d.material('metal', '#282b30') : knobMat;
+      const fGeo = new THREE.BoxGeometry(isH ? lw : dep, lh, isH ? dep : lw);
+      const fMesh = new THREE.Mesh(fGeo, frameMat);
+      fMesh.position.set(
+        isH ? (li === 0 ? lw / 2 : -lw / 2) : v,
+        lh / 2 - 0.5,
+        isH ? v : (li === 0 ? lw / 2 : -lw / 2));
+      fMesh.castShadow = fMesh.receiveShadow = true;
+      pivot.add(fMesh);
+
+      const pW = Math.max(2, lw - 5);
+      const pH = Math.max(2, lh - 6);
+      leaf = new THREE.Mesh(new THREE.BoxGeometry(isH ? pW : 0.6, pH, isH ? 0.6 : pW), mat);
+      leaf.position.set(
+        isH ? (li === 0 ? lw / 2 : -lw / 2) : v,
+        lh / 2 - 0.5,
+        isH ? v : (li === 0 ? lw / 2 : -lw / 2));
+      pivot.add(leaf);
+    } else {
+      leaf = new THREE.Mesh(new THREE.BoxGeometry(isH ? lw : dep, lh, isH ? dep : lw), mat);
+      leaf.position.set(
+        isH ? (li === 0 ? lw / 2 : -lw / 2) : v,
+        lh / 2 - 0.5,
+        isH ? v : (li === 0 ? lw / 2 : -lw / 2));
+      leaf.castShadow = leaf.receiveShadow = true;
+      pivot.add(leaf);
+    }
+
+    if (isModern) {
+      const barMat = HP.graphics3d ? HP.graphics3d.material('metal', '#cccccc') : knobMat;
+      knob = new THREE.Mesh(new THREE.BoxGeometry(isH ? 0.9 : 0.9, 22, isH ? 0.9 : 0.9), barMat);
+      knob.position.set(isH ? (li === 0 ? lw - 5 : -lw + 5) : kv,
+                        27,
+                        isH ? kv : (li === 0 ? lw - 5 : -lw + 5));
+      pivot.add(knob);
+    } else {
+      knob = new THREE.Mesh(knobGeo, knobMat);
+      knob.position.set(isH ? (li === 0 ? lw - 6 : -lw + 6) : kv,
+                        27,
+                        isH ? kv : (li === 0 ? lw - 6 : -lw + 6));
+      pivot.add(knob);
+    }
+  }
+
+  dp.leaf = leaf;
+  dp.knob = knob;
+  dp.lw = lw;
+  dp.li = li;
+  dp.dep = dep;
+  dp.flip = flipVal;
+  dp.doorStyle = doorStyle;
+  dp.ly0 = 0;
+  dp.ly1 = lh;
+  dp.s0 = s0;
+  dp.s1 = s1;
+}
+
 /* ---------- level build ---------- */
 W3.buildLevel = function () {
   if (HP.graphics3d) HP.graphics3d.resetTiming();
@@ -660,19 +841,36 @@ W3.buildLevel = function () {
      and slice painted segments/sides so each room face gets its colour */
   const env = geomEnv();
   const geo = W3.geom = HP.geom3d.build(lvl.walls, env);
-  if (!W3._wallMat) {
-    W3._wallMat = HP.graphics3d
-      ? HP.graphics3d.worldUV(HP.graphics3d.material('plaster').clone(), C * 2)
+  const getWallMat = (style) => {
+    W3._wallMats = W3._wallMats || {};
+    const s = style || 'plaster';
+    if (W3._wallMats[s]) return W3._wallMats[s];
+    const mat = HP.graphics3d
+      ? HP.graphics3d.worldUV(HP.graphics3d.material(s).clone(), C * 2)
       : new THREE.MeshLambertMaterial({ color: 0xffffff });
-    W3._wallMat.userData.shared3d = true;
-    if (HP.graphics3d) HP.graphics3d.track(W3._wallMat);
-  }
-  const wallMat = W3._wallMat;
-  const wallParts = [];
+    mat.userData.shared3d = true;
+    if (HP.graphics3d) HP.graphics3d.track(mat);
+    W3._wallMats[s] = mat;
+    return mat;
+  };
+  if (!W3._wallMat) W3._wallMat = getWallMat('plaster');
+  const styleDefaultCol = (style, ext) => {
+    if (style === 'brick') return '#a54a36';
+    if (style === 'stone') return '#868278';
+    if (style === 'wood') return '#b8956e';
+    if (style === 'tile') return '#dedcd7';
+    if (style === 'glass') return '#cde5eb';
+    return ext ? '#e9e2d2' : '#f4efe4';
+  };
+  const wallPartsByMat = {};
+  const addWallPart = (style, part) => {
+    const s = style || 'plaster';
+    (wallPartsByMat[s] = wallPartsByMat[s] || []).push(part);
+  };
   for (const b of V.splitBoxes(geo.boxes)) {
     if (b.tag === 'fence') {
       const ft = b.ft && HP.FENCE_TYPES[b.ft];
-      wallParts.push(boxPart(b, ft ? ft.c : 0xe9e2d2));
+      addWallPart('wood', boxPart(b, ft ? ft.c : 0xe9e2d2));
       continue;
     }
     const defC = b.ext ? '#e9e2d2' : '#f4efe4';
@@ -687,16 +885,20 @@ W3.buildLevel = function () {
         const s0 = cuts[i], s1 = cuts[i + 1];
         const ci = Math.floor(((s0 + s1) / 2) / C);
         const w = lvl.walls[b.d + ',' + (isH ? ci : b.line) + ',' + (isH ? b.line : ci)];
-        const ca = (w && w.ca) || defC, cb = (w && w.cb) || defC;
+        const st = (w && w.style) || 'plaster';
+        const sDefC = styleDefaultCol(st, b.ext);
+        const ca = (w && w.ca) || sDefC, cb = (w && w.cb) || sDefC;
         const sb = isH ? { ...b, x0: s0, x1: s1 } : { ...b, z0: s0, z1: s1 };
         if (ca === cb) {
-          wallParts.push(boxPart(sb, ca));
+          addWallPart(st, boxPart(sb, ca));
         } else if (isH) {
           const zm = (sb.z0 + sb.z1) / 2;
-          wallParts.push(boxPart({ ...sb, z1: zm }, ca), boxPart({ ...sb, z0: zm }, cb));
+          addWallPart(st, boxPart({ ...sb, z1: zm }, ca));
+          addWallPart(st, boxPart({ ...sb, z0: zm }, cb));
         } else {
           const xm = (sb.x0 + sb.x1) / 2;
-          wallParts.push(boxPart({ ...sb, x1: xm }, ca), boxPart({ ...sb, x0: xm }, cb));
+          addWallPart(st, boxPart({ ...sb, x1: xm }, ca));
+          addWallPart(st, boxPart({ ...sb, x0: xm }, cb));
         }
       }
       continue;
@@ -706,26 +908,31 @@ W3.buildLevel = function () {
       const hR = lvl.walls['h,' + b.vx + ',' + b.vy];
       const vT = lvl.walls['v,' + b.vx + ',' + (b.vy - 1)];
       const vB = lvl.walls['v,' + b.vx + ',' + b.vy];
-      const cNW = (hL && hL.ca) || (vT && vT.ca) || defC;
-      const cNE = (hR && hR.ca) || (vT && vT.cb) || defC;
-      const cSW = (hL && hL.cb) || (vB && vB.ca) || defC;
-      const cSE = (hR && hR.cb) || (vB && vB.cb) || defC;
+      const st = (hL && hL.style) || (hR && hR.style) || (vT && vT.style) || (vB && vB.style) || 'plaster';
+      const sDefC = styleDefaultCol(st, b.ext);
+      const cNW = (hL && hL.ca) || (vT && vT.ca) || sDefC;
+      const cNE = (hR && hR.ca) || (vT && vT.cb) || sDefC;
+      const cSW = (hL && hL.cb) || (vB && vB.ca) || sDefC;
+      const cSE = (hR && hR.cb) || (vB && vB.cb) || sDefC;
       if (cNW === cNE && cNW === cSW && cNW === cSE) {
-        wallParts.push(boxPart(b, cNW));
+        addWallPart(st, boxPart(b, cNW));
       } else {
         const xm = (b.x0 + b.x1) / 2, zm = (b.z0 + b.z1) / 2;
-        wallParts.push(
-          boxPart({ ...b, x1: xm, z1: zm }, cNW),
-          boxPart({ ...b, x0: xm, z1: zm }, cNE),
-          boxPart({ ...b, x1: xm, z0: zm }, cSW),
-          boxPart({ ...b, x0: xm, z0: zm }, cSE)
-        );
+        addWallPart(st, boxPart({ ...b, x1: xm, z1: zm }, cNW));
+        addWallPart(st, boxPart({ ...b, x0: xm, z1: zm }, cNE));
+        addWallPart(st, boxPart({ ...b, x1: xm, z0: zm }, cSW));
+        addWallPart(st, boxPart({ ...b, x0: xm, z0: zm }, cSE));
       }
       continue;
     }
-    wallParts.push(boxPart(b, defC));
+    addWallPart('plaster', boxPart(b, defC));
   }
-  V.instanced(sg, unitBox(), wallMat, wallParts, { cast: true, receive: true });
+  for (const st in wallPartsByMat) {
+    const parts = wallPartsByMat[st];
+    if (!parts || !parts.length) continue;
+    const mat = getWallMat(st);
+    V.instanced(sg, unitBox(), mat, parts, { cast: st !== 'glass', receive: true });
+  }
   if (HP.graphics3d) {
     // Trim follows the actual solid wall faces; never spans a doorway.
     const rails = [];
@@ -1019,6 +1226,7 @@ W3.buildLevel = function () {
   const knobMat = W3._knobMat = HP.graphics3d ? HP.graphics3d.material('metal', '#5b5f63') :
     new THREE.MeshLambertMaterial({ color: 0x3c3f45 });
   const knobGeo = W3._knobGeo = new THREE.SphereGeometry(1.2, 8, 6);    // was 960 tris per knob
+
   for (const a of geo.doors) {
     /* usable span excludes corner posts standing at the aperture's
        ends — a leaf sized to the raw aperture would slice through
@@ -1049,45 +1257,16 @@ W3.buildLevel = function () {
     if (a.swing === 'out') a.flip = outsideFlip;
     else if (a.swing === 'in') a.flip = insideFlip;
     for (let li = 0; li < leaves; li++) {
-      /* +1: leaves lap past the far jamb and meet at the centre —
-         an inset leaf leaves a slit you can see the sky through.
-         NOT past a corner post though — the tip must stop at its
-         face or it pokes through and flickers                     */
-      const lw = leaves === 2 ? span / 2 + 1
-                              : span + (post1 ? 0 : 1);
-      const lh = HP.geom3d.DOOR_H + 1;
-      /* real leaf: thin (≈18cm), sitting just inside the reveal on the
-         swing side, a hair proud of the wall face so the raw jamb
-         edge never shows — a slot-deep slab reads as a wall chunk   */
-      const dep = 5;
       const pivot = new THREE.Group();
-      /* hinge pin at the aperture CORNER on the swing side — the leaf
-         folds out of the doorway like a real door, not into the slot */
-      const pz = a.d === 'h' ? (a.flip !== undefined ? (a.flip > 0 ? a.z0 : a.z1) : a.z0) : (li === 0 ? s0 : s1);
-      const px = a.d === 'h' ? (li === 0 ? s0 : s1) : (a.flip !== undefined ? (a.flip > 0 ? a.x0 : a.x1) : a.x0);
-      pivot.position.set(px, 0, pz);
-      const leaf = new THREE.Mesh(new THREE.BoxGeometry(a.d === 'h' ? lw : dep, lh, a.d === 'h' ? dep : lw), leafMat);
-      const flipVal = a.flip !== undefined ? a.flip : 1;
-      const v = (dep / 2 - 0.3) * flipVal;
-      const kv = (dep - 0.5) * flipVal;
-      leaf.position.set(
-        a.d === 'h' ? (li === 0 ? lw / 2 : -lw / 2) : v,
-        lh / 2 - 0.5,                      /* sunk 0.5px each end — sealed top+bottom */
-        a.d === 'h' ? v : (li === 0 ? lw / 2 : -lw / 2));
-      leaf.castShadow = leaf.receiveShadow = true;
-      pivot.add(leaf);
-      const knob = new THREE.Mesh(knobGeo, knobMat);
-      knob.position.set(a.d === 'h' ? (li === 0 ? lw - 6 : -lw + 6) : kv,
-                        27,
-                        a.d === 'h' ? kv : (li === 0 ? lw - 6 : -lw + 6));
-      pivot.add(knob);
       sg.add(pivot);
       V.add(pivot, a.x0 - C, a.z0 - C, a.x1 + C, a.z1 + C);   // swing reach
-      /* vel/holdT/latched drive the physics: bump the leaf to swing
-         it open, a damped spring pulls it shut behind you, E latches */
-      doorPivots.push({ pivot, a, open: 0, target: 0, leaf, knob, lw, li, dep,
-                        vel: 0, holdT: 0, latched: false, flip: a.flip,
-                        ly0: 0, ly1: lh, s0, s1 });
+      const dp = { pivot, a, open: 0, target: 0, vel: 0, holdT: 0, latched: false,
+                   flip: a.flip, s0, s1 };
+      populateDoorLeaf(dp, a, leaves, li, span, s0, s1, post1, leafMat, knobMat, knobGeo);
+      if ((dp.doorStyle === 'slide' || dp.doorStyle === 'slideglass') && li === 0) {
+        dp.trackMesh = buildOverheadTrack(a, span, leaves, s0, s1, a.flip !== undefined ? a.flip : 1, sg);
+      }
+      doorPivots.push(dp);
     }
   }
   for (const dp of doorPivots) {
@@ -1848,31 +2027,25 @@ W3.updateApertures = function () {
     if (w.swing === 'out') targetFlip = outsideFlip;
     else if (w.swing === 'in') targetFlip = insideFlip;
 
-    if (targetFlip !== undefined && (targetFlip !== dp.flip || w.swing !== dp.a.swing)) {
+    const curDoorStyle = w.doorStyle || 'panel';
+    const styleChanged = dp.doorStyle !== curDoorStyle;
+    const flipChanged = targetFlip !== undefined && (targetFlip !== dp.flip || w.swing !== dp.a.swing);
+
+    if (styleChanged || flipChanged) {
       dp.a.swing = w.swing;
       dp.a.flip = targetFlip;
       dp.flip = targetFlip;
       const s0 = dp.s0 !== undefined ? dp.s0 : (dp.a.d === 'h' ? dp.a.x0 : dp.a.z0);
       const s1 = dp.s1 !== undefined ? dp.s1 : (dp.a.d === 'h' ? dp.a.x1 : dp.a.z1);
-      const pz = dp.a.d === 'h' ? (targetFlip > 0 ? dp.a.z0 : dp.a.z1) : (dp.li === 0 ? s0 : s1);
-      const px = dp.a.d === 'h' ? (dp.li === 0 ? s0 : s1) : (targetFlip > 0 ? dp.a.x0 : dp.a.x1);
-      dp.pivot.position.set(px, 0, pz);
-      const dep = dp.dep || 5;
-      const v = (dep / 2 - 0.3) * targetFlip;
-      const kv = (dep - 0.5) * targetFlip;
-      if (dp.leaf) {
-        dp.leaf.position.set(
-          dp.a.d === 'h' ? (dp.li === 0 ? dp.lw / 2 : -dp.lw / 2) : v,
-          dp.leaf.position.y,
-          dp.a.d === 'h' ? v : (dp.li === 0 ? dp.lw / 2 : -dp.lw / 2)
-        );
+      const span = s1 - s0;
+      const leaves = dp.a.dbl ? 2 : 1;
+      populateDoorLeaf(dp, dp.a, leaves, dp.li, span, s0, s1, false, W3._leafMat, W3._knobMat, W3._knobGeo);
+      if (dp.trackMesh) {
+        if (dp.trackMesh.parent) dp.trackMesh.parent.remove(dp.trackMesh);
+        dp.trackMesh = null;
       }
-      if (dp.knob) {
-        dp.knob.position.set(
-          dp.a.d === 'h' ? (dp.li === 0 ? dp.lw - 6 : -dp.lw + 6) : kv,
-          27,
-          dp.a.d === 'h' ? kv : (dp.li === 0 ? dp.lw - 6 : -dp.lw + 6)
-        );
+      if ((dp.doorStyle === 'slide' || dp.doorStyle === 'slideglass') && dp.li === 0) {
+        dp.trackMesh = buildOverheadTrack(dp.a, span, leaves, s0, s1, targetFlip !== undefined ? targetFlip : 1, dp.pivot.parent);
       }
       dp.open = 0;
       dp.target = 0;

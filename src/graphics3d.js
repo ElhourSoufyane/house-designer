@@ -167,12 +167,47 @@ function texture(kind) {
   let seed = 129;
   const rand = () => { seed = (seed * 1664525 + 1013904223) >>> 0; return seed / 4294967296; };
   ctx.fillStyle = kind === 'wood' ? '#b79a77' : kind === 'grass' ? '#788b53' :
-    kind === 'fabric' ? '#e3dfd3' : '#eee9df';
+    kind === 'fabric' ? '#e3dfd3' : kind === 'brick' ? '#a54a36' :
+    kind === 'stone' ? '#868278' : '#eee9df';
   ctx.fillRect(0, 0, size, size);
   for (let i = 0; i < size * 22; i++) {
     ctx.fillStyle = rand() > 0.5 ? 'rgba(255,255,255,.09)' : 'rgba(35,28,18,.07)';
     ctx.fillRect(rand() * size, rand() * size, kind === 'wood' ? 1 : 2,
       kind === 'wood' ? 4 + rand() * 40 : 1);
+  }
+  if (kind === 'brick') {
+    const rows = 16, rowH = size / rows, brickW = size / 8;
+    ctx.strokeStyle = 'rgba(235, 230, 220, 0.82)';
+    ctx.lineWidth = Math.max(1.2, size / 128);
+    for (let r = 0; r <= rows; r++) {
+      const y = r * rowH;
+      ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(size, y); ctx.stroke();
+    }
+    for (let r = 0; r < rows; r++) {
+      const y = r * rowH;
+      const offset = (r % 2) * (brickW / 2);
+      for (let x = offset; x < size + brickW; x += brickW) {
+        ctx.beginPath(); ctx.moveTo(x % size, y); ctx.lineTo(x % size, y + rowH); ctx.stroke();
+      }
+    }
+  }
+  if (kind === 'stone') {
+    const rows = 10, rowH = size / rows;
+    ctx.strokeStyle = 'rgba(50, 46, 40, 0.65)';
+    ctx.lineWidth = Math.max(1.4, size / 110);
+    for (let r = 0; r <= rows; r++) {
+      const y = r * rowH;
+      ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(size, y); ctx.stroke();
+    }
+    for (let r = 0; r < rows; r++) {
+      const y = r * rowH;
+      const step = (size / 5) * (0.8 + (r % 3) * 0.2);
+      const shift = ((r * 37) % 100) / 100 * size;
+      for (let x = shift; x < shift + size; x += step) {
+        const sx = x % size;
+        ctx.beginPath(); ctx.moveTo(sx, y); ctx.lineTo(sx, y + rowH); ctx.stroke();
+      }
+    }
   }
   if (kind === 'wood') {
     ctx.strokeStyle = 'rgba(54,36,22,.28)'; ctx.lineWidth = 1;
@@ -221,15 +256,19 @@ G.material = function (kind, color) {
   if (materials.has(key)) return materials.get(key);
   const smooth = /metal|glass|water|ceramic/.test(kind);
   const m = new THREE.MeshStandardMaterial({
-    color: color || 0xffffff, roughness: smooth ? 0.27 : 0.86,
+    color: color || 0xffffff, roughness: smooth ? 0.27 : (kind === 'brick' || kind === 'stone' ? 0.92 : 0.86),
     metalness: kind === 'metal' ? 0.45 : 0,
     map: texture(kind === 'art' ? 'art' : kind === 'water' ? 'water' :
       kind === 'wood' ? 'wood' : kind === 'fabric' ? 'fabric' :
-      kind === 'grass' ? 'grass' : kind === 'tile' ? 'tile' : 'plaster'),
+      kind === 'grass' ? 'grass' : kind === 'tile' ? 'tile' :
+      kind === 'brick' ? 'brick' : kind === 'stone' ? 'stone' : 'plaster'),
   });
   /* sky IBL is a fill, not a second sun — keeps shadows readable      */
   m.envMapIntensity = smooth ? 0.9 : 0.5;
   m.userData.envBase = m.envMapIntensity;
+  if (kind === 'brick' || kind === 'stone') {
+    m.bumpMap = m.map; m.bumpScale = kind === 'brick' ? 0.35 : 0.5;
+  }
   if (kind === 'glass') {
     m.transparent = true; m.opacity = 0.28; m.depthWrite = false;
     m.side = THREE.DoubleSide;

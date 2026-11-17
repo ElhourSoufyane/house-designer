@@ -294,6 +294,8 @@ button { font-family: inherit; color: inherit; }
 .stat-row .v.accent { color: var(--accent); }
 .swatches { display: flex; gap: 8px; margin-top: 6px; flex-wrap: wrap; }
 .seg { display: flex; gap: 6px; margin: 0 0 10px; }
+.seg.wrap { flex-wrap: wrap; }
+.seg.wrap .seg-btn { flex: 1 1 calc(50% - 6px); min-width: 65px; text-align: center; }
 .seg-btn { flex: 1; padding: 8px 6px; border-radius: 9px; border: 2px solid var(--border);
   background: var(--panel-2); color: var(--text); font-size: 12px; font-weight: 700;
   cursor: pointer; transition: all .12s var(--ease); }

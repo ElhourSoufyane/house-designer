@@ -368,6 +368,16 @@ function showOverlay(title, sub) {
 /* world-space XZ footprint of a door leaf at rotation ang (default:
    current) — an open leaf still blocks where it physically stands   */
 function leafBox(d, ang) {
+  if (d.slide) {
+    if (d.open < 0.2)
+      return { x0: d.a.x0 - 0.4, x1: d.a.x1 + 0.4, z0: d.a.z0 - 0.4, z1: d.a.z1 + 0.4 };
+    const P = d.pivot.position, L = d.leaf, g = L && L.geometry && L.geometry.parameters;
+    if (!g) return { x0: d.a.x0 - 0.4, x1: d.a.x1 + 0.4, z0: d.a.z0 - 0.4, z1: d.a.z1 + 0.4 };
+    const h = d.a.d === 'h';
+    const hw = (h ? g.width : g.depth) / 2, hd = (h ? g.depth : g.width) / 2;
+    const cx = P.x + (L.position ? L.position.x : 0), cz = P.z + (L.position ? L.position.z : 0);
+    return { x0: cx - hw, x1: cx + hw, z0: cz - hd, z1: cz + hd };
+  }
   const th = ang === undefined ? d.pivot.rotation.y : ang;
   if (d.casement) {
     const pts = leafCorners(d, th);
@@ -535,16 +545,18 @@ function swingLimit(d) {
    (including handle) against solids at its actual height, in both
    directions; moved furniture can obstruct closing as well as opening. */
 function slideWindow(d, from, to) {
-  const origin = d.pivot.parent.position;
+  const origin = (d.pivot && d.pivot.parent && d.pivot.parent.position) ? d.pivot.parent.position : { x: 0, y: 0, z: 0 };
   const travel = Math.hypot(d.slide.x, d.slide.y, d.slide.z);
   const steps = Math.max(1, Math.ceil(Math.abs(to - from) * travel / 0.25));
   let safe = from;
+  const isParallelWall = b => !d.window && b.tag === 'wall' && d.a && b.d === d.a.d;
   for (let i = 1; i <= steps; i++) {
     const f = from + (to - from) * i / steps;
     const x = origin.x + d.base.x + d.slide.x * f;
-    const y = origin.y + d.base.y + d.slide.y * f;
+    const y = origin.y + d.base.y + (d.window ? 0 : d.halfY) + d.slide.y * f;
     const z = origin.z + d.base.z + d.slide.z * f;
-    const hits = b => x + d.halfX > b.x0 + 0.001 && x - d.halfX < b.x1 - 0.001 &&
+    const hits = b => !isParallelWall(b) &&
+      x + d.halfX > b.x0 + 0.001 && x - d.halfX < b.x1 - 0.001 &&
       y + d.halfY > b.y0 + 0.001 && y - d.halfY < b.y1 - 0.001 &&
       z + d.halfZ > b.z0 + 0.001 && z - d.halfZ < b.z1 - 0.001;
     if ((HP.world3d.colliders || []).some(hits) ||
@@ -591,9 +603,9 @@ function collide(nx, nz, vx, vz) {
            the pull side holds firm like a real hinged door         */
         /* you push from the side OPPOSITE the fold — the leaf opens
            away from you like a real door                            */
-        const pushSide = d.a.d === 'h'
+        const pushSide = d.slide ? true : (d.a.d === 'h'
           ? ((d.flip || 1) > 0 ? pz > d.a.z1 : pz < d.a.z0)
-          : ((d.flip || 1) > 0 ? px > d.a.x1 : px < d.a.x0);
+          : ((d.flip || 1) > 0 ? px > d.a.x1 : px < d.a.x0));
         if (pushSide && d.open < 0.85) {
           d.vel = Math.min((d.vel || 0) + 0.55, 2.6);
           d.holdT = 3.5;
@@ -939,7 +951,7 @@ function tick(t) {
         d.window ? HP.sound3d.windowOpen() : HP.sound3d.door(false, d.gate);
     }
     d.prevOpen = d.open;
-    const lim = d.window ? 1 : d.maxAng / 2.9;
+    const lim = (d.window || d.slide) ? 1 : d.maxAng / 2.9;
     if (d.open > lim) { d.open = lim; if (d.vel > 0) d.vel = -d.vel * 0.2; }  // bounce off the obstruction
     d.target = tgt;
     if (d.casement) {

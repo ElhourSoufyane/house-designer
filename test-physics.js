@@ -563,5 +563,61 @@ t('Escape resume also preserves position', pos().x === beforePause.x && pos().z 
   t('window swing: out hinges outward to exterior', wOut && wOut.inward === 1);
 }
 
+/* ---------- 12. door styles & sliding door physics ---------- */
+{
+  HP.state = JSON.parse(JSON.stringify(house.state));
+  const fix = HP.cur();
+  for (let x = 10; x <= 22; x++) {
+    fix.walls[`h,${x},10`] = { f: null };
+  }
+  fix.walls['h,11,10'] = { f: 'door', swing: 'in', doorStyle: 'slide' };
+  fix.walls['h,13,10'] = { f: 'door', swing: 'in', doorStyle: 'glass' };
+  fix.walls['h,15,10'] = { f: 'door', swing: 'in', doorStyle: 'modern' };
+  fix.walls['h,17,10'] = { f: 'door', swing: 'in', doorStyle: 'slideglass' };
+  fix.walls['h,19,10'] = { f: 'door', swing: 'in', doorStyle: 'panel' };
+
+  // Wall styles
+  fix.walls['h,10,10'].style = 'brick';
+  fix.walls['h,12,10'].style = 'stone';
+  fix.walls['h,14,10'].style = 'wood';
+  fix.walls['h,16,10'].style = 'tile';
+  fix.walls['h,18,10'].style = 'glass';
+
+  HP.invalidateRegions();
+  W3.buildLevel();
+
+  const dSlide = W3.doorPivots.find(p => p.a.k === 'h,11,10');
+  const dGlass = W3.doorPivots.find(p => p.a.k === 'h,13,10');
+  const dModern = W3.doorPivots.find(p => p.a.k === 'h,15,10');
+  const dSlideGlass = W3.doorPivots.find(p => p.a.k === 'h,17,10');
+  const dPanel = W3.doorPivots.find(p => p.a.k === 'h,19,10');
+
+  t('sliding door registered with slide vector', !!(dSlide && dSlide.slide && dSlide.slide.x));
+  t('sliding door has base position', !!(dSlide && dSlide.base));
+  t('glass door registered with glass style', dGlass && dGlass.doorStyle === 'glass');
+  t('modern door registered with modern style', dModern && dModern.doorStyle === 'modern');
+  t('sliding glass door registered with slide vector', !!(dSlideGlass && dSlideGlass.slide));
+  t('classic panel door registered with panel style', dPanel && dPanel.doorStyle === 'panel');
+
+  // Test sliding door opens and latches via E
+  if (dSlide) {
+    dSlide.latched = true;
+    run(2);
+    t('sliding door slides open when latched', dSlide.open > 0.3, 'open=' + dSlide.open.toFixed(2));
+    t('sliding door pivot moved along x axis', Math.abs(dSlide.pivot.position.x - dSlide.base.x) > 5);
+    dSlide.latched = false;
+    run(5);
+    t('sliding door auto-closes after unlatch', dSlide.open < 0.15, 'open=' + dSlide.open.toFixed(2));
+  }
+
+  // Test zero-lag in-place door style switch via updateApertures
+  if (dPanel) {
+    fix.walls['h,19,10'].doorStyle = 'slide';
+    W3.updateApertures();
+    t('in-place door style switch updated dp.doorStyle', dPanel.doorStyle === 'slide');
+    t('in-place door style switch gave slide vector', !!(dPanel.slide && dPanel.slide.x));
+  }
+}
+
 console.log(`\n${fail ? 'FAILURES: ' + fail : 'ALL PASS'} (${pass} checks)`);
 process.exit(fail ? 1 : 0);

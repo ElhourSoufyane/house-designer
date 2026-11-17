@@ -200,6 +200,7 @@ const wallTool = {
       HP.pushUndo();
       for (const k of HP.wallPreview) {
         if (!HP.cur().walls[k]) HP.cur().walls[k] = { f: null };
+        if (HP.wallStyle) HP.cur().walls[k].style = HP.wallStyle;
         if (HP.wallColor) {
           HP.cur().walls[k].ca = HP.wallColor;
           HP.cur().walls[k].cb = HP.wallColor;
@@ -264,6 +265,11 @@ function featureTool(kind) {
         const defSwing = (kind === 'door' ? HP.defaultDoorSwing : HP.defaultWindowSwing) || 'in';
         if (HP.setFeatureSwing) HP.setFeatureSwing(k, defSwing);
         else w.swing = defSwing;
+        if (kind === 'door') {
+          const defStyle = HP.defaultDoorStyle || 'panel';
+          if (HP.setDoorStyle) HP.setDoorStyle(k, defStyle);
+          else w.doorStyle = defStyle;
+        }
         HP.selectedFeature = { k, kind, wall: w };
         HP.saveState(); HP.invalidateRegions();
         HP.status((kind === 'door' ? 'Door' : 'Window') + ' placed (opens ' + (defSwing === 'out' ? 'Outside' : 'Inside') + ') — click again to flip');
