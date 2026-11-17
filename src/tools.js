@@ -297,7 +297,8 @@ const floorTool = {
     const k = HP.cellKey(x, y);
     if (HP.cur().floors[k] !== HP.floorMat) {
       HP.cur().floors[k] = HP.floorMat;
-      drag.n++; HP.invalidateRegions();
+      drag.n++;
+      if (HP.invalidateFloors) HP.invalidateFloors(); else HP.invalidateRegions();
     }
     drag.lx = x; drag.ly = y;
   },
@@ -316,7 +317,8 @@ const floorTool = {
       HP.cur().floors[k] = HP.floorMat;
       if (HP.floorName) HP.cur().roomNames[k] = HP.floorName;
     }
-    HP.saveState(); HP.invalidateRegions();
+    HP.saveState();
+    if (HP.invalidateFloors) HP.invalidateFloors(); else HP.invalidateRegions();
     if (HP.in3D && HP.world3d && HP.world3d.updateFloors) {
       HP.world3d.updateFloors();
     }
@@ -369,6 +371,7 @@ const eraseTool = {
     if (fk) delete HP.cur().fences[fk];
     if (pathK) {
       delete HP.cur().floors[pathK];
+      if (HP.invalidateFloors) HP.invalidateFloors();
       if (HP.in3D && HP.world3d && HP.world3d.updateFloors) HP.world3d.updateFloors();
     }
     HP.saveState(); HP.invalidateRegions(); HP.refreshContext();

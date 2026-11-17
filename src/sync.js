@@ -439,6 +439,7 @@ function applyState(msg, fromConn) {
   /* Only invalidate heavy static layer (wipes offscreen canvas) when structural elements change.
      Furniture moves/adds do NOT invalidate static layers — zero white flash / reload look on tablets! */
   if (staticChanged || floorsChanged) {
+    if (floorsChanged && HP.invalidateFloors) HP.invalidateFloors();
     HP.invalidateRegions();
   }
   if (HP.refreshContext) HP.refreshContext();

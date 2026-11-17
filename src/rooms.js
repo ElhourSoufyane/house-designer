@@ -58,25 +58,34 @@ HP.computeRegions = function () {
       best = cells[Math.floor(cells.length / 2)];
     } else {
       const bq = [];
-      for (const [cx, cy] of cells) {
+      for (let ci = 0; ci < cells.length; ci++) {
+        const cx = cells[ci][0], cy = cells[ci][1];
         const edge = cx === 0 || cy === 0 || cx === W - 1 || cy === H - 1 ||
           regionOf[cy * W + cx - 1] !== id || regionOf[cy * W + cx + 1] !== id ||
           regionOf[(cy - 1) * W + cx] !== id || regionOf[(cy + 1) * W + cx] !== id;
-        if (edge) { sharedDist[cy * W + cx] = 0; bq.push([cx, cy]); }
+        if (edge) { sharedDist[cy * W + cx] = 0; bq.push(cx, cy); }
       }
-      for (let head = 0; head < bq.length; head++) {
-        const [cx, cy] = bq[head];
+      for (let head = 0; head < bq.length; head += 2) {
+        const cx = bq[head], cy = bq[head + 1];
         const d = sharedDist[cy * W + cx];
-        for (const [nx, ny] of [[cx + 1, cy], [cx - 1, cy], [cx, cy + 1], [cx, cy - 1]]) {
-          if (nx < 0 || ny < 0 || nx >= W || ny >= H) continue;
-          const i = ny * W + nx;
-          if (regionOf[i] !== id || sharedDist[i] !== -1) continue;
-          sharedDist[i] = d + 1; bq.push([nx, ny]);
+        if (cx + 1 < W && regionOf[cy * W + cx + 1] === id && sharedDist[cy * W + cx + 1] === -1) {
+          sharedDist[cy * W + cx + 1] = d + 1; bq.push(cx + 1, cy);
+        }
+        if (cx - 1 >= 0 && regionOf[cy * W + cx - 1] === id && sharedDist[cy * W + cx - 1] === -1) {
+          sharedDist[cy * W + cx - 1] = d + 1; bq.push(cx - 1, cy);
+        }
+        if (cy + 1 < H && regionOf[(cy + 1) * W + cx] === id && sharedDist[(cy + 1) * W + cx] === -1) {
+          sharedDist[(cy + 1) * W + cx] = d + 1; bq.push(cx, cy + 1);
+        }
+        if (cy - 1 >= 0 && regionOf[(cy - 1) * W + cx] === id && sharedDist[(cy - 1) * W + cx] === -1) {
+          sharedDist[(cy - 1) * W + cx] = d + 1; bq.push(cx, cy - 1);
         }
       }
       let bd = -1;
-      for (const [cx, cy] of cells) {
-        if (sharedDist[cy * W + cx] > bd) { bd = sharedDist[cy * W + cx]; best = [cx, cy]; }
+      for (let ci = 0; ci < cells.length; ci++) {
+        const cx = cells[ci][0], cy = cells[ci][1];
+        const dist = sharedDist[cy * W + cx];
+        if (dist > bd) { bd = dist; best = cells[ci]; }
         sharedDist[cy * W + cx] = -1; // reset for next room
       }
     }

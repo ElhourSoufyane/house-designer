@@ -33,7 +33,8 @@ function restore(snap) {
     }
   }
   HP.selected = null; HP.pending = null; HP.ghost = null; HP.selectedRoom = null; HP.selectedSet = [];
-  HP.invalidateRegions(); HP.refreshContext();
+  if (HP.invalidateFloors) HP.invalidateFloors(); else HP.invalidateRegions();
+  HP.refreshContext();
   if (HP.updateFloorUI) HP.updateFloorUI();
 }
 
@@ -101,6 +102,7 @@ HP.newSizedPlot = function (w, h) {
   HP.applyGridSize();
   HP.nextId = Math.max(1, HP.maxFurnitureId() + 1);
   HP.selected = null; HP.pending = null; HP.ghost = null; HP.selectedRoom = null; HP.selectedSet = [];
+  if (HP.resetLayers) HP.resetLayers();
   HP.invalidateRegions(); HP.saveState(); HP.refreshContext();
   if (HP.updateFloorUI) HP.updateFloorUI();
   HP.status('New empty plot — ' + (w * 0.5) + '×' + (h * 0.5) + ' m');
@@ -114,6 +116,7 @@ HP.loadPreset = function (id) {
   HP.applyGridSize();
   HP.nextId = HP.maxFurnitureId() + 1;
   HP.selected = null; HP.pending = null; HP.ghost = null; HP.selectedRoom = null; HP.selectedSet = [];
+  if (HP.resetLayers) HP.resetLayers();
   HP.invalidateRegions(); HP.saveState(); HP.refreshContext();
   HP.status('Loaded: ' + p.name);
 };
@@ -123,7 +126,8 @@ HP.setLevel = function (i) {
   if (i < 0 || i >= HP.state.levels.length) return;
   HP.state.level = i;
   HP.selected = null; HP.selectedRoom = null; HP.pending = null; HP.ghost = null; HP.selectedSet = [];
-  HP.invalidateRegions(); HP.refreshContext(); HP.updateFloorUI();
+  if (HP.invalidateFloors) HP.invalidateFloors(); else HP.invalidateRegions();
+  HP.refreshContext(); HP.updateFloorUI();
   HP.saveState();
 };
 
@@ -217,7 +221,8 @@ HP.importFile = function (file) {
       HP.applyGridSize();
       HP.nextId = Math.max(data.nextId || 0, HP.maxFurnitureId() + 1);
       HP.selected = null; HP.pending = null; HP.ghost = null; HP.selectedRoom = null; HP.selectedSet = [];
-      HP.invalidateRegions(); HP.saveState(); HP.refreshContext();
+      if (HP.resetLayers) HP.resetLayers();
+  HP.invalidateRegions(); HP.saveState(); HP.refreshContext();
       if (HP.updateFloorUI) HP.updateFloorUI();
       const ov = document.getElementById('preset-overlay');
       if (ov) ov.classList.add('hidden');

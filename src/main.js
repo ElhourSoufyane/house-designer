@@ -9,7 +9,15 @@ HP.invalidateRegions = function () { staticDirty = true; belowDirty = true; _inv
 
 let groundLayer = null, groundDirty = true;
 let belowLayer = null, belowDirty = true, lastBelowLevel = -1;
-HP.resetLayers = function () { staticLayer = null; belowLayer = null; groundLayer = null; groundDirty = true; belowDirty = true; staticDirty = true; };
+let floorLayer = null, floorDirty = true, lastFloorLevel = -1, lastRegionHash = '';
+HP.resetLayers = function () {
+  staticLayer = null; belowLayer = null; groundLayer = null; floorLayer = null;
+  groundDirty = true; belowDirty = true; staticDirty = true; floorDirty = true;
+  lastBelowLevel = -1; lastFloorLevel = -1; lastRegionHash = '';
+};
+HP.invalidateFloors = function () {
+  floorDirty = true; staticDirty = true; HP.dirty = true;
+};
 
 /* ================= STATIC LAYER ================= */
 let staticScale = 1;                                 // bake res factor — big plots bake at 0.5
@@ -38,6 +46,13 @@ function rebuildStatic() {
   g.restore();
   staticDirty = false;
 }
+HP.rebuildStatic = rebuildStatic;
+HP.drawGround = drawGround;
+HP.drawBelowWorld = drawBelowWorld;
+HP.drawFloors = drawFloors;
+HP.drawLabels = drawLabels;
+HP.drawWalls = drawWalls;
+HP.drawFences = drawFences;
 
 function drawGround(g) {
   const C = HP.CELL, W = HP.GRID_W, H = HP.GRID_H;
@@ -1520,7 +1535,7 @@ function loadTex(mat) {                              // lazy: load on first use
       src = c;
     }
     _texImg[mat] = src; _texPat[mat] = null; _texTouch(mat);
-    HP.invalidateRegions();                         // rebuild static layer
+    HP.invalidateFloors();                         // rebuild static layer and floor cache
     for (const p of _prevCvs) if (p.mat === mat) paintPreview(p);   // live swatch update
   };
   im.onerror = () => { _texImg[mat] = false; };
@@ -1609,24 +1624,52 @@ function paintFloorCell(g, mat, px, py) {
 HP.paintFloorCell = paintFloorCell;
 
 function drawFloors(g) {
-  const C = HP.CELL;
+  const C = HP.CELL, W = HP.GRID_W, H = HP.GRID_H;
+  const fw = Math.ceil((W + MARGIN * 2) * C), fh = Math.ceil((H + MARGIN * 2) * C);
+  if (!floorLayer) floorLayer = document.createElement('canvas');
+  if (floorLayer.width !== fw || floorLayer.height !== fh) {
+    floorLayer.width = fw; floorLayer.height = fh;
+    floorDirty = true;
+  }
+  if (lastFloorLevel !== HP.state.level) {
+    floorDirty = true;
+    lastFloorLevel = HP.state.level;
+  }
   const { regions, regionOf } = HP.computeRegions();
-  const mats = HP.cur().floors;
-  for (const r of regions) {
-    g.save();
-    g.beginPath();                                     // clip to the room's shape so
-    for (const [x, y] of r.cells) g.rect(x * C, y * C, C, C);  // oversized stones/boards
-    g.clip();                                          // can't bleed past the walls
-    for (const [x, y] of r.cells)
-      paintFloorCell(g, mats[x + ',' + y] || 'default', x * C, y * C);
-    g.restore();
+  let rHash = '';
+  for (let i = 0; i < regions.length; i++) rHash += regions[i].id + ':' + regions[i].cells.length + ';';
+  if (rHash !== lastRegionHash) {
+    floorDirty = true;
+    lastRegionHash = rHash;
   }
-  // path cells: floor paint outside any enclosed room (walkways, garden paths)
-  for (const k in mats) {
-    const s = k.split(','), x = +s[0], y = +s[1];
-    if (!HP.cellIn(x, y) || regionOf[y * HP.GRID_W + x] >= 0) continue;
-    paintFloorCell(g, mats[k], x * C, y * C);
+
+  if (floorDirty) {
+    const fg = floorLayer.getContext('2d');
+    fg.setTransform(1, 0, 0, 1, 0, 0);
+    fg.clearRect(0, 0, fw, fh);
+    fg.save();
+    fg.translate(MARGIN * C, MARGIN * C);
+    const mats = HP.cur().floors;
+    for (const r of regions) {
+      fg.save();
+      fg.beginPath();                                     // clip to the room's shape so
+      for (const [x, y] of r.cells) fg.rect(x * C, y * C, C, C);  // oversized stones/boards
+      fg.clip();                                          // can't bleed past the walls
+      for (const [x, y] of r.cells)
+        paintFloorCell(fg, mats[x + ',' + y] || 'default', x * C, y * C);
+      fg.restore();
+    }
+    // path cells: floor paint outside any enclosed room (walkways, garden paths)
+    for (const k in mats) {
+      const s = k.split(','), x = +s[0], y = +s[1];
+      if (!HP.cellIn(x, y) || regionOf[y * HP.GRID_W + x] >= 0) continue;
+      paintFloorCell(fg, mats[k], x * C, y * C);
+    }
+    fg.restore();
+    floorDirty = false;
   }
+
+  g.drawImage(floorLayer, -MARGIN * C, -MARGIN * C);
 }
 
 /* small live texture preview for the material swatches */
