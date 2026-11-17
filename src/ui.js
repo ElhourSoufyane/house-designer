@@ -582,11 +582,12 @@ function wallUI() {
   top.appendChild(s);
   const pWrap = $('#wall-style-picker-wrap');
   if (pWrap) {
-    renderWallStylePicker(pWrap, HP.wallStyle || 'plaster', st => {
+    const onPickWallStyle = st => {
       HP.wallStyle = st;
-      renderWallStylePicker(pWrap, st, arguments.callee || (newSt => { HP.wallStyle = newSt; wallUI(); }));
+      renderWallStylePicker(pWrap, st, onPickWallStyle);
       HP.status('Default wall style set to: ' + st);
-    });
+    };
+    renderWallStylePicker(pWrap, HP.wallStyle || 'plaster', onPickWallStyle);
   }
   const mseg = $('#wall-mode'), mhint = $('#wall-mode-hint');
   const HINTS = {
@@ -625,7 +626,7 @@ function wallSelectedUI(selWall) {
   $('#edit-title').textContent = 'Wall Properties';
 
   const curStyle = w.style || 'plaster';
-  const curColor = w.c || '';
+  const curColor = w.ca || w.cb || w.c || '';
   const s = document.createElement('div');
   s.className = 'insp-section';
   s.innerHTML = `
@@ -656,7 +657,7 @@ function wallSelectedUI(selWall) {
       HP.wallStyle = st;
       HP.saveState();
       HP.markDirty();
-      if (HP.world3d && HP.world3d.buildLevel) HP.world3d.buildLevel();
+      if (HP.in3D && HP.world3d && HP.world3d.buildLevel) HP.world3d.buildLevel();
       wallSelectedUI(selWall);
       HP.status('Wall style set to: ' + st);
     });
@@ -665,9 +666,11 @@ function wallSelectedUI(selWall) {
   wallSwatches($('#selwall-sw'), curColor, col => {
     HP.pushUndo();
     w.c = col;
+    w.ca = col;
+    w.cb = col;
     HP.saveState();
     HP.markDirty();
-    if (HP.world3d && HP.world3d.buildLevel) HP.world3d.buildLevel();
+    if (HP.in3D && HP.world3d && HP.world3d.buildLevel) HP.world3d.buildLevel();
     wallSelectedUI(selWall);
     HP.status('Wall painted: ' + col);
   });
@@ -685,7 +688,7 @@ function wallSelectedUI(selWall) {
         HP.setRoomWallStyle(targetRoom, w.style || 'plaster');
         HP.saveState();
         HP.markDirty();
-        if (HP.world3d && HP.world3d.buildLevel) HP.world3d.buildLevel();
+        if (HP.in3D && HP.world3d && HP.world3d.buildLevel) HP.world3d.buildLevel();
         HP.status('Applied ' + (w.style || 'plaster') + ' to all walls in ' + (targetRoom.name || 'room'));
       } else {
         HP.status('No adjacent room found to style.');
@@ -702,7 +705,7 @@ function wallSelectedUI(selWall) {
       HP.invalidateRegions();
       HP.saveState();
       HP.markDirty();
-      if (HP.world3d && HP.world3d.buildLevel) HP.world3d.buildLevel();
+      if (HP.in3D && HP.world3d && HP.world3d.buildLevel) HP.world3d.buildLevel();
       HP.refreshContext();
       HP.status('Wall deleted.');
     };

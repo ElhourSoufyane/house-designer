@@ -611,6 +611,32 @@ G.worldUV = function (mat, scale) {
       vSurfaceN = normalize(mat3(modelMatrix) * surfaceN);
     `);
     shader.fragmentShader = 'varying vec3 vSurfaceP; varying vec3 vSurfaceN;\n' + shader.fragmentShader;
+    shader.fragmentShader = shader.fragmentShader.replace('#include <bumpmap_pars_fragment>', `
+      #ifdef USE_BUMPMAP
+        uniform sampler2D bumpMap;
+        uniform float bumpScale;
+        vec2 dHdxy_fwd() {
+          vec3 n = abs(vSurfaceN);
+          vec2 uv = (n.y > n.x && n.y > n.z ? vSurfaceP.xz : (n.x > n.z ? vSurfaceP.zy : vSurfaceP.xy)) / ${Number(scale).toFixed(3)};
+          vec2 dSTdx = dFdx(uv);
+          vec2 dSTdy = dFdy(uv);
+          float Hll = bumpScale * texture2D(bumpMap, uv).x;
+          float dBx = bumpScale * texture2D(bumpMap, uv + dSTdx).x - Hll;
+          float dBy = bumpScale * texture2D(bumpMap, uv + dSTdy).x - Hll;
+          return vec2(dBx, dBy);
+        }
+        vec3 perturbNormalArb(vec3 surf_pos, vec3 surf_norm, vec2 dHdxy, float faceDirection) {
+          vec3 vSigmaX = dFdx(surf_pos);
+          vec3 vSigmaY = dFdy(surf_pos);
+          vec3 vN = surf_norm;
+          vec3 R1 = cross(vSigmaY, vN);
+          vec3 R2 = cross(vN, vSigmaX);
+          float fDet = dot(vSigmaX, R1) * faceDirection;
+          vec3 vGrad = sign(fDet) * (dHdxy.x * R1 + dHdxy.y * R2);
+          return normalize(abs(fDet) * surf_norm - vGrad);
+        }
+      #endif
+    `);
     shader.fragmentShader = shader.fragmentShader.replace('#include <map_fragment>', `
       #ifdef USE_MAP
         vec3 n = abs(vSurfaceN);

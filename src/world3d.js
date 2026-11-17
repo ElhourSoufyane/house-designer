@@ -1064,6 +1064,7 @@ function populateDoorLeaf(dp, a, leaves, li, span, s0, s1, post0, post1, leafMat
 
 /* ---------- level build ---------- */
 W3.buildLevel = function () {
+  if (!scene) return;
   if (HP.graphics3d) HP.graphics3d.resetTiming();
   const oldDoors = (W3.doorPivots || []).map(d => ({
     cx: d.a && d.a.cx,
@@ -1142,9 +1143,19 @@ W3.buildLevel = function () {
         const s0 = cuts[i], s1 = cuts[i + 1];
         const ci = Math.floor(((s0 + s1) / 2) / C);
         const w = lvl.walls[b.d + ',' + (isH ? ci : b.line) + ',' + (isH ? b.line : ci)];
-        const st = (w && w.style) || 'plaster';
+        let st = (w && w.style);
+        let ca = w && w.ca, cb = w && w.cb;
+        if (w && (w.f === 'door' || w.f === 'window')) {
+          const wPrev = lvl.walls[b.d + ',' + (isH ? (ci - 1) : b.line) + ',' + (isH ? b.line : (ci - 1))];
+          const wNext = lvl.walls[b.d + ',' + (isH ? (ci + 1) : b.line) + ',' + (isH ? b.line : (ci + 1))];
+          if (!st) st = (wPrev && wPrev.style) || (wNext && wNext.style);
+          if (!ca) ca = (wPrev && wPrev.ca) || (wNext && wNext.ca);
+          if (!cb) cb = (wPrev && wPrev.cb) || (wNext && wNext.cb);
+        }
+        st = st || 'plaster';
         const sDefC = styleDefaultCol(st, b.ext);
-        const ca = (w && w.ca) || sDefC, cb = (w && w.cb) || sDefC;
+        ca = ca || sDefC;
+        cb = cb || sDefC;
         const sb = isH ? { ...b, x0: s0, x1: s1 } : { ...b, z0: s0, z1: s1 };
         if (ca === cb) {
           addWallPart(st, boxPart(sb, ca));
@@ -1195,10 +1206,10 @@ W3.buildLevel = function () {
       const channelParts = [];
       for (const p of parts) {
         // Base channel at y=0..1.8
-        const pBot = { ...p, y: 0.9, h: 1.8, w: p.w, d: p.d };
+        const bBot = { x0: p.x0, x1: p.x1, z0: p.z0, z1: p.z1, y0: 0, y1: 1.8 };
         // Header channel at y=72.2..74
-        const pTop = { ...p, y: 73.1, h: 1.8, w: p.w, d: p.d };
-        channelParts.push(pBot, pTop);
+        const bTop = { x0: p.x0, x1: p.x1, z0: p.z0, z1: p.z1, y0: 72.2, y1: 74 };
+        channelParts.push(boxPart(bBot, '#1e2023'), boxPart(bTop, '#1e2023'));
       }
       V.instanced(sg, unitBox(), frameMat, channelParts, { cast: true, receive: true });
     }
