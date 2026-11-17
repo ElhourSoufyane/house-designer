@@ -168,48 +168,118 @@ function texture(kind) {
   const rand = () => { seed = (seed * 1664525 + 1013904223) >>> 0; return seed / 4294967296; };
 
   if (kind === 'brick') {
-    // Ultra-realistic architectural running-bond terracotta brick masonry
-    // 1. Sandy mortar bed
-    ctx.fillStyle = '#d5cdc1';
+    // Ultra-realistic architectural running-bond clay brick masonry
+    // 1. Natural coarse sandy cementitious mortar bed
+    ctx.fillStyle = '#c5beaf';
     ctx.fillRect(0, 0, size, size);
+    // Sandy aggregate particles & mineral specks in mortar bed
     for (let i = 0; i < size * 16; i++) {
-      ctx.fillStyle = rand() > 0.5 ? 'rgba(255,255,255,.18)' : 'rgba(50,42,32,.12)';
-      ctx.fillRect(rand() * size, rand() * size, 1.5, 1.5);
+      const gRand = rand();
+      ctx.fillStyle = gRand > 0.65 ? 'rgba(255,255,255,0.32)'
+        : (gRand > 0.3 ? 'rgba(65,55,45,0.16)' : 'rgba(150,140,125,0.22)');
+      ctx.fillRect(rand() * size, rand() * size, 1.2, 1.2);
     }
-    // 2. Individual varied terracotta bricks
-    const rows = 16, rowH = size / rows, brickW = size / 6.5, mortar = 3.2;
-    const brickPal = ['#9e3a29', '#aa4330', '#8e3122', '#b64d37', '#7b281b', '#bf553f', '#a43e2c', '#853021'];
+
+    // 2. 26 courses of architectural stretcher bricks (8 bricks across = 2.0m x 2.0m wall repeat)
+    // 8 bricks across & 26 rows ensures 100% mathematically seamless tiling horizontally & vertically!
+    const cols = 8, rows = 26;
+    const brickW = size / cols;
+    const rowH = size / rows;
+    const mortarY = Math.max(2.5, rowH * 0.125);
+    const mortarX = Math.max(2.8, brickW * 0.045);
+    const bw = brickW - mortarX;
+    const bh = rowH - mortarY;
+    const cr = Math.min(3.0, bh * 0.12);
+
+    // Rich, authentic kiln-fired clay & shale brick palette
+    const brickPal = [
+      '#833223', '#8d3727', '#973e2d', '#782a1d', '#a04533',
+      '#883424', '#702519', '#933b2b', '#a64b37', '#622014',
+      '#51190f', '#41130c', '#592116', // prized kiln-flashed / iron-burnt clinkers
+      '#a8523e', '#954331', '#853525'  // weathered warm terracotta
+    ];
+
+    const drawBrick = (bx, by, col, bRand) => {
+      // Ambient occlusion in joint around brick perimeter
+      ctx.fillStyle = 'rgba(30,22,15,0.25)';
+      ctx.fillRect(bx - mortarX * 0.35, by - mortarY * 0.3, bw + mortarX * 0.7, bh + mortarY * 0.6);
+
+      // Base brick face with organic rounded corners
+      ctx.beginPath();
+      if (ctx.roundRect) ctx.roundRect(bx, by, bw, bh, cr);
+      else ctx.rect(bx, by, bw, bh);
+
+      // Subtle kiln firing gradient across brick face
+      let num = parseInt(col.slice(1), 16);
+      let r0 = (num >> 16) & 255, g0 = (num >> 8) & 255, b0 = num & 255;
+      const shadeFact = 0.82 + bRand() * 0.36;
+      let r1 = Math.min(255, Math.max(0, Math.round(r0 * shadeFact)));
+      let g1 = Math.min(255, Math.max(0, Math.round(g0 * shadeFact)));
+      let b1 = Math.min(255, Math.max(0, Math.round(b0 * shadeFact)));
+
+      const grad = ctx.createLinearGradient(bx, by, bx + bw, by + (bRand() - 0.5) * bh);
+      grad.addColorStop(0, col);
+      grad.addColorStop(1, `rgb(${r1},${g1},${b1})`);
+      ctx.fillStyle = grad;
+      ctx.fill();
+
+      // Subtle clay extrusion stratification flow lines
+      ctx.fillStyle = bRand() > 0.5 ? 'rgba(0,0,0,0.035)' : 'rgba(255,255,255,0.035)';
+      for (let k = 0; k < 2; k++) {
+        const sy = by + (k + 1) * (bh / 3) + (bRand() - 0.5) * 1.5;
+        ctx.fillRect(bx, sy, bw, 1.2);
+      }
+
+      // Natural porous clay grain and sand specks
+      for (let k = 0; k < bw * 0.3; k++) {
+        const pRand = bRand();
+        ctx.fillStyle = pRand > 0.6 ? 'rgba(255,255,255,0.14)'
+          : (pRand > 0.25 ? 'rgba(40,20,12,0.12)' : 'rgba(180,100,60,0.15)');
+        ctx.fillRect(bx + bRand() * bw, by + bRand() * bh, 1.2, 1.2);
+      }
+
+      // Occasional dark iron kiln flecks
+      if (bRand() > 0.4) {
+        ctx.fillStyle = 'rgba(25,10,6,0.35)';
+        const spots = Math.floor(1 + bRand() * 4);
+        for (let s = 0; s < spots; s++) {
+          ctx.fillRect(bx + bRand() * bw, by + bRand() * bh, 1.4, 1.4);
+        }
+      }
+
+      // Soft perimeter edge feathering (gentle organic pillowed relief, NO fake harsh 3D bevels!)
+      ctx.strokeStyle = 'rgba(0,0,0,0.08)';
+      ctx.lineWidth = 1.0;
+      ctx.beginPath();
+      if (ctx.roundRect) ctx.roundRect(bx + 0.5, by + 0.5, bw - 1, bh - 1, cr);
+      else ctx.rect(bx + 0.5, by + 0.5, bw - 1, bh - 1);
+      ctx.stroke();
+    };
+
     for (let r = 0; r < rows; r++) {
-      const y = r * rowH + mortar / 2;
-      const h = rowH - mortar;
+      const y = r * rowH + mortarY / 2;
       const offset = (r % 2) * (brickW / 2);
       for (let x = offset - brickW; x < size + brickW; x += brickW) {
-        const bx = x, bw = brickW - mortar;
-        const col = brickPal[Math.floor(rand() * brickPal.length)];
-        ctx.fillStyle = col;
-        ctx.beginPath();
-        if (ctx.roundRect) ctx.roundRect(bx, y, bw, h, 2);
-        else ctx.rect(bx, y, bw, h);
-        ctx.fill();
+        // Deterministic seed per brick grid index ensuring 100% seamless tile wraps
+        const colIndex = ((Math.round((x - offset) / brickW) % cols) + cols) % cols;
+        let bSeed = (r * 7919 + colIndex * 6271 + 3821) >>> 0;
+        const bRand = () => { bSeed = (bSeed * 1664525 + 1013904223) >>> 0; return bSeed / 4294967296; };
+        const col = brickPal[Math.floor(bRand() * brickPal.length)];
 
-        // Subtle clay stratification streaks
-        ctx.fillStyle = 'rgba(0,0,0,0.06)';
-        for (let k = 0; k < 3; k++) {
-          ctx.fillRect(bx, y + (k + 1) * (h / 4), bw, 1.2);
+        drawBrick(x, y, col, bRand);
+
+        // Seamless wrap handling
+        if (x < 0) {
+          let wrapSeed = (r * 7919 + colIndex * 6271 + 3821) >>> 0;
+          const wrapRand = () => { wrapSeed = (wrapSeed * 1664525 + 1013904223) >>> 0; return wrapSeed / 4294967296; };
+          wrapRand(); // advance past col pick
+          drawBrick(x + size, y, col, wrapRand);
+        } else if (x + bw > size) {
+          let wrapSeed = (r * 7919 + colIndex * 6271 + 3821) >>> 0;
+          const wrapRand = () => { wrapSeed = (wrapSeed * 1664525 + 1013904223) >>> 0; return wrapSeed / 4294967296; };
+          wrapRand(); // advance past col pick
+          drawBrick(x - size, y, col, wrapRand);
         }
-        // Iron spot pores / kiln marks
-        ctx.fillStyle = 'rgba(30,15,10,0.22)';
-        for (let k = 0; k < 6; k++) {
-          ctx.fillRect(bx + rand() * bw, y + rand() * h, 1.2, 1.2);
-        }
-        // Bevel highlight top/left
-        ctx.fillStyle = 'rgba(255,255,255,0.18)';
-        ctx.fillRect(bx, y, bw, 1.2);
-        ctx.fillRect(bx, y, 1.2, h);
-        // Bevel shadow bottom/right
-        ctx.fillStyle = 'rgba(0,0,0,0.28)';
-        ctx.fillRect(bx, y + h - 1.2, bw, 1.2);
-        ctx.fillRect(bx + bw - 1.2, y, 1.2, h);
       }
     }
   } else if (kind === 'stone') {
@@ -368,27 +438,73 @@ function bumpTexture(kind) {
   const rand = () => { seed = (seed * 1664525 + 1013904223) >>> 0; return seed / 4294967296; };
 
   if (kind === 'brick') {
-    // Bump map: mortar is deep (#101010), bricks are raised (#e5e5e5)
-    ctx.fillStyle = '#101010';
+    // Ultra-smooth architectural bump map: soft recessed mortar (#4a4a4a), raised tactile brick face (#c8c8c8)
+    ctx.fillStyle = '#4a4a4a';
     ctx.fillRect(0, 0, size, size);
-    const rows = 16, rowH = size / rows, brickW = size / 6.5, mortar = 3.2;
+
+    // Sandy aggregate micro-roughness in mortar joints
+    for (let i = 0; i < size * 10; i++) {
+      ctx.fillStyle = rand() > 0.5 ? '#585858' : '#3e3e3e';
+      ctx.fillRect(rand() * size, rand() * size, 1.2, 1.2);
+    }
+
+    const cols = 8, rows = 26;
+    const brickW = size / cols;
+    const rowH = size / rows;
+    const mortarY = Math.max(2.5, rowH * 0.125);
+    const mortarX = Math.max(2.8, brickW * 0.045);
+    const bw = brickW - mortarX;
+    const bh = rowH - mortarY;
+    const cr = Math.min(3.0, bh * 0.12);
+
+    const drawBumpBrick = (bx, by, bRand) => {
+      // Base raised brick face with soft chamfered transition
+      ctx.fillStyle = '#b6b6b6';
+      ctx.beginPath();
+      if (ctx.roundRect) ctx.roundRect(bx, by, bw, bh, cr);
+      else ctx.rect(bx, by, bw, bh);
+      ctx.fill();
+
+      // Raised plateau
+      const pad = Math.min(2.0, Math.min(bw, bh) * 0.08);
+      ctx.fillStyle = '#cccccc';
+      ctx.beginPath();
+      if (ctx.roundRect) ctx.roundRect(bx + pad, by + pad, bw - pad * 2, bh - pad * 2, cr * 0.7);
+      else ctx.rect(bx + pad, by + pad, bw - pad * 2, bh - pad * 2);
+      ctx.fill();
+
+      // Gentle organic clay surface clefts
+      for (let k = 0; k < 2; k++) {
+        const cy = by + pad + bRand() * (bh - pad * 2);
+        ctx.fillStyle = 'rgba(140,140,140,0.22)';
+        ctx.fillRect(bx + pad, cy, bw - pad * 2, 1.2);
+      }
+
+      // Micro surface clay pores
+      for (let k = 0; k < 12; k++) {
+        ctx.fillStyle = bRand() > 0.5 ? '#dedede' : '#9a9a9a';
+        ctx.fillRect(bx + bRand() * bw, by + bRand() * bh, 1.2, 1.2);
+      }
+    };
+
     for (let r = 0; r < rows; r++) {
-      const y = r * rowH + mortar / 2, h = rowH - mortar;
+      const y = r * rowH + mortarY / 2;
       const offset = (r % 2) * (brickW / 2);
       for (let x = offset - brickW; x < size + brickW; x += brickW) {
-        const bx = x, bw = brickW - mortar;
-        ctx.fillStyle = '#d8d8d8';
-        ctx.beginPath();
-        if (ctx.roundRect) ctx.roundRect(bx, y, bw, h, 2);
-        else ctx.rect(bx, y, bw, h);
-        ctx.fill();
-        // Edge bevel gradient
-        ctx.fillStyle = '#ffffff';
-        ctx.fillRect(bx + 1.5, y + 1.5, bw - 3, h - 3);
-        // Micro surface grain
-        for (let k = 0; k < 12; k++) {
-          ctx.fillStyle = rand() > 0.5 ? '#ffffff' : '#888888';
-          ctx.fillRect(bx + rand() * bw, y + rand() * h, 1.5, 1.5);
+        const colIndex = ((Math.round((x - offset) / brickW) % cols) + cols) % cols;
+        let bSeed = (r * 7919 + colIndex * 6271 + 3821) >>> 0;
+        const bRand = () => { bSeed = (bSeed * 1664525 + 1013904223) >>> 0; return bSeed / 4294967296; };
+
+        drawBumpBrick(x, y, bRand);
+
+        if (x < 0) {
+          let wrapSeed = (r * 7919 + colIndex * 6271 + 3821) >>> 0;
+          const wrapRand = () => { wrapSeed = (wrapSeed * 1664525 + 1013904223) >>> 0; return wrapSeed / 4294967296; };
+          drawBumpBrick(x + size, y, wrapRand);
+        } else if (x + bw > size) {
+          let wrapSeed = (r * 7919 + colIndex * 6271 + 3821) >>> 0;
+          const wrapRand = () => { wrapSeed = (wrapSeed * 1664525 + 1013904223) >>> 0; return wrapSeed / 4294967296; };
+          drawBumpBrick(x - size, y, wrapRand);
         }
       }
     }
@@ -476,7 +592,7 @@ G.material = function (kind, color) {
   const smooth = /metal|glass|water|ceramic/.test(kind);
   const m = new THREE.MeshStandardMaterial({
     color: color || 0xffffff,
-    roughness: kind === 'glass' ? 0.04 : (smooth ? 0.22 : (kind === 'stone' ? 0.76 : (kind === 'brick' ? 0.82 : (kind === 'wood' ? 0.58 : 0.82)))),
+    roughness: kind === 'glass' ? 0.04 : (smooth ? 0.22 : (kind === 'stone' ? 0.76 : (kind === 'brick' ? 0.90 : (kind === 'wood' ? 0.58 : 0.82)))),
     metalness: kind === 'metal' ? 0.55 : (kind === 'glass' ? 0.12 : 0),
     map: texture(kind === 'art' ? 'art' : kind === 'water' ? 'water' :
       kind === 'wood' ? 'wood' : kind === 'fabric' ? 'fabric' :
@@ -484,11 +600,11 @@ G.material = function (kind, color) {
       kind === 'brick' ? 'brick' : kind === 'stone' ? 'stone' : 'plaster'),
   });
   /* sky IBL is a fill, not a second sun — keeps shadows readable      */
-  m.envMapIntensity = kind === 'glass' ? 1.4 : (smooth ? 0.95 : (kind === 'stone' ? 0.65 : 0.5));
+  m.envMapIntensity = kind === 'glass' ? 1.4 : (smooth ? 0.95 : (kind === 'stone' ? 0.65 : (kind === 'brick' ? 0.45 : 0.5)));
   m.userData.envBase = m.envMapIntensity;
   if (kind === 'brick' || kind === 'stone' || kind === 'wood' || kind === 'tile') {
     m.bumpMap = bumpTexture(kind);
-    m.bumpScale = kind === 'stone' ? 0.18 : (kind === 'brick' ? 0.28 : (kind === 'wood' ? 0.18 : 0.25));
+    m.bumpScale = kind === 'stone' ? 0.18 : (kind === 'brick' ? 0.10 : (kind === 'wood' ? 0.18 : 0.25));
   }
   if (kind === 'glass') {
     m.transparent = true; m.opacity = 0.26; m.depthWrite = false;

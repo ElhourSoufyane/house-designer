@@ -43,7 +43,7 @@ HP.FLOOR_MATS = [
   { id: 'terracotta', name: 'Terracotta', col: '#c47a4d' },
   { id: 'slate',    name: 'Slate',    col: '#8a93a0' },
   { id: 'mosaic',   name: 'Mosaic',   col: '#a8ccd8' },
-  { id: 'brick',    name: 'Brick',    col: '#b06a50' },
+  { id: 'brick',    name: 'Brick',    col: '#8c382a' },
   { id: 'hextile',  name: 'Hex Tile', col: '#e4e7e9' },
   { id: 'pebble',   name: 'Pebble',   col: '#b8b2a4' },
   { id: 'travertine', name: 'Travertine', col: '#d8cbb2' },
@@ -90,7 +90,7 @@ const _FV = {
   terracotta:[['Squares','#a85430','rgba(140,45,20,.22)'],['Subway','#dcb890','rgba(235,200,160,.15)'],['Hex','#b05c34','rgba(160,60,25,.22)']],
   slate:     [['Grid','#7c90a8','rgba(80,100,140,.20)'],['Flagstone','#4c5058','rgba(30,32,38,.30)'],['Subway','#84957f','rgba(80,110,85,.20)']],
   mosaic:    [['Tiny','#8cb8d4','rgba(80,140,200,.20)'],['Hex','#9cc4a8','rgba(110,170,130,.20)'],['Penny','#b4bcc0','rgba(130,135,140,.20)'],['Fan','#e8ecee','rgba(255,255,255,.20)']],
-  brick:     [['Stacked','#7c4438','rgba(60,30,25,.30)'],['Thin','#c89878','rgba(220,190,165,.15)'],['Basket','#9c8880','rgba(120,118,112,.22)']],
+  brick:     [['Stacked','#7c2f21','rgba(60,30,25,.30)'],['Thin','#c89878','rgba(220,190,165,.15)'],['Basket','#8a3525','rgba(120,40,25,.22)']],
   hextile:   [['Big Hex','#b8bcc0','rgba(120,125,132,.20)'],['Mini Hex','#9cb8cc','rgba(90,130,175,.20)'],['Dotted','#54585e','rgba(50,52,60,.30)']],
   pebble:    [['River Stones','#c4b090','rgba(190,160,115,.18)'],['Grit','#a8a8a4','rgba(125,128,130,.20)'],['Slabs','#6c6a62','rgba(70,68,62,.30)']],
   travertine:[['Banded','#d0b284','rgba(205,170,95,.18)'],['Tiles','#c0bcb0','rgba(140,138,130,.20)'],['Speckled','#c8a87c','rgba(190,140,90,.20)']],
@@ -284,7 +284,7 @@ HP.WALL_PAINTS = [
   { id: '#c5c9ce', name: 'Cool Grey',       col: '#c5c9ce' },
   { id: '#7d848d', name: 'Slate Grey',      col: '#7d848d' },
   { id: '#3a3f47', name: 'Charcoal',        col: '#3a3f47' },
-  { id: '#b06a50', name: 'Brick Red',       col: '#b06a50' },
+  { id: '#8c382a', name: 'Brick Red',       col: '#8c382a' },
   { id: '#9a774f', name: 'Warm Wood',       col: '#9a774f' },
 ];
 HP.wallColor = '';       // '' = default plaster; else '#rrggbb'

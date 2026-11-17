@@ -103,7 +103,7 @@ const MATS = {
   terracotta:{ c: '#c47a4d' },
   slate:    { c: '#8a93a0' },
   mosaic:   { c: '#a8ccd8' },
-  brick:    { c: '#b06a50' },
+  brick:    { c: '#8c382a' },
   hextile:  { c: '#e4e7e9' },
   pebble:   { c: '#b8b2a4' },
   travertine:{ c: '#d8cbb2' },
@@ -1675,7 +1675,7 @@ function drawWallCore(g, s, t, w) {
   const style = (w && w.style) || 'plaster';
   const painted = !!(ca || cb);
   const ti = Math.max(painted ? 4.6 : 2, t - (painted ? 4.6 : 8));
-  const styleDefCol = style === 'brick' ? '#b5523e' :
+  const styleDefCol = style === 'brick' ? '#8c382a' :
                       style === 'stone' ? '#8a857b' :
                       style === 'wood' ? '#be9866' :
                       style === 'tile' ? '#dad6cf' :
@@ -1704,11 +1704,31 @@ function drawWallCore(g, s, t, w) {
   if (style === 'brick') {
     g.save();
     g.beginPath(); g.rect(rx, ry, rw, rh); g.clip();
-    g.strokeStyle = 'rgba(255, 255, 255, 0.45)'; g.lineWidth = 1;
-    const diagSpan = rw + rh;
-    for (let d = -rh; d < diagSpan; d += 6) {
-      g.beginPath(); g.moveTo(rx + d, ry); g.lineTo(rx + d + rh, ry + rh); g.stroke();
+    const isH = s.d === 'h';
+    const bLen = 12; // brick length in 2D px
+    const bPal = ['#883424', '#943b2b', '#7a2d1f', '#a04533', '#5a2116'];
+    if (isH) {
+      for (let bx = rx; bx < rx + rw; bx += bLen) {
+        const bw = Math.min(bLen - 1.2, rx + rw - bx);
+        const idx = Math.floor(bx / bLen) % bPal.length;
+        g.fillStyle = bPal[(idx + bPal.length) % bPal.length];
+        g.fillRect(bx, ry, bw, rh);
+        g.fillStyle = '#c7beaf';
+        g.fillRect(bx + bw, ry, 1.2, rh);
+      }
+    } else {
+      for (let by = ry; by < ry + rh; by += bLen) {
+        const bh = Math.min(bLen - 1.2, ry + rh - by);
+        const idx = Math.floor(by / bLen) % bPal.length;
+        g.fillStyle = bPal[(idx + bPal.length) % bPal.length];
+        g.fillRect(rx, by, rw, bh);
+        g.fillStyle = '#c7beaf';
+        g.fillRect(rx, by + bh, rw, 1.2);
+      }
     }
+    g.strokeStyle = 'rgba(45, 20, 12, 0.45)';
+    g.lineWidth = 0.8;
+    g.strokeRect(rx, ry, rw, rh);
     g.restore();
   } else if (style === 'stone') {
     g.save();

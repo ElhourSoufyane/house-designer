@@ -5633,12 +5633,12 @@ F.builder = function (group) {
       } else if (/^brickfence$/i.test(t)) {
         // Fired Red Clay Brick Wall with Soldier Course Cap & End Piers (4x1 footprint)
         for (const sx of [-0.46, 0.46]) {
-          box('stone', sx, 0.52, 0, 0.10, 1.04, 0.10, '#991b1b');              // brick piers
-          box('stone', sx, 1.05, 0, 0.12, 0.06, 0.12, '#cbd5e1');              // limestone pier cap
+          box('stone', sx, 0.52, 0, 0.10, 1.04, 0.10, '#7c2f21');              // brick piers
+          box('stone', sx, 1.05, 0, 0.12, 0.06, 0.12, '#d5cdc1');              // limestone pier cap
         }
         // Main brick wall with soldier course coping
-        box('stone', 0, 0.48, 0, 0.86, 0.92, 0.44, color || '#b91c1c');
-        box('stone', 0, 0.96, 0, 0.88, 0.06, 0.48, '#7f1d1d');                 // soldier course cap
+        box('stone', 0, 0.48, 0, 0.86, 0.92, 0.44, color || '#8c382a');
+        box('stone', 0, 0.96, 0, 0.88, 0.06, 0.48, '#592116');                 // soldier course cap
 
       } else if (/^whitefencewall$/i.test(t)) {
         // Mediterranean Smooth White Stucco Privacy Wall with Terracotta Barrel Tile Coping (4x1)
