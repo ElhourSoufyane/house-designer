@@ -1213,7 +1213,14 @@ W3.buildLevel = function () {
   for (const b of V.splitBoxes(geo.boxes)) {
     if (b.tag === 'fence') {
       const ft = b.ft && HP.FENCE_TYPES[b.ft];
-      addWallPart('wood', boxPart(b, ft ? ft.c : 0xe9e2d2));
+      let fmat = 'wood';
+      if (b.ft === 'brick') fmat = 'brick';
+      else if (b.ft === 'stone' || b.ft === 'fieldstone') fmat = 'stone';
+      else if (b.ft === 'whitewall') fmat = 'plaster';
+      else if (b.ft === 'glass') fmat = 'glass';
+      else if (b.ft === 'concrete') fmat = 'concrete';
+      else if (b.ft === 'iron' || b.ft === 'metal' || b.ft === 'chainlink') fmat = 'metal';
+      addWallPart(fmat, boxPart(b, ft ? ft.c : 0xe9e2d2));
       continue;
     }
     const defC = b.ext ? '#e9e2d2' : '#f4efe4';
