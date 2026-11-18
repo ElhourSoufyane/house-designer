@@ -82,6 +82,10 @@ W3.init = function (canvas) {
     envDay = G.environment(0xe6e2cf, 0x5f9cc9, 0x8a7a62);
     envNight = G.environment(0x1d2a3e, 0x0b1424, 0x141414);
   }
+  W3._groundMat = null;
+  W3._wallMat = null;
+  W3._wallMats = null;
+  W3._ceilMat = null;
   if (HP.weather3d && HP.weather3d.init) {
     HP.weather3d.init(scene, camera);
   }
@@ -877,15 +881,38 @@ function populateDoorLeaf(dp, a, leaves, li, span, s0, s1, post0, post1, leafMat
       const frameMat = HP.graphics3d ? HP.graphics3d.material('metal', '#282b30') : knobMat;
       const glassMat = HP.graphics3d ? HP.graphics3d.material('glass', '#bfe3ea') : new THREE.MeshLambertMaterial({ color: 0x9fd4e8, transparent: true, opacity: 0.35 });
 
-      leaf = new THREE.Mesh(box3d(lw, lh, dep), frameMat);
+      leaf = new THREE.Mesh(box3d(lw, lh, dep), glassMat);
       leaf.position.set(0, lh / 2 - 0.5, 0);
-      leaf.castShadow = leaf.receiveShadow = true;
       pivot.add(leaf);
 
-      const pW = Math.max(2, lw - 4.4);
-      const pH = Math.max(2, lh - 5.6);
-      const glassMesh = new THREE.Mesh(box3d(pW, pH, 0.6), glassMat);
-      leaf.add(glassMesh);
+      const stileW = 2.2;
+      const topRailH = 2.8;
+      const botRailH = 3.8;
+      const innerW = lw - stileW * 2;
+
+      // Top rail
+      const topRail = new THREE.Mesh(box3d(lw, topRailH, dep + 0.1), frameMat);
+      setPos(topRail, 0, lh / 2 - topRailH / 2, 0);
+      topRail.castShadow = topRail.receiveShadow = true;
+      leaf.add(topRail);
+
+      // Bottom rail
+      const botRail = new THREE.Mesh(box3d(lw, botRailH, dep + 0.1), frameMat);
+      setPos(botRail, 0, -lh / 2 + botRailH / 2, 0);
+      botRail.castShadow = botRail.receiveShadow = true;
+      leaf.add(botRail);
+
+      // Left stile
+      const leftStile = new THREE.Mesh(box3d(stileW, lh - topRailH - botRailH, dep + 0.1), frameMat);
+      setPos(leftStile, -lw / 2 + stileW / 2, (botRailH - topRailH) / 2, 0);
+      leftStile.castShadow = leftStile.receiveShadow = true;
+      leaf.add(leftStile);
+
+      // Right stile
+      const rightStile = new THREE.Mesh(box3d(stileW, lh - topRailH - botRailH, dep + 0.1), frameMat);
+      setPos(rightStile, lw / 2 - stileW / 2, (botRailH - topRailH) / 2, 0);
+      rightStile.castShadow = rightStile.receiveShadow = true;
+      leaf.add(rightStile);
 
       // Integrated vertical pull handle along leading stile
       const pullMat = HP.graphics3d ? HP.graphics3d.material('metal', '#d0d3d8') : knobMat;
@@ -1038,23 +1065,52 @@ function populateDoorLeaf(dp, a, leaves, li, span, s0, s1, post0, post1, leafMat
       const glassMat = HP.graphics3d ? HP.graphics3d.material('glass', '#bfe3ea') : new THREE.MeshLambertMaterial({ color: 0x9fd4e8, transparent: true, opacity: 0.35 });
       const hardwareMat = HP.graphics3d ? HP.graphics3d.material('metal', '#1a1c1e') : knobMat;
 
-      leaf = new THREE.Mesh(box3d(lw, lh, dep), frameMat);
+      // Base leaf is the transparent crystal glass pane (satisfies walk3d leafBox geometry)
+      leaf = new THREE.Mesh(box3d(lw, lh, dep), glassMat);
       setPos(leaf, (li === 0 ? lw / 2 : -lw / 2), lh / 2 - 0.5, v);
-      leaf.castShadow = leaf.receiveShadow = true;
       pivot.add(leaf);
 
-      const pW = Math.max(2, lw - 4.8);
-      const pH = Math.max(2, lh - 6.0);
-      const glassMesh = new THREE.Mesh(box3d(pW, pH, 0.5), glassMat);
-      leaf.add(glassMesh);
+      const stileW = 2.4;
+      const topRailH = 3.2;
+      const botRailH = 5.2; // traditional wide bottom kick rail
+      const innerW = lw - stileW * 2;
+      const innerH = lh - topRailH - botRailH;
 
-      // Divided Lite Muntin Grille: 3 horizontal bars + 1 vertical bar
-      for (const my of [-9, 3, 15]) {
-        const hMuntin = new THREE.Mesh(box3d(pW, 0.5, 0.6), frameMat);
-        setPos(hMuntin, 0, my, 0);
+      // Top rail
+      const topRail = new THREE.Mesh(box3d(lw, topRailH, dep + 0.1), frameMat);
+      setPos(topRail, 0, lh / 2 - topRailH / 2, 0);
+      topRail.castShadow = topRail.receiveShadow = true;
+      leaf.add(topRail);
+
+      // Bottom kick rail
+      const botRail = new THREE.Mesh(box3d(lw, botRailH, dep + 0.1), frameMat);
+      setPos(botRail, 0, -lh / 2 + botRailH / 2, 0);
+      botRail.castShadow = botRail.receiveShadow = true;
+      leaf.add(botRail);
+
+      // Left stile
+      const leftStile = new THREE.Mesh(box3d(stileW, innerH, dep + 0.1), frameMat);
+      setPos(leftStile, -lw / 2 + stileW / 2, (botRailH - topRailH) / 2, 0);
+      leftStile.castShadow = leftStile.receiveShadow = true;
+      leaf.add(leftStile);
+
+      // Right stile
+      const rightStile = new THREE.Mesh(box3d(stileW, innerH, dep + 0.1), frameMat);
+      setPos(rightStile, lw / 2 - stileW / 2, (botRailH - topRailH) / 2, 0);
+      rightStile.castShadow = rightStile.receiveShadow = true;
+      leaf.add(rightStile);
+
+      // Divided Lite Muntin Grille: 3 horizontal bars + 1 vertical bar across the inner glass area
+      const midY = (botRailH - topRailH) / 2;
+      for (const my of [-innerH * 0.25, 0, innerH * 0.25]) {
+        const hMuntin = new THREE.Mesh(box3d(innerW, 0.5, dep + 0.05), frameMat);
+        setPos(hMuntin, 0, midY + my, 0);
+        hMuntin.castShadow = true;
         leaf.add(hMuntin);
       }
-      const vMuntin = new THREE.Mesh(box3d(0.5, pH, 0.6), frameMat);
+      const vMuntin = new THREE.Mesh(box3d(0.5, innerH, dep + 0.05), frameMat);
+      setPos(vMuntin, 0, midY, 0);
+      vMuntin.castShadow = true;
       leaf.add(vMuntin);
 
       // Contemporary lever handle
@@ -1378,8 +1434,8 @@ W3.buildLevel = function () {
       HP.GRID_W * C + 4000, HP.GRID_H * C + 4000).rotateX(-Math.PI / 2);
   }
   if (!W3._groundMat) {
-    W3._groundMat = HP.graphics3d ? HP.graphics3d.worldUV(HP.graphics3d.material('grass').clone(), C * 3) :
-      new THREE.MeshLambertMaterial({ color: 0x7fa75f });
+    W3._groundMat = HP.graphics3d ? HP.graphics3d.worldUV(HP.graphics3d.material('grass', '#689047').clone(), C * 3) :
+      new THREE.MeshLambertMaterial({ color: 0x689047 });
     W3._groundMat.userData.shared3d = true;
     if (HP.graphics3d) HP.graphics3d.track(W3._groundMat);
   }

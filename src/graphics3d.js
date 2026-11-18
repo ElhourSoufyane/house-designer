@@ -514,6 +514,56 @@ function texture(kind) {
         }
       }
     }
+  } else if (kind === 'grass') {
+    // Lush Kentucky bluegrass & fine fescue architectural lawn
+    // Base rich fertile loam soil / deep turf bed
+    ctx.fillStyle = '#4a6834';
+    ctx.fillRect(0, 0, size, size);
+
+    // Micro-clusters of grass blades and organic tone variations
+    const grassPal = [
+      '#5c8240', '#699148', '#76a051', '#82ae59', '#507036',
+      '#628b42', '#709b4b', '#7fa954', '#8cba5f', '#486530',
+      '#6b9549', '#79a553', '#567a39', '#93bf66', '#648d44'
+    ];
+
+    // 1. Organic lawn color mottling (sun-dappled and moisture patches)
+    if (ctx.createRadialGradient) {
+      for (let i = 0; i < 36; i++) {
+        const gx = rand() * size, gy = rand() * size, rad = 30 + rand() * 60;
+        try {
+          const grad = ctx.createRadialGradient(gx, gy, 4, gx, gy, rad);
+          const col = grassPal[Math.floor(rand() * grassPal.length)];
+          grad.addColorStop(0, col);
+          grad.addColorStop(1, 'transparent');
+          ctx.fillStyle = grad;
+          ctx.beginPath();
+          ctx.arc(gx, gy, rad, 0, Math.PI * 2);
+          ctx.fill();
+        } catch (_) {}
+      }
+    }
+
+    // 2. High-density grass blade strokes for authentic turf texture
+    const bladeCount = Math.min(size * 18, 9000);
+    for (let i = 0; i < bladeCount; i++) {
+      const bx = rand() * size;
+      const by = rand() * size;
+      const blen = 3.5 + rand() * 5.5;
+      const col = grassPal[Math.floor(rand() * grassPal.length)];
+      ctx.strokeStyle = col;
+      ctx.lineWidth = 1.0 + rand() * 0.8;
+      ctx.beginPath();
+      ctx.moveTo(bx, by);
+      ctx.lineTo(bx + (rand() - 0.5) * 3, by - blen);
+      ctx.stroke();
+    }
+
+    // 3. Fine golden sun glints & thatch flecks
+    for (let i = 0; i < size * 3; i++) {
+      ctx.fillStyle = rand() > 0.7 ? 'rgba(215, 230, 140, 0.45)' : 'rgba(38, 52, 24, 0.35)';
+      ctx.fillRect(rand() * size, rand() * size, 1.2, 1.8);
+    }
   } else {
     // Plaster / Default wall
     ctx.fillStyle = '#f5f0e6';
@@ -707,6 +757,13 @@ function bumpTexture(kind) {
       ctx.fillStyle = '#ffffff';
       ctx.fillRect(0, by, size, 1.2);
     }
+  } else if (kind === 'grass') {
+    ctx.fillStyle = '#606060';
+    ctx.fillRect(0, 0, size, size);
+    for (let i = 0; i < size * 16; i++) {
+      ctx.fillStyle = rand() > 0.5 ? '#808080' : '#454545';
+      ctx.fillRect(rand() * size, rand() * size, 1.4, 2.5);
+    }
   } else if (kind === 'brick_white') {
     return bumpTexture('brick');
   } else {
@@ -743,9 +800,9 @@ G.material = function (kind, color) {
   /* sky IBL is a fill, not a second sun — keeps shadows readable      */
   m.envMapIntensity = kind === 'glass' ? 1.4 : (smooth ? 0.95 : (kind === 'stone' ? 0.65 : (kind === 'concrete' ? 0.55 : (kind === 'brick' || kind === 'brick_white' ? 0.45 : 0.5))));
   m.userData.envBase = m.envMapIntensity;
-  if (kind === 'brick' || kind === 'brick_white' || kind === 'stone' || kind === 'wood' || kind === 'tile' || kind === 'concrete' || kind === 'shiplap') {
+  if (kind === 'brick' || kind === 'brick_white' || kind === 'stone' || kind === 'wood' || kind === 'tile' || kind === 'concrete' || kind === 'shiplap' || kind === 'grass') {
     m.bumpMap = bumpTexture(kind === 'brick_white' ? 'brick' : kind);
-    m.bumpScale = kind === 'stone' ? 0.18 : (kind === 'concrete' ? 0.14 : (kind === 'shiplap' ? 0.22 : (kind === 'brick' || kind === 'brick_white' ? 0.10 : (kind === 'wood' ? 0.18 : 0.25))));
+    m.bumpScale = kind === 'grass' ? 0.12 : (kind === 'stone' ? 0.18 : (kind === 'concrete' ? 0.14 : (kind === 'shiplap' ? 0.22 : (kind === 'brick' || kind === 'brick_white' ? 0.10 : (kind === 'wood' ? 0.18 : 0.25)))));
   }
   if (kind === 'glass') {
     m.transparent = true; m.opacity = 0.26; m.depthWrite = false;
