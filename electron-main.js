@@ -70,6 +70,9 @@ function createWindow() {
     mainWindow.maximize();
   }
 
+  // Clear disk and memory caches so local app updates are loaded immediately
+  mainWindow.webContents.session.clearCache();
+
   // Smooth fade-in presentation
   mainWindow.once('ready-to-show', () => {
     mainWindow.show();
