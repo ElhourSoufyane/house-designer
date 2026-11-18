@@ -211,6 +211,7 @@
     }
 
     HP.init3D();
+    if (HP.world3d && HP.world3d.fit) HP.world3d.fit();
     HP.invalidateRegions();
     if (HP.world3d) HP.world3d.buildLevel();
 

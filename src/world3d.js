@@ -44,11 +44,44 @@ W3.init = function (canvas) {
   sun.shadow.camera.near = 1; sun.shadow.camera.far = 2800;
   scene.add(sun); scene.add(sun.target);
   const fit = () => {
-    renderer.setSize(innerWidth, innerHeight, false);
-    camera.aspect = innerWidth / innerHeight;
+    if (!renderer) return;
+    const dom = renderer.domElement || canvas;
+    const w = (dom && dom.clientWidth) || (typeof innerWidth !== 'undefined' ? innerWidth : 1280);
+    const h = (dom && dom.clientHeight) || (typeof innerHeight !== 'undefined' ? innerHeight : 720);
+    if (w <= 0 || h <= 0) return;
+    renderer.setSize(w, h, false);
+    camera.aspect = w / h;
+    if (camera.aspect < 1.0) {
+      const desiredHFOV = 70 * (Math.PI / 180);
+      const halfH = Math.tan(desiredHFOV / 2);
+      const vFovRad = 2 * Math.atan(halfH / camera.aspect);
+      camera.fov = Math.min(105, Math.max(72, vFovRad * (180 / Math.PI)));
+    } else {
+      camera.fov = 72;
+    }
     camera.updateProjectionMatrix();
   };
-  addEventListener('resize', fit); fit();
+  W3.fit = fit;
+  addEventListener('resize', fit);
+  addEventListener('orientationchange', () => {
+    fit();
+    setTimeout(fit, 80);
+    setTimeout(fit, 200);
+    setTimeout(fit, 400);
+    setTimeout(fit, 800);
+  });
+  if (typeof window !== 'undefined') {
+    if (window.visualViewport) window.visualViewport.addEventListener('resize', fit);
+    if (typeof screen !== 'undefined' && screen.orientation && screen.orientation.addEventListener) {
+      screen.orientation.addEventListener('change', () => {
+        fit();
+        setTimeout(fit, 80);
+        setTimeout(fit, 200);
+        setTimeout(fit, 400);
+      });
+    }
+  }
+  fit();
   W3.renderer = renderer; W3.scene = scene; W3.camera = camera;
   if (HP.graphics3d) {
     const G = HP.graphics3d;
@@ -2700,6 +2733,16 @@ W3.runAudit = function () {
 let lastRender = 0;
 W3.render = function () {
   if (!renderer) return;
+  const domEl = renderer.domElement;
+  if (domEl && domEl.clientWidth > 0 && domEl.clientHeight > 0) {
+    const curW = domEl.clientWidth, curH = domEl.clientHeight;
+    const curAspect = curW / curH;
+    const dpr = renderer.getPixelRatio ? renderer.getPixelRatio() : 1;
+    const expW = Math.floor(curW * dpr), expH = Math.floor(curH * dpr);
+    if (Math.abs(camera.aspect - curAspect) > 0.005 || domEl.width !== expW || domEl.height !== expH) {
+      fit();
+    }
+  }
   const p = camera.position, now = performance.now();
   const dt = Math.min(0.1, lastRender ? (now - lastRender) / 1000 : 0); lastRender = now;
   if (HP.cull3d) HP.cull3d.update(p.x, p.z);
