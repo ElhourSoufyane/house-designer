@@ -1,8 +1,8 @@
 {
-  "version": "1.3.15",
-  "build": 1794944500000,
-  "updatedAt": "2026-11-17T19:24:00.000Z",
-  "notes": "Photorealistic architectural ashlar stone masonry texture with luminous warm limestone palette, soft natural bevels, and calibrated bump relief",
+  "version": "1.3.16",
+  "build": 1794945000000,
+  "updatedAt": "2026-11-18T09:25:00.000Z",
+  "notes": "New architectural wall styles (concrete, marble, shiplap, white brick), window animations, and synchronized global weather",
   "files": [
     "version.json",
     "index.html",
@@ -26,6 +26,7 @@
     "src/rooms.js",
     "src/save.js",
     "src/sky3d.js",
+    "src/weather3d.js",
     "src/sound3d.js",
     "src/sprites.js",
     "src/sync.js",

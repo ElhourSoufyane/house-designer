@@ -1739,9 +1739,13 @@ function drawWallCore(g, s, t, w) {
   const painted = !!(ca || cb);
   const ti = Math.max(painted ? 4.6 : 2, t - (painted ? 4.6 : 8));
   const styleDefCol = style === 'brick' ? '#8c382a' :
+                      style === 'brick_white' ? '#f4f1ea' :
                       style === 'stone' ? '#8a857b' :
                       style === 'wood' ? '#be9866' :
                       style === 'tile' ? '#dad6cf' :
+                      style === 'concrete' ? '#949ba3' :
+                      style === 'marble' ? '#f8fafc' :
+                      style === 'shiplap' ? '#f5f5f2' :
                       style === 'glass' ? 'rgba(165, 222, 242, 0.75)' : '#f5f3ec';
 
   let rx, ry, rw, rh;
@@ -1764,17 +1768,21 @@ function drawWallCore(g, s, t, w) {
   }
 
   // Architectural hatching & patterns per style (no costly canvas clip)
-  if (style === 'brick') {
+  if (style === 'brick' || style === 'brick_white') {
     const isH = s.d === 'h';
+    const isWhite = style === 'brick_white';
     const bLen = 12; // brick length in 2D px
-    const bPal = ['#883424', '#943b2b', '#7a2d1f', '#a04533', '#5a2116'];
+    const bPal = isWhite
+      ? ['#f4f1ea', '#ece6dd', '#f8f5ee', '#ede8df', '#f0eae0']
+      : ['#883424', '#943b2b', '#7a2d1f', '#a04533', '#5a2116'];
+    const mortCol = isWhite ? '#d8d3c8' : '#c7beaf';
     if (isH) {
       for (let bx = rx; bx < rx + rw; bx += bLen) {
         const bw = Math.min(bLen - 1.2, rx + rw - bx);
         const idx = Math.floor(bx / bLen) % bPal.length;
         g.fillStyle = bPal[(idx + bPal.length) % bPal.length];
         g.fillRect(bx, ry, bw, rh);
-        g.fillStyle = '#c7beaf';
+        g.fillStyle = mortCol;
         g.fillRect(bx + bw, ry, 1.2, rh);
       }
     } else {
@@ -1783,13 +1791,71 @@ function drawWallCore(g, s, t, w) {
         const idx = Math.floor(by / bLen) % bPal.length;
         g.fillStyle = bPal[(idx + bPal.length) % bPal.length];
         g.fillRect(rx, by, rw, bh);
-        g.fillStyle = '#c7beaf';
+        g.fillStyle = mortCol;
         g.fillRect(rx, by + bh, rw, 1.2);
       }
     }
-    g.strokeStyle = 'rgba(45, 20, 12, 0.45)';
+    g.strokeStyle = isWhite ? 'rgba(120, 115, 105, 0.35)' : 'rgba(45, 20, 12, 0.45)';
     g.lineWidth = 0.8;
     g.strokeRect(rx, ry, rw, rh);
+  } else if (style === 'concrete') {
+    // Board-formed concrete with horizontal plank seams and form-tie holes
+    g.strokeStyle = 'rgba(70, 75, 80, 0.4)';
+    g.lineWidth = 0.8;
+    g.beginPath();
+    if (s.d === 'h') {
+      g.moveTo(rx, ry + rh / 2); g.lineTo(rx + rw, ry + rh / 2);
+    } else {
+      g.moveTo(rx + rw / 2, ry); g.lineTo(rx + rw / 2, ry + rh);
+    }
+    g.stroke();
+    // Tie-rod rivet holes
+    g.fillStyle = '#4a5054';
+    if (s.d === 'h') {
+      for (let x = rx + 5; x < rx + rw; x += 11) {
+        g.beginPath(); g.arc(x, ry + rh / 2, 1.1, 0, Math.PI * 2); g.fill();
+      }
+    } else {
+      for (let y = ry + 5; y < ry + rh; y += 11) {
+        g.beginPath(); g.arc(rx + rw / 2, y, 1.1, 0, Math.PI * 2); g.fill();
+      }
+    }
+  } else if (style === 'marble') {
+    // Polished Calacatta marble subtle diagonal veining
+    g.strokeStyle = 'rgba(100, 116, 139, 0.4)';
+    g.lineWidth = 0.8;
+    g.beginPath();
+    if (s.d === 'h') {
+      g.moveTo(rx + 4, ry); g.lineTo(rx + 14, ry + rh);
+      g.moveTo(rx + 18, ry); g.lineTo(rx + 26, ry + rh);
+    } else {
+      g.moveTo(rx, ry + 4); g.lineTo(rx + rw, ry + 14);
+      g.moveTo(rx, ry + 18); g.lineTo(rx + rw, ry + 26);
+    }
+    g.stroke();
+    // Gold vein accent
+    g.strokeStyle = 'rgba(217, 119, 6, 0.35)';
+    g.lineWidth = 0.7;
+    g.beginPath();
+    if (s.d === 'h') {
+      g.moveTo(rx + 8, ry); g.lineTo(rx + 16, ry + rh);
+    } else {
+      g.moveTo(rx, ry + 8); g.lineTo(rx + rw, ry + 16);
+    }
+    g.stroke();
+  } else if (style === 'shiplap') {
+    // Horizontal painted wood shiplap nickel-gap grooves
+    g.strokeStyle = 'rgba(38, 38, 38, 0.45)';
+    g.lineWidth = 0.9;
+    g.beginPath();
+    if (s.d === 'h') {
+      g.moveTo(rx, ry + rh * 0.33); g.lineTo(rx + rw, ry + rh * 0.33);
+      g.moveTo(rx, ry + rh * 0.67); g.lineTo(rx + rw, ry + rh * 0.67);
+    } else {
+      g.moveTo(rx + rw * 0.33, ry); g.lineTo(rx + rw * 0.33, ry + rh);
+      g.moveTo(rx + rw * 0.67, ry); g.lineTo(rx + rw * 0.67, ry + rh);
+    }
+    g.stroke();
   } else if (style === 'stone') {
     g.strokeStyle = 'rgba(40, 35, 30, 0.4)'; g.lineWidth = 0.9;
     g.beginPath();
