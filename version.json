@@ -39,15 +39,15 @@
     "src/play3d-inpage.js"
   ],
   "hashes": {
-    "index.html": "71126bdc4edd",
-    "play3d.html": "140ea6fdf045",
-    "style.css": "77982512ad16",
+    "index.html": "b0729e91bcf3",
+    "play3d.html": "b83c5deb69a4",
+    "style.css": "a5add6438d64",
     "manifest.json": "6b5cec7e7507",
     "sw.js": "9f263412576f",
     "preload.js": "51c8baf4b838",
     "electron-main.js": "cc7a535a7fe1",
     "src/catalog.js": "60cffe928a65",
-    "src/cull3d.js": "69fc3b830f00",
+    "src/cull3d.js": "0c2bcaa7cf40",
     "src/default-house.js": "dd05eb4821e8",
     "src/furniture3d.js": "735f38f26dee",
     "src/geom3d.js": "aa87f3205b42",
@@ -68,8 +68,8 @@
     "src/tools.js": "c1f78c37b3b6",
     "src/ui.js": "cc8105fd4dc0",
     "src/walk.js": "601b8eee0012",
-    "src/walk3d.js": "f3a952f38e13",
-    "src/world3d.js": "6006408d6c00",
-    "src/play3d-inpage.js": "6e860213f205"
+    "src/walk3d.js": "4bf6f24aa667",
+    "src/world3d.js": "7883bc77bedb",
+    "src/play3d-inpage.js": "1fe33576c75a"
   }
 }

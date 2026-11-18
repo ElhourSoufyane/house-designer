@@ -114,7 +114,7 @@ V.setWalls = function (walls, pivots) {
   hEdge = new Uint8Array((gw + 2) * (gh + 2));
   for (const k in walls) {
     const w = walls[k];
-    if (w.f === 'window' || w.style === 'glass') continue;          // glass: see straight through
+    if (w.f === 'window' || w.style === 'glass' || w.doorStyle === 'glass' || w.doorStyle === 'slideglass') continue;          // glass: see straight through
     const s = HP.parseWallKey(k);
     if (s.x < 0 || s.y < 0 || s.x > gw || s.y > gh) continue;
     (s.d === 'v' ? vEdge : hEdge)[s.y * (gw + 2) + s.x] = w.f === 'door' ? 2 : 1;
@@ -123,7 +123,17 @@ V.setWalls = function (walls, pivots) {
   doorEdges = [];
   const seen = new Set();
   for (const d of pivots || []) {
-    if (d.gate || d.window || d.doorStyle === 'glass' || d.doorStyle === 'slideglass' || seen.has(d.a)) continue;
+    if (d.doorStyle === 'glass' || d.doorStyle === 'slideglass') {
+      // Glass doors are transparent — clear edge so rays pass through
+      const s = HP.parseWallKey(d.a.k), n = d.a.dbl ? 2 : 1;
+      const arr = s.d === 'v' ? vEdge : hEdge;
+      for (let i = 0; i < n; i++) {
+        const x = s.d === 'h' ? s.x + i : s.x, y = s.d === 'h' ? s.y : s.y + i;
+        arr[y * (gw + 2) + x] = 0;
+      }
+      continue;
+    }
+    if (d.gate || d.window || seen.has(d.a)) continue;
     seen.add(d.a);
     const s = HP.parseWallKey(d.a.k), n = d.a.dbl ? 2 : 1, idx = [];
     for (let i = 0; i < n; i++) {
