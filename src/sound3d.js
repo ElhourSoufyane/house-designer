@@ -42,6 +42,8 @@ S.start = function () {
     noiseBuf = noiseBuf || makeNoise();
     if (!amb.wind) {
       amb.wind = loopNoise('lowpass', 280, 0.5);
+      amb.rain = loopNoise('bandpass', 1100, 0.8);
+      amb.snow = loopNoise('bandpass', 450, 1.4);
       amb.crickets = ctx.createGain(); amb.crickets.gain.value = 1; amb.crickets.connect(master);
       amb.birds = ctx.createGain(); amb.birds.gain.value = 0; amb.birds.connect(master);
       amb.water = loopNoise('bandpass', 650, 0.7);
@@ -169,29 +171,77 @@ function birdSong(t0, g) {
   }
 }
 
+S.thunder = function () {
+  if (!started || !enabled || !ctx) return;
+  const t0 = ctx.currentTime;
+  // Sub-bass rolling impact
+  const osc = ctx.createOscillator();
+  osc.type = 'sine';
+  osc.frequency.setValueAtTime(80, t0);
+  osc.frequency.exponentialRampToValueAtTime(28, t0 + 2.0);
+  const og = ctx.createGain();
+  env(og, t0, 0.04, 0.26, 2.2);
+  osc.connect(og); og.connect(master);
+  osc.start(t0); osc.stop(t0 + 2.5);
+
+  // Filtered noise rumble
+  if (noiseBuf) {
+    const src = ctx.createBufferSource();
+    src.buffer = noiseBuf;
+    const f = ctx.createBiquadFilter();
+    f.type = 'lowpass';
+    f.frequency.setValueAtTime(280, t0);
+    f.frequency.exponentialRampToValueAtTime(65, t0 + 2.2);
+    const ng = ctx.createGain();
+    env(ng, t0, 0.03, 0.32, 2.6);
+    src.connect(f); f.connect(ng); ng.connect(master);
+    src.start(t0); src.stop(t0 + 2.8);
+  }
+};
+
 /* ---------- continuous ambience ----------
    env: {night, day, outdoors:0..1, nearWater, nearFire, nearFan}     */
 let birdT = 4, cricketT = 3;
 S.tick = function (dt, t, env) {
   if (!started || !enabled) return;
   const out = env.outdoors, night = env.night || 0, day = env.day || 0;
-  amb.wind.gain.setTargetAtTime(0.012 * out, ctx.currentTime, 0.4);
+  const weather = (HP.weather3d && HP.weather3d.weather) || HP.weather || 'clear';
+  const isStorm = weather === 'storm';
+  const isRain = weather === 'rain' || isStorm;
+  const isSnow = weather === 'snow';
+
+  const windVol = (isStorm ? 0.032 : (isSnow ? 0.018 : 0.012)) * out;
+  amb.wind.gain.setTargetAtTime(windVol, ctx.currentTime, 0.4);
+
+  if (amb.rain) {
+    const rainVol = (isStorm ? 0.075 : (isRain ? 0.042 : 0)) * out;
+    amb.rain.gain.setTargetAtTime(rainVol, ctx.currentTime, 0.3);
+  }
+  if (amb.snow) {
+    const snowVol = (isSnow ? 0.024 : 0) * out;
+    amb.snow.gain.setTargetAtTime(snowVol, ctx.currentTime, 0.4);
+  }
+
   amb.water.gain.setTargetAtTime(Math.min(0.04, env.nearWater * 0.0006) * out, ctx.currentTime, 0.3);
   amb.fire.gain.setTargetAtTime(Math.min(0.06, env.nearFire * 0.0012), ctx.currentTime, 0.2);
   const fanOn = Math.min(0.015, env.nearFan * 0.0003);
   amb.fanN.gain.setTargetAtTime(fanOn, ctx.currentTime, 0.4);
-  /* crickets & birds: sparse and subtle, outdoors only */
-  cricketT -= dt;
-  if (night > 0.4 && out > 0.3 && cricketT <= 0) {
-    cricketT = 6 + Math.random() * 10;
-    chirp(ctx.currentTime, amb.crickets);
+  /* crickets & birds: sparse and subtle, outdoors only (quiet in rain/snow/storm) */
+  if (!isRain && !isSnow) {
+    cricketT -= dt;
+    if (night > 0.4 && out > 0.3 && cricketT <= 0) {
+      cricketT = 6 + Math.random() * 10;
+      chirp(ctx.currentTime, amb.crickets);
+    }
+    birdT -= dt;
+    if (day > 0.4 && out > 0.3 && birdT <= 0) {
+      birdT = 8 + Math.random() * 14;
+      birdSong(ctx.currentTime, amb.birds);
+    }
+    amb.birds.gain.setTargetAtTime(day > 0.4 ? 0.35 * out : 0, ctx.currentTime, 0.5);
+  } else {
+    amb.birds.gain.setTargetAtTime(0, ctx.currentTime, 0.4);
   }
-  birdT -= dt;
-  if (day > 0.4 && out > 0.3 && birdT <= 0) {
-    birdT = 8 + Math.random() * 14;
-    birdSong(ctx.currentTime, amb.birds);
-  }
-  amb.birds.gain.setTargetAtTime(day > 0.4 ? 0.35 * out : 0, ctx.currentTime, 0.5);
 };
 S.stop = function () { if (ctx && ctx.suspend) ctx.suspend(); started = false; };
 S.resume = function () { if (ctx && ctx.state === 'suspended') ctx.resume(); if (ctx) started = true; };

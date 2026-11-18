@@ -82,6 +82,9 @@ W3.init = function (canvas) {
     envDay = G.environment(0xe6e2cf, 0x5f9cc9, 0x8a7a62);
     envNight = G.environment(0x1d2a3e, 0x0b1424, 0x141414);
   }
+  if (HP.weather3d && HP.weather3d.init) {
+    HP.weather3d.init(scene, camera);
+  }
 };
 
 /* ---------- time of day ---------- */
@@ -2661,6 +2664,9 @@ W3.render = function () {
         mp.rotation = Math.sin(now * 0.00005) * 0.35;   // sway, don't spin
       }
     }
+  }
+  if (HP.weather3d && HP.weather3d.tick) {
+    HP.weather3d.tick(dt, p, sun, ambient);
   }
   if (HP.sound3d && skyS) {
     const C2 = HP.CELL;

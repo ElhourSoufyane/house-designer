@@ -601,7 +601,7 @@ function setupConn(c) {
         for (const other of conns) if (other !== c) { try { other.send(d); } catch (e) {} }
       }
     }
-    else if (d.t === 'door' || d.t === 'door_toggle' || d.t === 'door_push' || d.t === 'interact' || d.t === 'time' || d.t === 'lamp' || d.t === 'mover' || d.t === 'emote') {
+    else if (d.t === 'door' || d.t === 'door_toggle' || d.t === 'door_push' || d.t === 'interact' || d.t === 'time' || d.t === 'weather' || d.t === 'lamp' || d.t === 'mover' || d.t === 'emote') {
       if (HP.sync3d && HP.sync3d.handleData) HP.sync3d.handleData(d, c);
       if (mode === 'host') {
         for (const other of conns) if (other !== c) { try { other.send(d); } catch (e) {} }
@@ -778,6 +778,7 @@ HP.coop = {
   get myName() { return myName; },
   get conns() { return conns; },
   sendAll,
+  broadcastWeather: (weather, intensity) => sendAll({ t: 'weather', weather, intensity: intensity || 1.0 }),
   host: hostGame,
   join: joinGame,
   applyState

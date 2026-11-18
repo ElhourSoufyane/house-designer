@@ -92,7 +92,7 @@ async function run() {
              domElement: elements.gl, capabilities: {}, toneMapping: 0, toneMappingExposure: 1 };
   };
 
-  for (const f of ['grid.js', 'catalog.js', 'sprites.js', 'rooms.js', 'tools.js', 'presets.js', 'save.js', 'sync.js', 'geom3d.js', 'graphics3d.js', 'cull3d.js', 'sky3d.js', 'furniture3d.js', 'life3d.js', 'sound3d.js', 'world3d.js', 'walk3d.js', 'sync3d.js', 'play3d-inpage.js']) {
+  for (const f of ['grid.js', 'catalog.js', 'sprites.js', 'rooms.js', 'tools.js', 'presets.js', 'save.js', 'sync.js', 'geom3d.js', 'graphics3d.js', 'cull3d.js', 'sky3d.js', 'weather3d.js', 'furniture3d.js', 'life3d.js', 'sound3d.js', 'world3d.js', 'walk3d.js', 'sync3d.js', 'play3d-inpage.js']) {
     eval(fs.readFileSync(path.join(__dirname, 'src', f), 'utf8'));
   }
 
@@ -272,6 +272,21 @@ async function run() {
   assert('updateFloors called on room floor change', updateFloorsCalled === true);
   assert('buildLevel NOT called on floor change (zero-lag in-place update)', buildCalledOnFloor === false);
   HP.world3d.buildLevel = origBuild;
+
+  // 13. Test global weather synchronization in multiplayer co-op
+  sentMsgs = [];
+  HP.sync3d.broadcastWeather('snow', 1.0);
+  assert('broadcastWeather sent weather message', sentMsgs.some(m => m.t === 'weather' && m.weather === 'snow'));
+
+  // Remote client receives weather message
+  HP.sync3d.handleData({ t: 'weather', weather: 'snow' }, dummyConn);
+  assert('Global weather updated to snow on remote client', HP.weather === 'snow');
+
+  HP.sync3d.handleData({ t: 'weather', weather: 'storm' }, dummyConn);
+  assert('Global weather updated to storm on remote client', HP.weather === 'storm');
+
+  HP.sync3d.handleData({ t: 'weather', weather: 'clear' }, dummyConn);
+  assert('Global weather updated to clear on remote client', HP.weather === 'clear');
 
   console.log(`\nResults: ${pass} passed, ${fail} failed.`);
   if (fail > 0) process.exit(1);

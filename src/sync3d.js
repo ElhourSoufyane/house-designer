@@ -440,6 +440,8 @@
       applyInteractState(d);
     } else if (d.t === 'time') {
       applyTimeState(d);
+    } else if (d.t === 'weather') {
+      applyWeatherState(d);
     } else if (d.t === 'lamp') {
       applyLampState(d);
     } else if (d.t === 'mover') {
@@ -503,6 +505,9 @@
     if (HP.world3d && HP.world3d.time) {
       conn.send({ t: 'time', hour: Math.round(HP.world3d.time.hour * 100) / 100, flow: HP.world3d.time.flow });
     }
+    // Sync weather state
+    const curWeather = (HP.weather3d && HP.weather3d.getWeather()) || HP.weather || 'clear';
+    conn.send({ t: 'weather', weather: curWeather });
   }
 
   function applyDoorState(d) {
@@ -576,6 +581,15 @@
     if (todLabel && HP.sky3d && d.hour !== undefined) todLabel.textContent = HP.sky3d.clock(d.hour);
   }
 
+  function applyWeatherState(d) {
+    if (!d || !d.weather) return;
+    if (HP.weather3d && HP.weather3d.setWeather) {
+      HP.weather3d.setWeather(d.weather, false);
+    } else {
+      HP.weather = d.weather;
+    }
+  }
+
   function applyLampState(d) {
     if (!HP.world3d || !HP.world3d.lamps) return;
     const lamp = HP.world3d.lamps.find(l => l.it && l.it.id === d.id);
@@ -636,6 +650,10 @@
 
   S3.broadcastTime = function (hour, flow) {
     sendAll({ t: 'time', hour, flow });
+  };
+
+  S3.broadcastWeather = function (weather, intensity) {
+    sendAll({ t: 'weather', weather, intensity: intensity || 1.0 });
   };
 
   S3.broadcastLamp = function (id, on) {
