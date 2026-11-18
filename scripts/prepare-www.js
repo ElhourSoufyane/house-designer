@@ -46,5 +46,6 @@ for (const f of files) copyFile(f);
 copyDir(path.join(root, 'assets'), path.join(out, 'assets'));
 copyDir(path.join(root, 'lib'), path.join(out, 'lib'));
 copyDir(path.join(root, 'src'), path.join(out, 'src'));
+copyDir(path.join(root, 'textures'), path.join(out, 'textures'));
 
 console.log('Synchronized web assets to www/ for Capacitor!');
