@@ -948,6 +948,7 @@ function tick(t) {
     if (d.holdT > 0) d.holdT -= dt;
     if (d.maxAng === undefined) {
       if (d.casement) d.maxAng = Math.PI / 2;
+      else if (d.awning || d.hopper) d.maxAng = 0.8;
       else if (d.slide) d.maxAng = Infinity;            // sashes slide, not swing
       else {
         if (d.a.flip === undefined) chooseFlip(d);        // pick roomier side
@@ -970,6 +971,10 @@ function tick(t) {
       d.open = swingWindow(d, previous, clamp(d.open, 0, 1));
       if (Math.abs(tgt - d.open) < 0.0001) { d.open = tgt; d.vel = 0; }
     }
+    if (d.awning || d.hopper) {
+      d.open = clamp(d.open, 0, 1);
+      if (Math.abs(tgt - d.open) < 0.0001) { d.open = tgt; d.vel = 0; }
+    }
     /* creak when it starts swinging, thud when it closes home       */
     if (HP.sound3d && d.prevOpen !== undefined) {
       if (d.prevOpen <= 0.04 && d.open > 0.08 && Math.abs(d.vel) > 0.3)
@@ -978,11 +983,25 @@ function tick(t) {
         d.window ? HP.sound3d.windowOpen() : HP.sound3d.door(false, d.gate);
     }
     d.prevOpen = d.open;
-    const lim = (d.window || d.slide) ? 1 : d.maxAng / 2.9;
+    const lim = (d.window || d.slide || d.awning || d.hopper) ? 1 : d.maxAng / 2.9;
     if (d.open > lim) { d.open = lim; if (d.vel > 0) d.vel = -d.vel * 0.2; }  // bounce off the obstruction
     d.target = tgt;
     if (d.casement) {
       d.pivot.rotation.y = d.open * Math.PI / 2 * d.swingDir;
+    } else if (d.awning) {
+      const ang = d.open * 0.72; // up to ~42 deg outward tilt
+      if (d.a.d === 'h') {
+        d.pivot.rotation.x = ang * (d.inward || 1);
+      } else {
+        d.pivot.rotation.z = -ang * (d.inward || 1);
+      }
+    } else if (d.hopper) {
+      const ang = d.open * 0.58; // up to ~33 deg inward tilt
+      if (d.a.d === 'h') {
+        d.pivot.rotation.x = -ang * (d.inward || 1);
+      } else {
+        d.pivot.rotation.z = ang * (d.inward || 1);
+      }
     } else if (d.slide) {                          // sash glides along the wall plane
       d.pivot.position.set(d.base.x + d.slide.x * d.open,
                            d.base.y + d.slide.y * d.open,

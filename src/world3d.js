@@ -611,7 +611,87 @@ function populateWindowAssembly(assembly, sashMat, paneMat, targetDoorPivots) {
     if (W3.windowPanels) W3.windowPanels.push(d);
   };
   const ph = insideH - 0.2, overlap = 0.6;
-  if (n === 1) {
+  const winStyle = assembly.winStyle || (n === 1 ? 'single-hung' : 'casement');
+  if (winStyle === 'awning') {
+    // Top-hinged awning window: hinges at the top rail and tilts out/in
+    const cell = width / n;
+    for (let i = 0; i < n; i++) {
+      const u = -width / 2 + cell * (i + 0.5);
+      const pw = cell - rim - 0.3;
+      const depth = inward * (wallDepth / 2 + 0.95);
+      const pivotY = insideH / 2 - rail;
+      const pivot = new THREE.Group();
+      pivot.position.set(isH ? u : depth, pivotY, isH ? depth : u);
+      root.add(pivot);
+      const sash = new THREE.Group();
+      sash.position.y = -ph / 2;
+      pivot.add(sash);
+      const leaf = new THREE.Mesh(new THREE.BoxGeometry(
+        isH ? pw - rail * 2 : 0.3, ph - rail * 2, isH ? 0.3 : pw - rail * 2), paneMat);
+      sash.add(leaf);
+      const sashBars = [
+        [0, -(ph - rail) / 2, 0, pw, rail, 1.2],
+        [0, (ph - rail) / 2, 0, pw, rail, 1.2],
+        [-(pw - rail) / 2, 0, 0, rail, ph - rail * 2, 1.2],
+        [(pw - rail) / 2, 0, 0, rail, ph - rail * 2, 1.2],
+        [0, -ph / 2 + rail, inward * 0.75, 4, 0.45, 0.3]
+      ];
+      bars(sash, sashBars);
+      bars(pivot, [[0, 0, 0, pw * 0.8, 0.6, 0.6]]);
+      const d = { pivot, a, open: 0, target: 0, leaf, lw: pw, li: 0,
+        vel: 0, holdT: 0, latched: false, window: true,
+        slide: null, base: pivot.position.clone(), fixed: false,
+        awning: true, casement: false, inward, sash,
+        swingDir: (isH ? -1 : 1) * inward,
+        ly0: root.position.y - insideH / 2, ly1: root.position.y + insideH / 2,
+        halfX: (isH ? pw : 1.8) / 2, halfZ: (isH ? 1.8 : pw) / 2, halfY: ph / 2 };
+      assembly.panels.push(d);
+      if (targetDoorPivots) targetDoorPivots.push(d);
+      if (W3.windowPanels) W3.windowPanels.push(d);
+    }
+  } else if (winStyle === 'hopper') {
+    // Bottom-hinged hopper window: hinges at the bottom sill and tilts inward from the top
+    const cell = width / n;
+    for (let i = 0; i < n; i++) {
+      const u = -width / 2 + cell * (i + 0.5);
+      const pw = cell - rim - 0.3;
+      const depth = inward * (wallDepth / 2 + 0.95);
+      const pivotY = -insideH / 2 + rail;
+      const pivot = new THREE.Group();
+      pivot.position.set(isH ? u : depth, pivotY, isH ? depth : u);
+      root.add(pivot);
+      const sash = new THREE.Group();
+      sash.position.y = ph / 2;
+      pivot.add(sash);
+      const leaf = new THREE.Mesh(new THREE.BoxGeometry(
+        isH ? pw - rail * 2 : 0.3, ph - rail * 2, isH ? 0.3 : pw - rail * 2), paneMat);
+      sash.add(leaf);
+      const sashBars = [
+        [0, -(ph - rail) / 2, 0, pw, rail, 1.2],
+        [0, (ph - rail) / 2, 0, pw, rail, 1.2],
+        [-(pw - rail) / 2, 0, 0, rail, ph - rail * 2, 1.2],
+        [(pw - rail) / 2, 0, 0, rail, ph - rail * 2, 1.2],
+        [0, ph / 2 - rail, inward * 0.75, 4, 0.45, 0.3]
+      ];
+      bars(sash, sashBars);
+      bars(pivot, [[0, 0, 0, pw * 0.8, 0.6, 0.6]]);
+      const d = { pivot, a, open: 0, target: 0, leaf, lw: pw, li: 0,
+        vel: 0, holdT: 0, latched: false, window: true,
+        slide: null, base: pivot.position.clone(), fixed: false,
+        hopper: true, casement: false, inward, sash,
+        swingDir: (isH ? -1 : 1) * inward,
+        ly0: root.position.y - insideH / 2, ly1: root.position.y + insideH / 2,
+        halfX: (isH ? pw : 1.8) / 2, halfZ: (isH ? 1.8 : pw) / 2, halfY: ph / 2 };
+      assembly.panels.push(d);
+      if (targetDoorPivots) targetDoorPivots.push(d);
+      if (W3.windowPanels) W3.windowPanels.push(d);
+    }
+  } else if (winStyle === 'slider') {
+    // Horizontal gliding slider window: bypass sashes
+    const halfW = width / 2;
+    panel(-halfW / 2 + overlap / 4, 0, halfW + overlap / 2, ph, false);
+    panel(halfW / 2 - overlap / 4, 0, halfW + overlap / 2, ph, true, -(halfW - overlap), 0);
+  } else if (winStyle === 'single-hung' || winStyle === 'single_hung' || n === 1) {
     const half = insideH / 2;
     panel(0, half / 2 - overlap / 2, width - 0.2, half + overlap - 0.2, false);
     panel(0, -half / 2 + overlap / 2, width - 0.2, half + overlap - 0.2, true, 0, half - overlap);
@@ -1113,10 +1193,12 @@ W3.buildLevel = function () {
   };
   if (!W3._wallMat) W3._wallMat = getWallMat('plaster');
   const styleDefaultCol = (style, ext) => {
-    if (style === 'brick') return '#ffffff';
+    if (style === 'brick' || style === 'brick_white') return '#ffffff';
     if (style === 'stone') return '#ffffff';
-    if (style === 'wood') return '#ffffff';
+    if (style === 'wood' || style === 'shiplap') return '#ffffff';
     if (style === 'tile') return '#ffffff';
+    if (style === 'concrete') return '#ffffff';
+    if (style === 'marble') return '#ffffff';
     if (style === 'glass') return '#cde5eb';
     return ext ? '#e9e2d2' : '#f4efe4';
   };
@@ -1463,7 +1545,9 @@ W3.buildLevel = function () {
       root.position.set(a.cx, (w.y0 + w.y1) / 2, a.cz);
       sg.add(root);
       V.add(root, w.x0 - span, w.z0 - span, w.x1 + span, w.z1 + span);
-      const assembly = { a, root, panels: [], inward, style: n === 1 ? 'single-hung' : 'casement',
+      const wallSeg = lvl.walls && lvl.walls[w.k];
+      const winStyle = (wallSeg && (wallSeg.winStyle || (wallSeg.style === 'awning' || wallSeg.style === 'hopper' || wallSeg.style === 'slider' || wallSeg.style === 'single_hung' ? wallSeg.style : null))) || w.winStyle || (n === 1 ? 'single-hung' : 'casement');
+      const assembly = { a, root, panels: [], inward, style: winStyle === 'single_hung' ? 'single-hung' : winStyle, winStyle,
         w, span, height, rim, rail, width, insideH, wallDepth, n, isH };
       W3.windows.push(assembly);
       populateWindowAssembly(assembly, sashMat, paneMat, doorPivots);
@@ -2359,10 +2443,15 @@ W3.updateApertures = function () {
     const plusRoom = env.rAt(seg.x, seg.y);
     let targetInward = minusRoom >= 0 && (plusRoom < 0 || env.rsz(minusRoom) < env.rsz(plusRoom)) ? -1 : 1;
     if (wRec.swing === 'out') targetInward = -targetInward;
+    const targetWinStyle = wRec.winStyle || (wRec.style === 'awning' || wRec.style === 'hopper' || wRec.style === 'slider' || wRec.style === 'single_hung' ? wRec.style : null);
 
-    if (targetInward !== assembly.inward || (wRec.swing && wRec.swing !== assembly.a.swing)) {
+    if (targetInward !== assembly.inward || (wRec.swing && wRec.swing !== assembly.a.swing) || (targetWinStyle && targetWinStyle !== assembly.winStyle)) {
       assembly.inward = targetInward;
       assembly.a.swing = wRec.swing;
+      if (targetWinStyle) {
+        assembly.winStyle = targetWinStyle;
+        assembly.style = targetWinStyle === 'single_hung' ? 'single-hung' : targetWinStyle;
+      }
       while (assembly.root.children.length) {
         const c = assembly.root.children[0];
         assembly.root.remove(c);

@@ -472,6 +472,26 @@ const WALL_MATERIAL_DEFS = {
     desc: 'Glossy ceramic subway tiles',
     svg: `<svg width="100%" height="100%" viewBox="0 0 80 40"><rect width="80" height="40" fill="#b6b0a4"/><rect x="2" y="2" width="23" height="16" fill="#f4efe6"/><rect x="28" y="2" width="23" height="16" fill="#f4efe6"/><rect x="54" y="2" width="24" height="16" fill="#f4efe6"/><rect x="2" y="21" width="23" height="17" fill="#f4efe6"/><rect x="28" y="21" width="23" height="17" fill="#f4efe6"/><rect x="54" y="21" width="24" height="17" fill="#f4efe6"/></svg>`
   },
+  concrete: {
+    name: 'Concrete',
+    desc: 'Board-formed modern architectural concrete',
+    svg: `<svg width="100%" height="100%" viewBox="0 0 80 40"><rect width="80" height="40" fill="#b8bcbe"/><line x1="0" y1="13" x2="80" y2="13" stroke="#8a9094" stroke-width="1.2"/><line x1="0" y1="27" x2="80" y2="27" stroke="#8a9094" stroke-width="1.2"/><circle cx="15" cy="7" r="1.8" fill="#5a6064"/><circle cx="65" cy="7" r="1.8" fill="#5a6064"/><circle cx="15" cy="20" r="1.8" fill="#5a6064"/><circle cx="65" cy="20" r="1.8" fill="#5a6064"/><circle cx="15" cy="33" r="1.8" fill="#5a6064"/><circle cx="65" cy="33" r="1.8" fill="#5a6064"/></svg>`
+  },
+  marble: {
+    name: 'Marble',
+    desc: 'Polished Calacatta marble with gold veins',
+    svg: `<svg width="100%" height="100%" viewBox="0 0 80 40"><rect width="80" height="40" fill="#f8fafc"/><path d="M0,8 Q25,12 45,28 T80,32" stroke="#94a3b8" stroke-width="1.4" fill="none"/><path d="M20,0 Q35,18 60,22 T80,10" stroke="#cbd5e1" stroke-width="1.2" fill="none"/><path d="M40,24 Q55,26 80,38" stroke="#d97706" stroke-width="0.8" fill="none" opacity="0.6"/></svg>`
+  },
+  shiplap: {
+    name: 'Shiplap',
+    desc: 'Horizontal painted farmhouse wood siding',
+    svg: `<svg width="100%" height="100%" viewBox="0 0 80 40"><rect width="80" height="40" fill="#f5f5f2"/><line x1="0" y1="8" x2="80" y2="8" stroke="#262626" stroke-width="1.2"/><line x1="0" y1="16" x2="80" y2="16" stroke="#262626" stroke-width="1.2"/><line x1="0" y1="24" x2="80" y2="24" stroke="#262626" stroke-width="1.2"/><line x1="0" y1="32" x2="80" y2="32" stroke="#262626" stroke-width="1.2"/></svg>`
+  },
+  brick_white: {
+    name: 'White Brick',
+    desc: 'Whitewashed heritage running bond brick',
+    svg: `<svg width="100%" height="100%" viewBox="0 0 80 40"><rect width="80" height="40" fill="#d8d3c8"/><rect x="2" y="2" width="22" height="7" rx="1.5" fill="#f4f1ea"/><rect x="28" y="2" width="22" height="7" rx="1.5" fill="#ede8df"/><rect x="54" y="2" width="24" height="7" rx="1.5" fill="#f8f5ee"/><rect x="0" y="11" width="13" height="7" rx="1.5" fill="#ece6dd"/><rect x="17" y="11" width="22" height="7" rx="1.5" fill="#f5f2eb"/><rect x="43" y="11" width="22" height="7" rx="1.5" fill="#eae3d8"/><rect x="69" y="11" width="11" height="7" rx="1.5" fill="#f2ede4"/><rect x="2" y="20" width="22" height="7" rx="1.5" fill="#f6f3ec"/><rect x="28" y="20" width="22" height="7" rx="1.5" fill="#ece6dd"/><rect x="54" y="20" width="24" height="7" rx="1.5" fill="#f0eae0"/><rect x="0" y="29" width="13" height="7" rx="1.5" fill="#f4f0e8"/><rect x="17" y="29" width="22" height="7" rx="1.5" fill="#e8e2d6"/><rect x="43" y="29" width="22" height="7" rx="1.5" fill="#f7f4ed"/><rect x="69" y="29" width="11" height="7" rx="1.5" fill="#ede7dc"/></svg>`
+  },
   glass: {
     name: 'Glass',
     desc: 'Architectural curtain partition',
@@ -504,6 +524,34 @@ const DOOR_STYLE_DEFS = {
     name: 'Slide Glass',
     desc: 'Aluminum patio slider with clear glass',
     svg: `<svg width="100%" height="100%" viewBox="0 0 60 40"><rect x="10" y="3" width="40" height="34" fill="#282b30" stroke="#1c1d1f" stroke-width="1"/><rect x="13" y="6" width="16" height="28" fill="#bfe3ea" fill-opacity="0.6"/><rect x="31" y="6" width="16" height="28" fill="#bfe3ea" fill-opacity="0.6"/><line x1="29" y1="3" x2="29" y2="37" stroke="#282b30" stroke-width="2"/><line x1="27" y1="15" x2="27" y2="25" stroke="#d0d3d8" stroke-width="1.4"/></svg>`
+  }
+};
+
+const WINDOW_STYLE_DEFS = {
+  casement: {
+    name: 'Casement',
+    desc: 'Side-hinged casement leaf swinging inward or outward',
+    svg: `<svg width="100%" height="100%" viewBox="0 0 60 40"><rect x="14" y="4" width="32" height="32" fill="#22252a" stroke="#181a1d" stroke-width="1.2"/><rect x="18" y="8" width="24" height="24" fill="#bfe3ea" fill-opacity="0.6"/><line x1="30" y1="8" x2="30" y2="32" stroke="#22252a" stroke-width="1.5"/><line x1="18" y1="20" x2="42" y2="20" stroke="#22252a" stroke-width="1.2"/><circle cx="28" cy="20" r="1.2" fill="#c9a44e"/></svg>`
+  },
+  awning: {
+    name: 'Awning',
+    desc: 'Top-hinged sash tilting outward from the bottom with stay arms',
+    svg: `<svg width="100%" height="100%" viewBox="0 0 60 40"><rect x="14" y="4" width="32" height="32" fill="#22252a" stroke="#181a1d" stroke-width="1.2"/><polygon points="18,8 42,8 44,28 16,28" fill="#bfe3ea" fill-opacity="0.6"/><line x1="14" y1="6" x2="46" y2="6" stroke="#c9a44e" stroke-width="2"/><line x1="18" y1="8" x2="16" y2="28" stroke="#cbd5e1" stroke-width="1.2"/><line x1="42" y1="8" x2="44" y2="28" stroke="#cbd5e1" stroke-width="1.2"/><circle cx="30" cy="27" r="1.4" fill="#c9a44e"/></svg>`
+  },
+  hopper: {
+    name: 'Hopper',
+    desc: 'Bottom-hinged transom sash tilting inward from the top',
+    svg: `<svg width="100%" height="100%" viewBox="0 0 60 40"><rect x="14" y="4" width="32" height="32" fill="#22252a" stroke="#181a1d" stroke-width="1.2"/><polygon points="16,12 44,12 42,32 18,32" fill="#bfe3ea" fill-opacity="0.6"/><line x1="14" y1="34" x2="46" y2="34" stroke="#c9a44e" stroke-width="2"/><line x1="16" y1="12" x2="18" y2="32" stroke="#cbd5e1" stroke-width="1.2"/><line x1="44" y1="12" x2="42" y2="32" stroke="#cbd5e1" stroke-width="1.2"/><circle cx="30" cy="13" r="1.4" fill="#c9a44e"/></svg>`
+  },
+  slider: {
+    name: 'Gliding Slider',
+    desc: 'Horizontal bypass sashes sliding smoothly along dual tracks',
+    svg: `<svg width="100%" height="100%" viewBox="0 0 60 40"><rect x="12" y="5" width="36" height="30" fill="#22252a" stroke="#181a1d" stroke-width="1.2"/><rect x="15" y="8" width="14" height="24" fill="#bfe3ea" fill-opacity="0.5"/><rect x="29" y="8" width="16" height="24" fill="#bfe3ea" fill-opacity="0.7" stroke="#334155" stroke-width="1"/><line x1="12" y1="5" x2="48" y2="5" stroke="#94a3b8" stroke-width="1.5"/><line x1="12" y1="35" x2="48" y2="35" stroke="#94a3b8" stroke-width="1.5"/><line x1="31" y1="16" x2="31" y2="24" stroke="#c9a44e" stroke-width="1.4"/></svg>`
+  },
+  single_hung: {
+    name: 'Single Hung',
+    desc: 'Traditional vertical sliding sash counterbalanced to glide up',
+    svg: `<svg width="100%" height="100%" viewBox="0 0 60 40"><rect x="16" y="4" width="28" height="32" fill="#22252a" stroke="#181a1d" stroke-width="1.2"/><rect x="19" y="7" width="22" height="12" fill="#bfe3ea" fill-opacity="0.5"/><rect x="19" y="19" width="22" height="14" fill="#bfe3ea" fill-opacity="0.75" stroke="#334155" stroke-width="1"/><line x1="19" y1="19" x2="41" y2="19" stroke="#94a3b8" stroke-width="2"/><line x1="28" y1="21" x2="32" y2="21" stroke="#c9a44e" stroke-width="1.4"/></svg>`
   }
 };
 
@@ -557,6 +605,36 @@ function renderDoorStylePicker(container, curStyle, onSelect) {
       <div class="style-live-thumb">${curDef.svg}</div>
       <div class="style-live-info">
         <b>${curDef.name} Door</b>
+        <span>${curDef.desc}</span>
+      </div>
+    </div>
+  `;
+  container.innerHTML = html;
+  container.querySelectorAll('.style-card').forEach(c => {
+    c.onclick = () => onSelect(c.dataset.style);
+  });
+}
+
+function renderWindowStylePicker(container, curStyle, onSelect) {
+  let html = '<div class="style-grid">';
+  for (const k in WINDOW_STYLE_DEFS) {
+    const def = WINDOW_STYLE_DEFS[k];
+    const on = k === curStyle ? 'on' : '';
+    html += `
+      <div class="style-card ${on}" data-style="${k}">
+        <div class="style-thumb">${def.svg}</div>
+        <div class="style-name">${def.name}</div>
+        <div class="style-desc">${def.desc}</div>
+      </div>
+    `;
+  }
+  html += '</div>';
+  const curDef = WINDOW_STYLE_DEFS[curStyle] || WINDOW_STYLE_DEFS.casement;
+  html += `
+    <div class="style-live-preview">
+      <div class="style-live-thumb">${curDef.svg}</div>
+      <div class="style-live-info">
+        <b>${curDef.name} Window</b>
         <span>${curDef.desc}</span>
       </div>
     </div>
@@ -862,6 +940,37 @@ function setDoorStyle(k, style) {
 }
 HP.setDoorStyle = setDoorStyle;
 
+HP.defaultWinStyle = HP.defaultWinStyle || 'casement';
+
+function setWindowStyle(k, style) {
+  const lvl = HP.cur();
+  if (!lvl || !lvl.walls) return;
+  const w = lvl.walls[k];
+  if (!w || w.f !== 'window') return;
+  const s = HP.parseWallKey(k);
+  w.winStyle = style;
+  let pos = s.d === 'h' ? s.x + 1 : s.y + 1;
+  while (true) {
+    const ak = s.d === 'h' ? 'h,' + pos + ',' + s.y : 'v,' + s.x + ',' + pos;
+    if (lvl.walls[ak] && lvl.walls[ak].f === 'window') {
+      lvl.walls[ak].winStyle = style;
+      pos++;
+    } else break;
+  }
+  pos = s.d === 'h' ? s.x - 1 : s.y - 1;
+  while (true) {
+    const ak = s.d === 'h' ? 'h,' + pos + ',' + s.y : 'v,' + s.x + ',' + pos;
+    if (lvl.walls[ak] && lvl.walls[ak].f === 'window') {
+      lvl.walls[ak].winStyle = style;
+      pos--;
+    } else break;
+  }
+  if (HP.in3D && HP.world3d && HP.world3d.updateApertures) {
+    HP.world3d.updateApertures();
+  }
+}
+HP.setWindowStyle = setWindowStyle;
+
 HP.setRoomWallStyle = function (r, style) {
   if (!r || !r.cells) return 0;
   const walls = HP.cur().walls;
@@ -934,6 +1043,7 @@ function windowUI() {
   top.innerHTML = '';
   const s = document.createElement('div');
   const curDef = HP.defaultWindowSwing || 'in';
+  const curWinStyle = HP.defaultWinStyle || 'casement';
   s.innerHTML = `
     <div class="field">
       <label>Default Window Opening</label>
@@ -942,11 +1052,15 @@ function windowUI() {
         <button class="seg-btn ${curDef === 'out' ? 'on' : ''}" data-s="out">🪟 Outside</button>
       </div>
     </div>
+    <div class="field" style="margin-top:10px">
+      <label>Default Window Style & Animation</label>
+      <div id="window-tool-style-picker-wrap"></div>
+    </div>
     <div class="hint" style="margin-top:10px;line-height:1.45">
       <b>Tips:</b><br>
       • Tap any wall to place a window.<br>
-      • Tap an existing window on the plan to flip its casement swing inside ⇄ outside.<br>
-      • Multi-cell window runs hinge and swing together in 3D.
+      • Tap an existing window on the plan to inspect or change its style & swing.<br>
+      • Choose Casement, Awning, Hopper, Gliding Slider, or Single Hung!
     </div>
   `;
   top.appendChild(s);
@@ -958,6 +1072,14 @@ function windowUI() {
         HP.status('New windows will open: ' + (HP.defaultWindowSwing === 'out' ? 'Outside (Outward)' : 'Inside (Inward)'));
         windowUI();
       };
+    });
+  }
+  const wWrap = $('#window-tool-style-picker-wrap');
+  if (wWrap) {
+    renderWindowStylePicker(wWrap, curWinStyle, st => {
+      HP.defaultWinStyle = st;
+      HP.status('New windows style: ' + st);
+      windowUI();
     });
   }
 }
@@ -991,7 +1113,12 @@ function featureSelectedUI(feat) {
       <label>Door Style</label>
       <div id="feat-doorstyle-picker-wrap"></div>
     </div>
-    ` : ''}
+    ` : `
+    <div class="field" style="margin-top:10px">
+      <label>Window Style & Animation</label>
+      <div id="feat-windowstyle-picker-wrap"></div>
+    </div>
+    `}
     <div class="field" style="margin-top:10px">
       <button class="ibtn" id="feat-flip-btn" style="width:100%;margin-bottom:8px">
         ⇄ Flip Inside / Outside
@@ -1038,6 +1165,19 @@ function featureSelectedUI(feat) {
       HP.markDirty();
       featureSelectedUI(feat);
       HP.status('Door style set to: ' + st);
+    });
+  }
+
+  const winWrap = $('#feat-windowstyle-picker-wrap');
+  if (winWrap) {
+    renderWindowStylePicker(winWrap, w.winStyle || (w.style === 'awning' || w.style === 'hopper' || w.style === 'slider' || w.style === 'single_hung' ? w.style : 'casement'), st => {
+      HP.pushUndo();
+      setWindowStyle(feat.k, st);
+      HP.defaultWinStyle = st;
+      HP.saveState();
+      HP.markDirty();
+      featureSelectedUI(feat);
+      HP.status('Window style set to: ' + st);
     });
   }
 

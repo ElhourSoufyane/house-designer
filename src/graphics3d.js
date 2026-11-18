@@ -412,6 +412,108 @@ function texture(kind) {
       }
       ctx.stroke();
     }
+  } else if (kind === 'concrete') {
+    // Ultra-realistic board-formed architectural cast concrete
+    ctx.fillStyle = '#b8bcbe';
+    ctx.fillRect(0, 0, size, size);
+    for (let i = 0; i < size * 14; i++) {
+      const gRand = rand();
+      ctx.fillStyle = gRand > 0.7 ? 'rgba(255,255,255,0.22)' : (gRand > 0.3 ? 'rgba(40,45,50,0.14)' : 'rgba(120,130,135,0.18)');
+      ctx.fillRect(rand() * size, rand() * size, 1.2, 1.2);
+    }
+    const boards = 6, bH = size / boards;
+    for (let b = 0; b < boards; b++) {
+      const by = b * bH;
+      ctx.fillStyle = (b % 2 === 0) ? 'rgba(255,255,255,0.035)' : 'rgba(0,0,0,0.035)';
+      ctx.fillRect(0, by, size, bH);
+      for (let g = 0; g < 20; g++) {
+        ctx.fillStyle = rand() > 0.5 ? 'rgba(0,0,0,0.03)' : 'rgba(255,255,255,0.03)';
+        ctx.fillRect(0, by + rand() * bH, size, 1.2);
+      }
+      ctx.fillStyle = 'rgba(20,25,30,0.45)';
+      ctx.fillRect(0, by + bH - 1.8, size, 1.8);
+      ctx.fillStyle = 'rgba(255,255,255,0.12)';
+      ctx.fillRect(0, by, size, 1.2);
+      for (let t = 0; t < 4; t++) {
+        const tx = (t + 0.5) * (size / 4);
+        const ty = by + bH * 0.5;
+        ctx.fillStyle = 'rgba(25,30,35,0.55)';
+        ctx.beginPath(); ctx.arc(tx, ty, 3.5, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = 'rgba(10,12,15,0.85)';
+        ctx.beginPath(); ctx.arc(tx, ty, 1.6, 0, Math.PI * 2); ctx.fill();
+        ctx.strokeStyle = 'rgba(255,255,255,0.25)'; ctx.lineWidth = 1;
+        ctx.beginPath(); ctx.arc(tx, ty + 1.2, 2.5, 0, Math.PI); ctx.stroke();
+      }
+    }
+  } else if (kind === 'marble') {
+    // Ultra-luxurious Calacatta White Marble with delicate branching grey/gold veins
+    ctx.fillStyle = '#f8f9fa';
+    ctx.fillRect(0, 0, size, size);
+    for (let i = 0; i < size * 8; i++) {
+      ctx.fillStyle = rand() > 0.6 ? 'rgba(255,255,255,0.5)' : 'rgba(220,225,230,0.25)';
+      ctx.fillRect(rand() * size, rand() * size, 2, 2);
+    }
+    const drawVein = (x0, y0, x1, y1, width, color) => {
+      ctx.strokeStyle = color; ctx.lineWidth = width;
+      ctx.beginPath(); ctx.moveTo(x0, y0);
+      const steps = 14;
+      for (let s = 1; s <= steps; s++) {
+        const t = s / steps;
+        const nx = x0 + (x1 - x0) * t + (rand() - 0.5) * 32;
+        const ny = y0 + (y1 - y0) * t + (rand() - 0.5) * 24;
+        ctx.lineTo(nx, ny);
+      }
+      ctx.stroke();
+    };
+    drawVein(0, size * 0.2, size, size * 0.8, 4.0, 'rgba(148,163,184,0.18)');
+    drawVein(0, size * 0.2, size, size * 0.8, 1.8, 'rgba(100,116,139,0.25)');
+    drawVein(0, size * 0.22, size, size * 0.82, 0.8, 'rgba(217,119,6,0.16)');
+    drawVein(size * 0.3, 0, size * 0.8, size, 3.0, 'rgba(148,163,184,0.14)');
+    drawVein(size * 0.3, 0, size * 0.8, size, 1.2, 'rgba(71,85,105,0.20)');
+    drawVein(size * 0.1, size, size * 0.9, 0, 2.5, 'rgba(148,163,184,0.15)');
+  } else if (kind === 'shiplap') {
+    // Modern Farmhouse Horizontal Painted White Shiplap Siding
+    ctx.fillStyle = '#f5f5f2';
+    ctx.fillRect(0, 0, size, size);
+    const boards = 10, bH = size / boards;
+    for (let b = 0; b < boards; b++) {
+      const by = b * bH;
+      for (let g = 0; g < 15; g++) {
+        ctx.fillStyle = rand() > 0.5 ? 'rgba(0,0,0,0.015)' : 'rgba(255,255,255,0.035)';
+        ctx.fillRect(0, by + rand() * bH, size, 1.0);
+      }
+      ctx.fillStyle = 'rgba(25,25,25,0.72)';
+      ctx.fillRect(0, by + bH - 2.2, size, 2.2);
+      ctx.fillStyle = 'rgba(255,255,255,0.35)';
+      ctx.fillRect(0, by, size, 1.2);
+    }
+  } else if (kind === 'brick_white') {
+    // Painted Whitewashed Heritage Brick
+    ctx.fillStyle = '#e5dfd5';
+    ctx.fillRect(0, 0, size, size);
+    const cols = 8, rows = 26;
+    const brickW = size / cols, rowH = size / rows;
+    const mortarY = Math.max(2.5, rowH * 0.125), mortarX = Math.max(2.8, brickW * 0.045);
+    const bw = brickW - mortarX, bh = rowH - mortarY, cr = Math.min(3.0, bh * 0.12);
+    const whiteBrickPal = ['#f4f1ea', '#eee9df', '#f7f4ee', '#e8e2d6', '#f2ece2', '#e5ded1'];
+    for (let r = 0; r < rows; r++) {
+      const y = r * rowH + mortarY / 2;
+      const offset = (r % 2) * (brickW / 2);
+      for (let x = offset - brickW; x < size + brickW; x += brickW) {
+        const col = whiteBrickPal[Math.floor(rand() * whiteBrickPal.length)];
+        ctx.fillStyle = 'rgba(40,35,30,0.18)';
+        ctx.fillRect(x - mortarX * 0.35, y - mortarY * 0.3, bw + mortarX * 0.7, bh + mortarY * 0.6);
+        ctx.beginPath();
+        if (ctx.roundRect) ctx.roundRect(x, y, bw, bh, cr);
+        else ctx.rect(x, y, bw, bh);
+        ctx.fillStyle = col;
+        ctx.fill();
+        if (rand() > 0.75) {
+          ctx.fillStyle = 'rgba(165,85,60,0.06)';
+          ctx.fillRect(x + rand() * bw * 0.5, y + rand() * bh * 0.5, bw * 0.4, bh * 0.4);
+        }
+      }
+    }
   } else {
     // Plaster / Default wall
     ctx.fillStyle = '#f5f0e6';
@@ -570,6 +672,43 @@ function bumpTexture(kind) {
         ctx.fillRect(x + 1.5, y + 1.5, tW - grout - 3, h - 3);
       }
     }
+  } else if (kind === 'concrete') {
+    ctx.fillStyle = '#808080';
+    ctx.fillRect(0, 0, size, size);
+    const boards = 6, bH = size / boards;
+    for (let b = 0; b < boards; b++) {
+      const by = b * bH;
+      ctx.fillStyle = '#0a0a0a';
+      ctx.fillRect(0, by + bH - 2, size, 2);
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(0, by, size, 1.2);
+      for (let t = 0; t < 4; t++) {
+        const tx = (t + 0.5) * (size / 4);
+        const ty = by + bH * 0.5;
+        ctx.fillStyle = '#101010';
+        ctx.beginPath(); ctx.arc(tx, ty, 3.5, 0, Math.PI * 2); ctx.fill();
+      }
+    }
+  } else if (kind === 'marble') {
+    ctx.fillStyle = '#b0b0b0';
+    ctx.fillRect(0, 0, size, size);
+    for (let i = 0; i < size * 6; i++) {
+      ctx.fillStyle = rand() > 0.5 ? '#b8b8b8' : '#a8a8a8';
+      ctx.fillRect(rand() * size, rand() * size, 1.5, 1.5);
+    }
+  } else if (kind === 'shiplap') {
+    ctx.fillStyle = '#e8e8e8';
+    ctx.fillRect(0, 0, size, size);
+    const boards = 10, bH = size / boards;
+    for (let b = 0; b < boards; b++) {
+      const by = b * bH;
+      ctx.fillStyle = '#050505';
+      ctx.fillRect(0, by + bH - 2.5, size, 2.5);
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(0, by, size, 1.2);
+    }
+  } else if (kind === 'brick_white') {
+    return bumpTexture('brick');
   } else {
     // Plaster subtle stipple
     ctx.fillStyle = '#808080';
@@ -589,22 +728,24 @@ function bumpTexture(kind) {
 G.material = function (kind, color) {
   const key = kind + ':' + (color || '');
   if (materials.has(key)) return materials.get(key);
-  const smooth = /metal|glass|water|ceramic/.test(kind);
+  const smooth = /metal|glass|water|ceramic|marble/.test(kind);
   const m = new THREE.MeshStandardMaterial({
     color: color || 0xffffff,
-    roughness: kind === 'glass' ? 0.04 : (smooth ? 0.22 : (kind === 'stone' ? 0.76 : (kind === 'brick' ? 0.90 : (kind === 'wood' ? 0.58 : 0.82)))),
-    metalness: kind === 'metal' ? 0.55 : (kind === 'glass' ? 0.12 : 0),
+    roughness: kind === 'glass' ? 0.04 : (kind === 'marble' ? 0.14 : (smooth ? 0.22 : (kind === 'concrete' ? 0.88 : (kind === 'stone' ? 0.76 : (kind === 'brick' || kind === 'brick_white' ? 0.90 : (kind === 'wood' || kind === 'shiplap' ? 0.58 : 0.82)))))),
+    metalness: kind === 'metal' ? 0.55 : (kind === 'glass' ? 0.12 : (kind === 'marble' ? 0.05 : 0)),
     map: texture(kind === 'art' ? 'art' : kind === 'water' ? 'water' :
       kind === 'wood' ? 'wood' : kind === 'fabric' ? 'fabric' :
       kind === 'grass' ? 'grass' : kind === 'tile' ? 'tile' :
+      kind === 'concrete' ? 'concrete' : kind === 'marble' ? 'marble' :
+      kind === 'shiplap' ? 'shiplap' : kind === 'brick_white' ? 'brick_white' :
       kind === 'brick' ? 'brick' : kind === 'stone' ? 'stone' : 'plaster'),
   });
   /* sky IBL is a fill, not a second sun — keeps shadows readable      */
-  m.envMapIntensity = kind === 'glass' ? 1.4 : (smooth ? 0.95 : (kind === 'stone' ? 0.65 : (kind === 'brick' ? 0.45 : 0.5)));
+  m.envMapIntensity = kind === 'glass' ? 1.4 : (smooth ? 0.95 : (kind === 'stone' ? 0.65 : (kind === 'concrete' ? 0.55 : (kind === 'brick' || kind === 'brick_white' ? 0.45 : 0.5))));
   m.userData.envBase = m.envMapIntensity;
-  if (kind === 'brick' || kind === 'stone' || kind === 'wood' || kind === 'tile') {
-    m.bumpMap = bumpTexture(kind);
-    m.bumpScale = kind === 'stone' ? 0.18 : (kind === 'brick' ? 0.10 : (kind === 'wood' ? 0.18 : 0.25));
+  if (kind === 'brick' || kind === 'brick_white' || kind === 'stone' || kind === 'wood' || kind === 'tile' || kind === 'concrete' || kind === 'shiplap') {
+    m.bumpMap = bumpTexture(kind === 'brick_white' ? 'brick' : kind);
+    m.bumpScale = kind === 'stone' ? 0.18 : (kind === 'concrete' ? 0.14 : (kind === 'shiplap' ? 0.22 : (kind === 'brick' || kind === 'brick_white' ? 0.10 : (kind === 'wood' ? 0.18 : 0.25))));
   }
   if (kind === 'glass') {
     m.transparent = true; m.opacity = 0.26; m.depthWrite = false;
