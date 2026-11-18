@@ -5,11 +5,11 @@ const G = HP.graphics3d = {};
 /* lite = cheap Lambert shading, no shadows/IBL (phones, weak iGPUs).
    far = draw distance (px) for small furniture; big items always draw. */
 const presets = G.presets = {
-  low: { label: 'Low', dpr: 0.85, texture: 128, anisotropy: 1, detail: false,
+  low: { label: 'Low', dpr: 0.85, mobileDpr: 1.0, texture: 128, anisotropy: 1, detail: false,
          lite: true, shadow: 0, shadowRadius: 0, env: false, far: 520, lamps: 2 },
-  medium: { label: 'Balanced', dpr: 1, texture: 256, anisotropy: 2, detail: true,
+  medium: { label: 'Balanced', dpr: 1, mobileDpr: 1.5, texture: 256, anisotropy: 2, detail: true,
             lite: false, shadow: 1024, shadowRadius: 380, env: true, far: 950, lamps: 4 },
-  high: { label: 'High', dpr: 1.5, texture: 512, anisotropy: 4, detail: true,
+  high: { label: 'High', dpr: 1.5, mobileDpr: 2.0, texture: 512, anisotropy: 4, detail: true,
           lite: false, shadow: 2048, shadowRadius: 560, env: true, far: 1700, lamps: 6 },
 };
 const ORDER = ['low', 'medium', 'high'];
@@ -47,6 +47,7 @@ G.init = function (r, onResize) {
   } catch (_) {}
   G.software = /swiftshader|llvmpipe|software|basic render/i.test(G.gpu);
   if (G.software) G.initialTier = 'low';
+  G.ceilingTier = G.software ? 'low' : 'high';
   try { mode = localStorage.getItem('hp_3d_quality') || 'auto'; } catch (_) {}
   if (mode !== 'auto' && !presets[mode]) mode = 'auto';
   apply(mode === 'auto' ? startTier(G.initialTier) : mode);
@@ -55,7 +56,8 @@ function apply(next) {
   const prev = G.current;
   tier = next; G.current = presets[tier]; G.tier = tier; G.mode = mode;
   const maxDpr = typeof devicePixelRatio === 'number' ? devicePixelRatio : 1;
-  renderer.setPixelRatio(Math.min(maxDpr, G.current.dpr));
+  const targetDpr = G.touch && G.current.mobileDpr ? G.current.mobileDpr : G.current.dpr;
+  renderer.setPixelRatio(Math.min(maxDpr, targetDpr));
   if (renderer.shadowMap) {
     renderer.shadowMap.enabled = G.current.shadow > 0;
     renderer.shadowMap.type = tier === 'high' ? THREE.PCFSoftShadowMap : THREE.PCFShadowMap;
@@ -63,11 +65,16 @@ function apply(next) {
   /* shadow on/off changes shader variants → recompile on next frame  */
   G.shadowChanged = !prev || (prev.shadow > 0) !== (G.current.shadow > 0) || prev.lite !== G.current.lite;
   for (const t of textures.values()) {
-    if (t.image && t.image.width > G.current.texture) {
-      const c = canvas(G.current.texture);
-      if (c) {
-        c.getContext('2d').drawImage(t.image, 0, 0, c.width, c.height);
-        t.image = c;
+    if (t.image) {
+      if (!t._origImage) t._origImage = t.image;
+      const origW = t._origImage.width || G.current.texture;
+      const targetSize = Math.min(origW, G.current.texture);
+      if (t.image.width !== targetSize) {
+        const c = canvas(targetSize);
+        if (c) {
+          c.getContext('2d').drawImage(t._origImage, 0, 0, c.width, c.height);
+          t.image = c;
+        }
       }
     }
     t.anisotropy = Math.min(G.current.anisotropy,
@@ -90,9 +97,10 @@ G.sample = function (fps, seconds) {
   slow = fps < 40 ? slow + seconds : 0;
   fast = fps > 57 ? fast + seconds : 0;
   const index = ORDER.indexOf(tier);
+  const ceiling = G.ceilingTier || 'high';
   if (slow >= 2 && index > 0) apply(ORDER[index - 1]);
-  // Never auto-promote past the device ceiling (phones stay Low).
-  else if (fast >= 8 && index < ORDER.indexOf(G.initialTier)) apply(ORDER[index + 1]);
+  // Earns higher tier on sustained 60 fps (phones start Low and promote to Balanced/High; software stays Low).
+  else if (fast >= 6 && index < ORDER.indexOf(ceiling)) apply(ORDER[index + 1]);
 };
 /* cheap Lambert twin of a PBR material — same maps/colour/transparency;
    swapped in on Low so phones skip the PBR fragment shader entirely   */
@@ -575,6 +583,7 @@ function texture(kind) {
   }
 
   const t = new THREE.CanvasTexture(c);
+  t._origImage = c;
   t.wrapS = t.wrapT = THREE.RepeatWrapping; t.encoding = THREE.sRGBEncoding;
   t.anisotropy = G.current ? G.current.anisotropy : 1;
   textures.set(kind, t); return t;
@@ -777,6 +786,7 @@ function bumpTexture(kind) {
   }
 
   const t = new THREE.CanvasTexture(c);
+  t._origImage = c;
   t.wrapS = t.wrapT = THREE.RepeatWrapping; t.encoding = THREE.sRGBEncoding;
   t.anisotropy = G.current ? G.current.anisotropy : 1;
   textures.set(key, t); return t;
@@ -1025,6 +1035,7 @@ G.floorMaterial = function (id) {
       if (!c) return;
       c.getContext('2d').drawImage(image, 0, 0, c.width, c.height);
       const t = new THREE.CanvasTexture(c);
+      t._origImage = image;
       t.wrapS = t.wrapT = THREE.RepeatWrapping; t.encoding = THREE.sRGBEncoding;
       t.anisotropy = G.current.anisotropy;
       textures.set(key, t); G.setMap(m, t);

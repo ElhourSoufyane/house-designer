@@ -24,9 +24,9 @@ W3.EYE = 38;                              // eye height ≈ 1.55 m
 W3.init = function (canvas) {
   const coarse = matchMedia('(pointer:coarse)').matches;
   const isTouch = HP.graphics3d ? HP.graphics3d.isMobile(null, coarse) : coarse;
-  renderer = new THREE.WebGLRenderer({ canvas, antialias: !isTouch,
-    powerPreference: isTouch ? 'low-power' : 'high-performance' });
-  renderer.setPixelRatio(Math.min(devicePixelRatio || 1, isTouch ? 1.25 : 1.5));
+  renderer = new THREE.WebGLRenderer({ canvas, antialias: true,
+    powerPreference: 'high-performance' });
+  renderer.setPixelRatio(Math.min(devicePixelRatio || 1, isTouch ? 1.5 : 1.5));
   renderer.outputEncoding = THREE.sRGBEncoding;
   scene = new THREE.Scene();
   scene.background = new THREE.Color(0x9ec8e8);

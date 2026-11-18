@@ -38,6 +38,22 @@ assert(resizes > 3);
 assert.equal(G.presets.low.shadow, 0, 'Low must not render shadow maps');
 assert(G.presets.low.lite && !G.presets.medium.lite, 'Low uses the cheap material path');
 
+// Mobile testing: phones start on Low with crisp mobileDpr (>=1.0), promote on sustained 60fps
+{
+  context.matchMedia = (q) => ({ matches: q.includes('coarse') });
+  context.navigator.userAgent = 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X)';
+  let mobileDpr = 0;
+  G.init({ setPixelRatio: v => mobileDpr = v, capabilities: {} }, () => {});
+  assert.equal(G.tier, 'low', 'Phones must open on Low');
+  assert.equal(mobileDpr, 1.0, 'Phones on Low get 1.0 DPR (no sub-pixel blur)');
+  for (let i = 0; i < 40; i++) G.sample(60, 0.5);
+  assert(G.tier === 'medium' || G.tier === 'high', 'Phones promote on sustained 60 fps');
+  assert.equal(mobileDpr, G.tier === 'high' ? 2.0 : 1.5, 'Promoted phones get Retina DPR');
+  // Restore desktop context
+  context.matchMedia = () => ({ matches: false });
+  delete context.navigator.userAgent;
+}
+
 // Occlusion: a solid wall hides the room behind it; a closed door does too,
 // an open door or a window lets you see through.
 {
