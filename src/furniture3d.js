@@ -832,13 +832,39 @@ F.builder = function (group) {
         return;
       }
       if (/^clock$|clkgrand|grandfather/.test(t)) {
-        /* tall wooden case — life3d puts face + hands on the front    */
-        box('wood', 0, 0.5, 0, 0.88, 1, 0.5, color);
-        box('wood', 0, 0.96, 0, 0.99, 0.1, 0.56);                  // crown
-        box('wood', 0, 0.06, 0, 0.99, 0.12, 0.56);                 // base
-        box('dark', 0, 0.3, 0.24, 0.42, 0.4, 0.04);                // pendulum glass
-        cyl('metal', 0, 0.3, 0.22, 0.05, 0.3, 0.05, '#c9a44e');    // rod
-        round('metal', 0, 0.16, 0.22, 0.12, 0.12, 0.06, '#c9a44e');// bob
+        // Masterpiece Solid Hardwood Grandfather Longcase Clock (Stepped plinth, beveled glass waist, swinging lyre pendulum & dual brass chime weights, arched bonnet with colonnettes & turned brass finials)
+        // 1. Stepped ogee molded plinth base (y=0 to 0.16)
+        box('wood', 0, 0.04, 0, 0.88, 0.08, 0.52, color);                      // lower base
+        box('wood', 0, 0.10, 0, 0.84, 0.04, 0.50, HP.shade(color, 1.08));     // ogee step molding
+        box('wood', 0, 0.14, 0.245, 0.76, 0.04, 0.02, HP.shade(color, 0.95));  // front base panel reveal
+
+        // 2. Central waist column with clear beveled glass pendulum door (y=0.16 to 0.72)
+        box('wood', 0, 0.44, -0.04, 0.78, 0.56, 0.44, color);                  // waist carcass
+        box('wood', -0.36, 0.44, 0.18, 0.06, 0.56, 0.08, color);               // left front door stile
+        box('wood', 0.36, 0.44, 0.18, 0.06, 0.56, 0.08, color);                // right front door stile
+        box('glass', 0, 0.44, 0.22, 0.66, 0.54, 0.015, '#dbeafe');             // beveled glass door pane
+        box('metal', 0.34, 0.44, 0.23, 0.015, 0.04, 0.015, '#c9a44e', true);  // brass door latch key
+        // Pendulum & chime weights inside waist cavity
+        cyl('metal', 0, 0.44, 0.08, 0.025, 0.40, 0.025, '#c9a44e');            // center pendulum rod
+        cyl('metal', 0, 0.26, 0.08, 0.18, 0.035, 0.18, '#c9a44e');             // heavy polished brass pendulum bob
+        cyl('metal', -0.15, 0.52, 0.08, 0.045, 0.22, 0.045, '#c9a44e');         // left brass chime weight
+        cyl('metal', 0.15, 0.48, 0.08, 0.045, 0.22, 0.045, '#c9a44e');          // right brass chime weight
+
+        // 3. Arched bonnet hood housing dial face & pediment (y=0.72 to 1.0)
+        box('wood', 0, 0.74, 0, 0.84, 0.04, 0.50, HP.shade(color, 1.08));     // waist-to-bonnet transition collar
+        box('wood', 0, 0.86, -0.02, 0.86, 0.20, 0.48, color);                  // bonnet hood housing
+        box('wood', 0, 0.76, 0.225, 0.74, 0.03, 0.02, HP.shade(color, 0.95));  // dial bottom sill
+        // Bonnet front arched dial bezel rim
+        box('wood', -0.34, 0.86, 0.225, 0.14, 0.18, 0.02, color);              // left dial frame
+        box('wood', 0.34, 0.86, 0.225, 0.14, 0.18, 0.02, color);               // right dial frame
+        // Fluted corner colonnettes on bonnet
+        cyl('wood', -0.40, 0.86, 0.22, 0.04, 0.22, 0.04, HP.shade(color, 1.15));
+        cyl('wood', 0.40, 0.86, 0.22, 0.04, 0.22, 0.04, HP.shade(color, 1.15));
+        // Swan-neck scroll pediment crown & turned brass finials
+        box('wood', 0, 0.97, 0, 0.88, 0.04, 0.52, HP.shade(color, 1.12));     // top crown cornice
+        cyl('metal', 0, 1.01, 0.23, 0.035, 0.05, 0.035, '#c9a44e', true);      // center brass eagle finial
+        cyl('metal', -0.40, 0.99, 0.22, 0.025, 0.04, 0.025, '#c9a44e', true);  // left brass ball finial
+        cyl('metal', 0.40, 0.99, 0.22, 0.025, 0.04, 0.025, '#c9a44e', true);   // right brass ball finial
       } else if (/^(?:rug|carpet|runner|doormat|bathmat|playmat|yogamat)/i.test(t) || /^rug/i.test(t)) {
         box('fabric', 0, 0.25, 0, 0.98, 0.3, 0.98, color);
         box('fabric', 0, 0.42, 0, 0.83, 0.03, 0.83, '#ddd3c0', true);
@@ -962,20 +988,30 @@ F.builder = function (group) {
 
       } else if (/^toilet$/i.test(t)) {
         // Modern Minimalist Dual-Flush Rimless Porcelain Toilet (Sculpted ceramic cistern, chrome flush buttons, contoured bowl, soft-close lid)
-        // 1. Sleek skirted porcelain base & bowl (y=0 to 0.44 = 42cm sitting height)
-        box('ceramic', 0, 0.18, 0.06, 0.52, 0.36, 0.64, '#fafaf8');
-        cyl('ceramic', 0, 0.38, 0.14, 0.52, 0.18, 0.56, '#fafaf8');         // contoured bowl
-        // Soft-close contoured seat & closed lid
-        box('ceramic', 0, 0.46, 0.12, 0.54, 0.035, 0.62, '#ffffff');        // seat ring
-        box('ceramic', 0, 0.49, 0.12, 0.52, 0.025, 0.60, '#f5f5f2');        // lid
-        box('metal', 0, 0.48, -0.16, 0.22, 0.02, 0.03, '#c5ccd2', true);    // chrome seat hinges
+        // 1. Sleek skirted porcelain floor pedestal & bowl (y=0 to 0.44 = 42cm sitting height)
+        box('ceramic', 0, 0.16, 0.04, 0.46, 0.32, 0.58, '#fafaf8');           // skirted base pedestal
+        round('ceramic', 0, 0.34, 0.10, 0.48, 0.22, 0.56, '#fafaf8');         // contoured ergonomic bowl
+        // Inner bowl cavity / water surface
+        cyl('dark', 0, 0.35, 0.12, 0.36, 0.08, 0.42, '#202428', true);        // interior trapway cavity
+        cyl('water', 0, 0.32, 0.12, 0.32, 0.02, 0.36, '#60a5fa', true);       // clean water pool
+        // Soft-close contoured seat & closed lid (perfectly continuous from hinges forward to bowl tip)
+        box('ceramic', 0, 0.445, 0.10, 0.50, 0.030, 0.58, '#ffffff');         // seat ring
+        box('ceramic', 0, 0.470, 0.10, 0.48, 0.022, 0.56, '#f8f8f6');         // lid
+        // Chrome dual soft-close seat hinge brackets
+        for (const hx of [-0.14, 0.14]) {
+          cyl('metal', hx, 0.45, -0.16, 0.035, 0.03, 0.035, '#c5ccd2', true); // chrome hinge post
+          cylX('metal', hx, 0.465, -0.16, 0.04, 0.016, 0.016, '#94a3b8', true);
+        }
 
         // 2. Geometric ceramic water tank cistern (y=0.44 to 0.88)
-        box('ceramic', 0, 0.68, -0.22, 0.54, 0.46, 0.28, '#fafaf8');
-        box('ceramic', 0, 0.915, -0.22, 0.56, 0.03, 0.30, '#ffffff');       // cistern lid
+        box('ceramic', 0, 0.66, -0.22, 0.50, 0.42, 0.26, '#fafaf8');
+        box('ceramic', 0, 0.88, -0.22, 0.52, 0.03, 0.28, '#ffffff');          // beveled cistern lid
         // Dual-flush circular polished chrome buttons on top
-        cyl('metal', 0, 0.935, -0.22, 0.09, 0.015, 0.09, '#c5ccd2', true);
-        box('dark', 0, 0.94, -0.22, 0.005, 0.016, 0.08, '#1a1d20');        // button split line
+        cyl('metal', 0, 0.902, -0.22, 0.09, 0.015, 0.09, '#c5ccd2', true);
+        box('dark', 0, 0.908, -0.22, 0.005, 0.016, 0.08, '#1a1d20', true);   // button split line
+        // Chrome water supply shut-off valve & braided line on lower left rear
+        cyl('metal', -0.24, 0.12, -0.20, 0.025, 0.08, 0.025, '#94a3b8', true); // supply pipe
+        cylX('metal', -0.22, 0.12, -0.20, 0.05, 0.02, 0.02, '#c5ccd2', true);  // chrome oval valve handle
 
       } else if (/^bidet$/i.test(t)) {
         // Modern Matching Ceramic Bidet (Contoured bowl, chrome mixer faucet & pop-up drain)
@@ -1039,14 +1075,14 @@ F.builder = function (group) {
         round('ceramic', 0, 0.48, 0, 0.94, 0.76, 0.88, '#fafaf8');
         // Tub cavity
         round('ceramic', 0, 0.52, 0, 0.82, 0.68, 0.78, '#f0eee8');
-        // Gentle rippling water line
-        box('water', 0, 0.66, 0, 0.78, 0.02, 0.74);
-        cyl('metal', -0.28, 0.20, 0, 0.06, 0.01, 0.06, '#c5ccd2', true);     // chrome pop-up drain
+        // Gentle rippling water line fitting smoothly inside the oval cavity with zero clipping
+        round('water', 0, 0.58, 0, 0.72, 0.12, 0.68, '#38bdf8');
+        cyl('metal', -0.28, 0.20, 0, 0.06, 0.01, 0.06, '#c5ccd2');     // chrome pop-up drain
 
         // 2. Floor-Mounted Polished Chrome Pillar Faucet & Hand Spray (at side)
-        cyl('metal', 0.42, 0.50, 0, 0.035, 0.96, 0.035, '#c5ccd2', true);    // vertical pillar
-        box('metal', 0.36, 0.94, 0, 0.14, 0.03, 0.04, '#c5ccd2', true);     // curved spout
-        cyl('metal', 0.42, 0.78, -0.06, 0.02, 0.12, 0.02, '#c5ccd2', true);  // hand shower wand
+        cyl('metal', 0.42, 0.50, 0, 0.035, 0.96, 0.035, '#c5ccd2');    // vertical pillar
+        box('metal', 0.36, 0.94, 0, 0.14, 0.03, 0.04, '#c5ccd2');     // curved spout
+        cyl('metal', 0.42, 0.78, -0.06, 0.02, 0.12, 0.02, '#c5ccd2');  // hand shower wand
 
       } else if (/^shower$/i.test(t)) {
         // Modern Frameless Glass Walk-In Shower (2x2 footprint, 52px tall, low-profile slate pan, 10mm tempered glass, stainless rain head & thermostatic valve)
@@ -1706,60 +1742,72 @@ F.builder = function (group) {
       
       /* ---------------- GYM & FITNESS (14 ITEMS) ---------------- */
       } else if (/^exbike$/i.test(t)) {
-        // High-End Magnetic Indoor Cycling Smart Bike (Heavy flywheel, drop handlebars, tablet console, dual pedals)
+        // High-End Magnetic Indoor Cycling Smart Bike (Heavy flywheel, drop handlebars, tablet console, dual pedals, fully connected frame)
         // Stabilizer floor bars with leveling feet
         for (const sz of [-0.42, 0.42]) {
           box('dark', 0, 0.04, sz, 0.72, 0.07, 0.10, '#15171a');
-          cyl('metal', -0.32, 0.02, sz, 0.08, 0.04, 0.08, '#c9a44e', true);
-          cyl('metal', 0.32, 0.02, sz, 0.08, 0.04, 0.08, '#c9a44e', true);
+          cyl('metal', -0.32, 0.02, sz, 0.08, 0.04, 0.08, '#c9a44e');
+          cyl('metal', 0.32, 0.02, sz, 0.08, 0.04, 0.08, '#c9a44e');
         }
+        // Heavy steel base longitudinal spine connecting front and rear stabilizers
+        box('metal', 0, 0.05, 0, 0.12, 0.06, 0.84, '#15171a');
         // Central aerodynamic frame chassis
         box('dark', 0, 0.35, 0, 0.14, 0.55, 0.65, '#1e2124');
         box('glow', 0, 0.35, 0, 0.145, 0.08, 0.45, '#ef4444');              // red performance accent
         // Heavy perimeter flywheel at front (spinning upright around X axis)
-        cylX('metal', 0, 0.38, -0.22, 0.08, 0.44, 0.44, '#d1d5db', true);     // chrome flywheel disc
-        cylX('dark', 0, 0.38, -0.22, 0.09, 0.20, 0.20, '#111827');            // flywheel hub
+        cylX('metal', 0, 0.38, -0.22, 0.08, 0.44, 0.44, '#d1d5db');          // chrome flywheel disc
+        cylX('dark', 0, 0.38, -0.22, 0.09, 0.20, 0.20, '#111827');           // flywheel hub
         // Steel seat post & ergonomic racing saddle
-        cyl('metal', 0, 0.62, 0.22, 0.06, 0.35, 0.06, '#94a3b8', true);
-        box('dark', 0, 0.78, 0.20, 0.26, 0.08, 0.36, '#181b1e');             // contoured saddle
-        box('metal', 0, 0.81, 0.20, 0.06, 0.02, 0.22, '#ef4444', true);      // saddle center relief cutout
+        cyl('metal', 0, 0.62, 0.22, 0.06, 0.35, 0.06, '#94a3b8');
+        box('dark', 0, 0.78, 0.20, 0.26, 0.08, 0.36, '#181b1e');            // contoured saddle
+        box('metal', 0, 0.81, 0.20, 0.06, 0.02, 0.22, '#ef4444');           // saddle center relief cutout
         // Aero handlebars & smart screen console
-        cyl('metal', 0, 0.70, -0.26, 0.06, 0.40, 0.06, '#94a3b8', true);
-        box('dark', 0, 0.86, -0.26, 0.52, 0.05, 0.18, '#1e2124');            // multi-grip bullhorn bars
-        box('metal', 0, 0.94, -0.30, 0.32, 0.22, 0.03, '#0f172a', true);     // HD training tablet
-        box('glow', 0, 0.94, -0.284, 0.28, 0.18, 0.005, '#38bdf8');          // interactive cycling HUD
+        cyl('metal', 0, 0.70, -0.26, 0.06, 0.40, 0.06, '#94a3b8');
+        box('dark', 0, 0.86, -0.26, 0.52, 0.05, 0.18, '#1e2124');           // multi-grip bullhorn bars
+        box('metal', 0, 0.94, -0.30, 0.32, 0.22, 0.03, '#0f172a');          // HD training tablet
+        box('glow', 0, 0.94, -0.284, 0.28, 0.18, 0.005, '#38bdf8');         // interactive cycling HUD
         // Bottom bracket, crank arms and pedals
-        cyl('metal', 0, 0.22, 0.05, 0.12, 0.28, 0.12, '#334155', true);
-        box('metal', -0.15, 0.22, 0.12, 0.03, 0.04, 0.18, '#cbd5e1', true);  // left crank
-        box('metal', 0.15, 0.22, -0.02, 0.03, 0.04, 0.18, '#cbd5e1', true);  // right crank
-        box('dark', -0.18, 0.22, 0.20, 0.10, 0.04, 0.12, '#181b1e');         // pedal with toe cage
+        cyl('metal', 0, 0.22, 0.05, 0.12, 0.28, 0.12, '#334155');
+        box('metal', -0.15, 0.22, 0.12, 0.03, 0.04, 0.18, '#cbd5e1');         // left crank
+        box('metal', 0.15, 0.22, -0.02, 0.03, 0.04, 0.18, '#cbd5e1');         // right crank
+        box('dark', -0.18, 0.22, 0.20, 0.10, 0.04, 0.12, '#181b1e');        // pedal with toe cage
         box('dark', 0.18, 0.22, -0.10, 0.10, 0.04, 0.12, '#181b1e');
 
       } else if (/^weightbench$/i.test(t)) {
-        // Commercial Adjustable FID Olympic Weight Bench (Heavy steel tubing, high-density stitched leather pads, barbell uprights)
+        // Commercial Adjustable FID Olympic Weight Bench (Heavy steel tubing, high-density stitched leather pads, barbell uprights, fully grounded)
         // 1. Heavy tubular black steel base with rubber feet
-        box('dark', 0, 0.04, -0.42, 0.68, 0.08, 0.10, '#15171a');            // rear wide crossbar
-        box('dark', 0, 0.04, 0.42, 0.42, 0.08, 0.10, '#15171a');             // front stabilizer
-        box('metal', 0, 0.05, 0, 0.10, 0.08, 0.82, '#1e2124', true);         // central spine
+        box('dark', 0, 0.04, -0.42, 0.68, 0.08, 0.10, '#15171a');           // rear wide crossbar
+        box('dark', 0, 0.04, 0.42, 0.42, 0.08, 0.10, '#15171a');            // front stabilizer
+        box('metal', 0, 0.05, 0, 0.10, 0.08, 0.84, '#1e2124');              // central longitudinal spine
         // Front transport wheels + grab handle
         cyl('dark', -0.28, 0.04, -0.42, 0.08, 0.04, 0.08, '#111827');
         cyl('dark', 0.28, 0.04, -0.42, 0.08, 0.04, 0.08, '#111827');
-        box('metal', 0, 0.08, 0.46, 0.14, 0.04, 0.04, '#c9a44e', true);
+        box('metal', 0, 0.08, 0.46, 0.14, 0.04, 0.04, '#c9a44e');
         // 2. Heavy Olympic upright barbell rack at head end
         for (const rx of [-0.32, 0.32]) {
-          box('metal', rx, 0.52, -0.40, 0.07, 0.94, 0.07, '#1e293b', true);
-          box('metal', rx, 0.86, -0.36, 0.09, 0.12, 0.04, '#c9a44e', true);  // J-hook barbell catch
+          box('metal', rx, 0.52, -0.40, 0.07, 0.94, 0.07, '#1e293b');        // upright post
+          box('metal', rx, 0.86, -0.36, 0.09, 0.12, 0.04, '#c9a44e');        // J-hook barbell catch
         }
         // Olympic 45lb Barbell racked on J-hooks
-        cylX('metal', 0, 0.88, -0.34, 1.30, 0.035, 0.035, '#cbd5e1', true);   // 7ft bar across X
+        cylX('metal', 0, 0.88, -0.34, 1.30, 0.035, 0.035, '#cbd5e1');        // 7ft bar across X
         for (const bx of [-0.52, 0.52]) {
-          cylX('dark', bx, 0.88, -0.34, 0.05, 0.36, 0.36, '#181b1e');         // 45lb bumper plates
-          cylX('metal', bx > 0 ? bx + 0.04 : bx - 0.04, 0.88, -0.34, 0.03, 0.06, 0.06, '#c9a44e', true); // spring collar
+          cylX('dark', bx, 0.88, -0.34, 0.05, 0.36, 0.36, '#181b1e');        // 45lb bumper plates
+          cylX('metal', bx > 0 ? bx + 0.04 : bx - 0.04, 0.88, -0.34, 0.03, 0.06, 0.06, '#c9a44e'); // spring collar
         }
-        // 3. Stitched dense leather backrest and seat pads
+        // 3. Vertical Support Risers & Steel Pad Subframe (Connecting spine to pads!)
+        // Front vertical riser post from spine (y=0.08) to seat frame (y=0.34)
+        box('metal', 0, 0.21, 0.28, 0.08, 0.26, 0.08, '#1e2124');
+        // Mid vertical hinge pivot post for backrest
+        box('metal', 0, 0.21, -0.06, 0.08, 0.26, 0.08, '#1e2124');
+        // Ladder adjustment selector bracket behind backrest
+        boxSlope('metal', 0, 0.08, -0.28, 0, 0.36, -0.06, 0.05, 0.05, '#334155');
+        // Steel backing plates under cushions
+        box('dark', 0, 0.35, 0.28, 0.26, 0.03, 0.26, '#15171a');             // seat subplate
+        box('dark', 0, 0.38, -0.06, 0.28, 0.03, 0.52, '#15171a');            // backrest subplate
+        // 4. Stitched dense leather backrest and seat pads
         box('fabric', 0, 0.42, -0.06, 0.34, 0.08, 0.54, color || '#1e2124'); // inclined backrest pad
         box('fabric', 0, 0.38, 0.28, 0.30, 0.08, 0.26, color || '#1e2124');  // seat pad
-        box('glow', 0, 0.455, -0.06, 0.02, 0.01, 0.50, '#ef4444');          // contrast stitching strip
+        box('glow', 0, 0.455, -0.06, 0.02, 0.01, 0.50, '#ef4444');           // contrast stitching strip
 
       } else if (/^dumbbells$/i.test(t)) {
         // 2-Tier Heavy Steel A-Frame Commercial Dumbbell Rack with 5 Pairs of Hex Dumbbells
@@ -2360,19 +2408,30 @@ F.builder = function (group) {
         box('fabric', 0, 0.62, 0, 0.86, 0.02, 0.80, '#15803d');
         box('fabric', 0, 0.632, 0, 0.01, 0.005, 0.78, '#ffffff');             // halfway line
         cyl('fabric', 0, 0.632, 0, 0.16, 0.005, 0.16, '#ffffff');             // center circle
-        // 3. 8 Stainless steel player rods traversing across table
+        // 3. 8 Stainless steel through-rods traversing horizontally across table (along Z)
         for (let r = 0; r < 8; r++) {
           const rx = -0.35 + r * 0.10;
-          cyl('metal', rx, 0.76, 0, 0.016, 0.98, 0.016, '#cbd5e1', true);     // steel rod
-          // Ergonomic black wooden/rubber handle grip on one end
-          cyl('dark', rx, 0.76, (r % 2 === 0 ? -0.48 : 0.48), 0.035, 0.08, 0.035, '#181b1e');
-          // Miniature molded soccer player figurines (red team vs blue team)
+          // Polished stainless steel horizontal player rod spanning along Z
+          cylZ('metal', rx, 0.76, 0, 0.018, 0.018, 1.06, '#cbd5e1');
+          // Ergonomic contoured rubber handle grip on operating side
+          const handleZ = (r % 2 === 0 ? -0.52 : 0.52);
+          cylZ('dark', rx, 0.76, handleZ, 0.036, 0.036, 0.12, '#181b1e');
+          round('wood', rx, 0.76, handleZ + (r % 2 === 0 ? -0.06 : 0.06), 0.032, 0.032, 0.032, '#d4a373'); // wooden handle end
+          // Safety rubber bumper stopper on opposite rod end
+          const bumperZ = (r % 2 === 0 ? 0.50 : -0.50);
+          cylZ('dark', rx, 0.76, bumperZ, 0.026, 0.026, 0.04, '#181b1e');
+          // Miniature molded tournament soccer player figurines (red team vs blue team)
           const pCol = (r % 2 === 0) ? '#ef4444' : '#2563eb';
           const numFigs = (r === 0 || r === 7) ? 1 : (r === 1 || r === 6) ? 2 : (r === 2 || r === 5) ? 5 : 3;
           for (let f = 0; f < numFigs; f++) {
             const fz = -0.30 + f * (0.60 / Math.max(1, numFigs - 1));
-            box('ceramic', rx, 0.72, fz, 0.035, 0.10, 0.035, pCol);           // player body
-            round('ceramic', rx, 0.78, fz, 0.03, 0.03, 0.03, '#fed7aa');      // head
+            // Player torso clamped on rod
+            box('ceramic', rx, 0.73, fz, 0.035, 0.09, 0.035, pCol);
+            // Angular robotic kicking foot block
+            box('ceramic', rx, 0.67, fz, 0.032, 0.04, 0.030, pCol);
+            // Molded head with hair
+            round('ceramic', rx, 0.79, fz, 0.032, 0.032, 0.032, '#fed7aa');
+            round('dark', rx, 0.805, fz, 0.030, 0.015, 0.030, '#1e293b');
           }
         }
         // Score abacus slider beads on end rails
@@ -2820,28 +2879,62 @@ F.builder = function (group) {
         }
 
       } else if (/^bicycle$/i.test(t)) {
-        // Commuter / Road Bicycle (1x2 footprint, lightweight alloy frame, 700c spoked wheels, handlebars, chain drive, kickstand)
-        // 1. Front and rear spoked bicycle wheels with rubber tires (standing upright rolling along Z)
-        cylX('dark', 0, 0.32, -0.38, 0.04, 0.62, 0.62, '#181b1e');             // front tire
-        cylX('metal', 0, 0.32, -0.38, 0.02, 0.52, 0.52, '#cbd5e1', true);      // front rim & spokes
-        cylX('dark', 0, 0.32, 0.38, 0.04, 0.62, 0.62, '#181b1e');              // rear tire
-        cylX('metal', 0, 0.32, 0.38, 0.02, 0.52, 0.52, '#cbd5e1', true);       // rear rim & spokes
-        // 2. Diamond frame tubing in vibrant color
-        cyl('metal', 0, 0.48, 0, 0.035, 0.68, 0.035, color || '#2563eb', true); // down tube
-        cyl('metal', 0, 0.62, -0.06, 0.035, 0.58, 0.035, color || '#2563eb', true); // top tube
-        cyl('metal', 0, 0.52, 0.16, 0.035, 0.50, 0.035, color || '#2563eb', true);  // seat tube
-        // Front fork & head tube
-        cyl('metal', 0, 0.48, -0.32, 0.03, 0.48, 0.03, color || '#2563eb', true);
-        // 3. Ergonomic drop / flat handlebars with brake levers
-        cyl('metal', 0, 0.74, -0.32, 0.025, 0.46, 0.025, '#1e293b', true);
-        box('dark', -0.22, 0.74, -0.32, 0.04, 0.04, 0.12, '#181b1e');         // left grip
-        box('dark', 0.22, 0.74, -0.32, 0.04, 0.04, 0.12, '#181b1e');          // right grip
-        // 4. Saddle on seatpost
-        cyl('metal', 0, 0.72, 0.16, 0.025, 0.18, 0.025, '#cbd5e1', true);
-        box('dark', 0, 0.81, 0.14, 0.16, 0.05, 0.28, '#181b1e');              // bicycle saddle
-        // Crankset & pedals
-        cyl('metal', 0, 0.32, 0.16, 0.14, 0.02, 0.14, '#64748b', true);       // chainring
-        box('metal', 0.12, 0.32, 0.22, 0.02, 0.03, 0.14, '#cbd5e1', true);    // pedal
+        // High-End Commuter Road Bicycle (1x2 footprint, hydroformed alloy diamond frame, 700c spoked wheels, drop/flat bars, chain drive, kickstand)
+        const frameCol = color || '#2563eb';
+        // 1. Front and Rear 700c Wheels (Rubber tire, double-wall rim, center axle hub)
+        // Front Wheel at z = -0.38, y = 0.32
+        cylX('dark', 0, 0.32, -0.38, 0.038, 0.62, 0.62, '#181b1e');            // rubber tire
+        cylX('metal', 0, 0.32, -0.38, 0.028, 0.54, 0.54, '#cbd5e1');           // aluminum rim
+        cylX('metal', 0, 0.32, -0.38, 0.065, 0.08, 0.08, '#94a3b8');           // center front hub
+        // Rear Wheel at z = 0.38, y = 0.32
+        cylX('dark', 0, 0.32, 0.38, 0.038, 0.62, 0.62, '#181b1e');             // rubber tire
+        cylX('metal', 0, 0.32, 0.38, 0.028, 0.54, 0.54, '#cbd5e1');            // aluminum rim
+        cylX('metal', 0, 0.32, 0.38, 0.075, 0.09, 0.09, '#94a3b8');            // center rear hub & cassette
+        // 2. Rigid Front Fork connecting front wheel axle to head tube
+        for (const sx of [-0.035, 0.035]) {
+          boxSlope('metal', sx, 0.32, -0.38, 0, 0.58, -0.28, 0.03, 0.03, frameCol); // fork blade
+        }
+        // Head tube
+        cyl('metal', 0, 0.65, -0.28, 0.042, 0.16, 0.042, frameCol);
+        // 3. Fully Connected Diamond Frame
+        // Bottom Bracket Shell (y=0.28, z=0.06)
+        cylX('metal', 0, 0.28, 0.06, 0.09, 0.05, 0.05, '#334155');
+        // Seat Tube: from bottom bracket (0, 0.28, 0.06) to seat cluster (0, 0.68, 0.12)
+        boxSlope('metal', 0, 0.28, 0.06, 0, 0.68, 0.12, 0.036, 0.036, frameCol);
+        // Top Tube: from seat cluster (0, 0.68, 0.12) to head tube (0, 0.70, -0.28)
+        boxSlope('metal', 0, 0.68, 0.12, 0, 0.70, -0.28, 0.036, 0.036, frameCol);
+        // Down Tube: from bottom bracket (0, 0.28, 0.06) to head tube (0, 0.60, -0.28)
+        boxSlope('metal', 0, 0.28, 0.06, 0, 0.60, -0.28, 0.038, 0.038, frameCol);
+        // Chain Stays: dual stays from bottom bracket (0, 0.28, 0.06) to rear axle (0, 0.32, 0.38)
+        for (const sx of [-0.035, 0.035]) {
+          boxSlope('metal', sx * 0.5, 0.28, 0.06, sx, 0.32, 0.38, 0.024, 0.024, frameCol);
+          // Seat Stays: dual stays from seat cluster (0, 0.68, 0.12) down to rear axle (sx, 0.32, 0.38)
+          boxSlope('metal', 0, 0.68, 0.12, sx, 0.32, 0.38, 0.022, 0.022, frameCol);
+        }
+        // 4. Handlebars & Controls
+        // Threadless stem clamped to steerer tube
+        boxSlope('metal', 0, 0.72, -0.28, 0, 0.76, -0.24, 0.03, 0.03, '#1e293b');
+        // Horizontal handlebar spanning across X
+        cylX('metal', 0, 0.76, -0.24, 0.44, 0.024, 0.024, '#1e293b');
+        // Ergonomic rubber grips on bar ends
+        box('dark', -0.19, 0.76, -0.24, 0.06, 0.036, 0.036, '#0f172a');
+        box('dark', 0.19, 0.76, -0.24, 0.06, 0.036, 0.036, '#0f172a');
+        // Aluminum brake levers
+        box('metal', -0.12, 0.74, -0.21, 0.015, 0.015, 0.06, '#cbd5e1');
+        box('metal', 0.12, 0.74, -0.21, 0.015, 0.015, 0.06, '#cbd5e1');
+        // 5. Saddle on Alloy Seatpost
+        cyl('metal', 0, 0.73, 0.125, 0.025, 0.12, 0.025, '#94a3b8');          // seatpost
+        box('dark', 0, 0.79, 0.11, 0.14, 0.04, 0.26, '#181b1e');               // contoured saddle
+        box('dark', 0, 0.775, 0.02, 0.06, 0.03, 0.10, '#181b1e');              // saddle nose
+        // 6. Drivetrain: Chainring, Cranks, Pedals & Leaning Kickstand
+        cylX('metal', 0.04, 0.28, 0.06, 0.015, 0.15, 0.15, '#64748b');         // large front chainring
+        // Left & right crank arms and pedals
+        boxSlope('metal', 0.05, 0.28, 0.06, 0.05, 0.18, 0.12, 0.02, 0.03, '#cbd5e1');
+        box('dark', 0.08, 0.18, 0.12, 0.06, 0.02, 0.07, '#181b1e');            // right pedal
+        boxSlope('metal', -0.05, 0.28, 0.06, -0.05, 0.38, 0.00, 0.02, 0.03, '#cbd5e1');
+        box('dark', -0.08, 0.38, 0.00, 0.06, 0.02, 0.07, '#181b1e');           // left pedal
+        // Black steel kickstand resting securely on ground
+        boxSlope('dark', -0.02, 0.28, 0.08, -0.12, 0.01, 0.18, 0.02, 0.02, '#181b1e');
 
       } else if (/^ironboard$/i.test(t)) {
         // Folding Steel Ironing Board with Steam Iron on Silicone Rest Tray (1x2 footprint)
@@ -3089,24 +3182,57 @@ F.builder = function (group) {
 
       /* ---------------- GARAGE & VEHICLES (16 ITEMS) ---------------- */
       } else if (/^motorcycle$/i.test(t)) {
-        // Modern Naked Cafe Racer Motorcycle (Trellis frame, sculpted gas tank, V-twin engine, spoked wheels, clip-on bars, LED headlight - fits inside 1x2 footprint!)
-        // 1. Front and rear high-performance motorcycle wheels with disc brakes (standing upright rolling along Z)
-        cylX('dark', 0, 0.26, -0.24, 0.12, 0.46, 0.46, '#181b1e');             // front fat tire
-        cylX('metal', 0, 0.26, -0.24, 0.06, 0.34, 0.34, '#cbd5e1');      // front rim & drilled disc
-        cylX('dark', 0, 0.26, 0.24, 0.15, 0.46, 0.46, '#181b1e');              // rear fat tire
-        cylX('metal', 0, 0.26, 0.24, 0.08, 0.34, 0.34, '#cbd5e1');       // rear rim & chain sprocket
-        // 2. Exposed V-Twin engine block with chrome cooling fins & exhaust pipe
-        box('metal', 0, 0.32, 0.02, 0.26, 0.28, 0.30, '#334155');       // engine crankcase
-        cyl('metal', 0.14, 0.22, 0.16, 0.06, 0.42, 0.06, '#c9a44e');    // chrome exhaust pipe & muffler
-        // 3. Sculpted aerodynamic fuel tank & cafe racer solo cowl seat
-        box('ceramic', 0, 0.54, -0.08, 0.30, 0.20, 0.34, color || '#ef4444'); // sculpted tank
-        box('dark', 0, 0.48, 0.14, 0.24, 0.09, 0.24, '#181b1e');              // leather saddle
-        box('ceramic', 0, 0.52, 0.28, 0.24, 0.12, 0.18, color || '#ef4444');  // cafe racer tail cowl
-        // 4. Inverted front suspension forks, clip-on bars, round LED headlight
-        cyl('metal', -0.07, 0.46, -0.20, 0.035, 0.46, 0.035, '#c9a44e'); // gold fork leg
-        cyl('metal', 0.07, 0.46, -0.20, 0.035, 0.46, 0.035, '#c9a44e');
-        cylZ('metal', 0, 0.58, -0.28, 0.13, 0.13, 0.06, '#0f172a');      // round headlight bucket
-        cylZ('glow', 0, 0.58, -0.312, 0.11, 0.11, 0.01, '#fef08a');            // bright LED projector beam
+        // Modern Naked Cafe Racer Motorcycle (Trellis frame, sculpted gas tank, V-twin engine, spoked wheels, clip-on bars, LED headlight, swingarm & kickstand)
+        const motoCol = color || '#ef4444';
+        // 1. Front and Rear High-Performance Wheels with Drilled Disc Brakes
+        // Front Wheel at z = -0.26, y = 0.26
+        cylX('dark', 0, 0.26, -0.26, 0.11, 0.48, 0.48, '#181b1e');             // front tire
+        cylX('metal', 0, 0.26, -0.26, 0.06, 0.36, 0.36, '#cbd5e1');            // aluminum rim & rotor
+        cylX('metal', 0, 0.26, -0.26, 0.14, 0.08, 0.08, '#334155');            // front axle hub
+        // Rear Wheel at z = 0.26, y = 0.26
+        cylX('dark', 0, 0.26, 0.26, 0.14, 0.48, 0.48, '#181b1e');              // rear fat tire
+        cylX('metal', 0, 0.26, 0.26, 0.08, 0.36, 0.36, '#cbd5e1');             // rear rim & sprocket
+        cylX('metal', 0, 0.26, 0.26, 0.16, 0.09, 0.09, '#334155');             // rear axle hub
+        // 2. Inverted Front Suspension Fork connecting wheel axle to triple clamps
+        for (const sx of [-0.07, 0.07]) {
+          boxSlope('metal', sx, 0.26, -0.26, sx, 0.58, -0.16, 0.034, 0.034, '#c9a44e'); // gold stanchion
+        }
+        box('metal', 0, 0.58, -0.16, 0.18, 0.03, 0.06, '#1e293b');             // lower triple clamp
+        box('metal', 0, 0.64, -0.16, 0.18, 0.03, 0.06, '#1e293b');             // upper triple clamp
+        // 3. Structural Tubular Steel Trellis Frame & Rear Swingarm
+        // Twin-tube aluminum rear swingarm connecting transmission to rear axle
+        for (const sx of [-0.08, 0.08]) {
+          boxSlope('metal', sx * 0.7, 0.26, 0.06, sx, 0.26, 0.26, 0.032, 0.045, '#64748b'); // swingarm
+        }
+        // Central mono-shock absorber
+        boxSlope('metal', 0, 0.28, 0.12, 0, 0.44, 0.06, 0.04, 0.04, '#eab308'); // yellow spring
+        // Trellis frame tubes linking steering head to engine
+        for (const sx of [-0.09, 0.09]) {
+          boxSlope('metal', 0, 0.60, -0.16, sx, 0.42, -0.04, 0.026, 0.026, '#334155');
+          boxSlope('metal', sx, 0.42, -0.04, sx, 0.28, 0.06, 0.026, 0.026, '#334155');
+        }
+        // 4. Exposed V-Twin Engine Block, Cooling Fins & Chrome Exhaust
+        box('metal', 0, 0.33, 0.01, 0.24, 0.26, 0.28, '#1e293b');              // engine crankcase
+        box('metal', 0, 0.38, -0.05, 0.20, 0.14, 0.14, '#475569');             // front cylinder head
+        box('metal', 0, 0.38, 0.07, 0.20, 0.14, 0.14, '#475569');              // rear cylinder head
+        // Chrome exhaust header pipe sweeping into upswept megaphone muffler
+        boxSlope('metal', 0.12, 0.32, -0.04, 0.13, 0.22, 0.10, 0.035, 0.035, '#cbd5e1');
+        boxSlope('metal', 0.13, 0.22, 0.10, 0.13, 0.32, 0.28, 0.045, 0.045, '#cbd5e1'); // muffler
+        // 5. Sculpted Aerodynamic Fuel Tank, Stitched Saddle & Cafe Racer Cowl
+        box('ceramic', 0, 0.54, -0.06, 0.28, 0.19, 0.30, motoCol);              // gas tank
+        round('ceramic', 0, 0.57, -0.06, 0.26, 0.14, 0.28, HP.shade(motoCol, 1.08)); // tank hump
+        cyl('metal', 0, 0.645, -0.06, 0.06, 0.02, 0.06, '#cbd5e1');             // chrome filler cap
+        box('dark', 0, 0.50, 0.13, 0.22, 0.07, 0.20, '#181b1e');                // leather saddle
+        box('ceramic', 0, 0.54, 0.26, 0.20, 0.13, 0.16, motoCol);               // cafe tail cowl
+        box('glow', 0, 0.53, 0.345, 0.08, 0.03, 0.01, '#ef4444');               // LED taillight
+        // 6. Handlebars, Headlight & Leaning Kickstand
+        cylX('metal', 0, 0.64, -0.15, 0.36, 0.026, 0.026, '#1e293b');           // clip-on handlebars
+        box('dark', -0.17, 0.64, -0.15, 0.05, 0.034, 0.034, '#0f172a');         // left grip
+        box('dark', 0.17, 0.64, -0.15, 0.05, 0.034, 0.034, '#0f172a');          // right grip
+        cylZ('metal', 0, 0.54, -0.28, 0.13, 0.13, 0.06, '#0f172a');             // 7" round headlight
+        cylZ('glow', 0, 0.54, -0.312, 0.11, 0.11, 0.01, '#fef08a');             // LED projector lens
+        // Leaning steel kickstand down to floor
+        boxSlope('dark', -0.05, 0.24, 0.04, -0.13, 0.01, 0.08, 0.025, 0.025, '#181b1e');
 
       } else if (/^toolchest$/i.test(t)) {
         // Heavy-Duty Professional 6-Drawer Rolling Mechanic Tool Chest with Lift-Up Top Chest
@@ -3192,22 +3318,49 @@ F.builder = function (group) {
         box('metal', 0, 0.36, -0.22, 0.06, 0.08, 0.10, '#cbd5e1');      // latch button
 
       } else if (/^carlift$/i.test(t)) {
-        // Commercial 2-Post Hydraulic Automotive Service Lift (2x4 footprint, twin steel columns, overhead beam, hydraulic power pack, 4 swing arms)
-        // 1. Twin heavy steel vertical columns with wide base anchor plates
+        // Commercial 2-Post Heavy-Duty Hydraulic Automotive Lift (2x4 footprint, twin structural steel columns, base plates, overhead beam, 4 telescoping swing arms, rubber pads)
+        const liftCol = color || '#2563eb';
+        // 1. Heavy structural steel C-channel upright columns & base anchor plates
         for (const sx of [-0.42, 0.42]) {
-          box('metal', sx, 0.52, 0, 0.16, 1.04, 0.24, color || '#2563eb', true);
-          box('dark', sx, 0.03, 0, 0.28, 0.06, 0.42, '#0f172a');              // floor anchor plate
+          // Steel base plate with anchor bolts firmly on floor
+          box('dark', sx, 0.025, 0, 0.30, 0.05, 0.48, '#0f172a');
+          for (const bz of [-0.18, 0.18]) {
+            cyl('metal', sx - 0.10, 0.055, bz, 0.03, 0.02, 0.03, '#94a3b8');
+            cyl('metal', sx + 0.10, 0.055, bz, 0.03, 0.02, 0.03, '#94a3b8');
+          }
+          // Main vertical column (structural steel)
+          box('metal', sx, 0.52, 0, 0.18, 1.00, 0.26, liftCol);
+          // Inner column track channel
+          box('dark', sx > 0 ? sx - 0.07 : sx + 0.07, 0.52, 0, 0.04, 0.98, 0.18, '#1e293b');
+          // Sliding carriage sleeve on each column
+          box('metal', sx > 0 ? sx - 0.04 : sx + 0.04, 0.30, 0, 0.14, 0.28, 0.22, '#f59e0b');
+          // Column top cap & pulley bracket
+          box('metal', sx, 1.02, 0, 0.20, 0.04, 0.28, liftCol);
         }
-        // Overhead hydraulic sync crossbeam
-        box('metal', 0, 1.02, 0, 0.96, 0.08, 0.14, color || '#2563eb', true);
-        // Hydraulic power unit reservoir on right column
-        cyl('metal', 0.48, 0.62, 0.14, 0.14, 0.34, 0.14, '#1e293b', true);
-        box('glow', 0.48, 0.76, 0.14, 0.06, 0.08, 0.06, '#22c55e');           // start button
-        // 2. 4 Telescoping symmetric swing lift arms with rubber pads
-        for (const sx of [-0.36, 0.36]) {
-          for (const sz of [-0.28, 0.28]) {
-            box('metal', sx * 0.7, 0.32, sz * 0.7, 0.28, 0.06, 0.08, '#f59e0b', true); // yellow arm
-            cyl('dark', (sx > 0 ? 0.18 : -0.18), 0.36, (sz > 0 ? 0.34 : -0.34), 0.10, 0.03, 0.10, '#181b1e'); // rubber lift pad
+        // Overhead hydraulic sync crossbeam spanning between column tops
+        box('metal', 0, 1.02, 0, 0.96, 0.08, 0.16, liftCol);
+        box('dark', 0, 0.97, 0, 0.82, 0.02, 0.04, '#0f172a'); // overhead padded shutoff bar
+        // Hydraulic power unit (motor, reservoir tank, pushbuttons) on right column
+        cyl('dark', 0.49, 0.72, 0.14, 0.12, 0.22, 0.12, '#1e293b'); // electric motor
+        box('metal', 0.49, 0.52, 0.14, 0.14, 0.22, 0.14, '#334155'); // oil tank reservoir
+        box('glow', 0.49, 0.64, 0.215, 0.03, 0.04, 0.01, '#22c55e'); // green raise button
+        box('metal', 0.49, 0.58, 0.215, 0.04, 0.06, 0.02, '#e2e8f0'); // lowering release lever
+        // 2. 4 Telescoping 2-Stage Swing Arms with Heavy Swivel Cleats & Lift Pads
+        for (const sx of [-0.34, 0.34]) {
+          for (const sz of [-0.18, 0.18]) {
+            // Swivel cleat hinge pinned to carriage
+            cyl('dark', sx, 0.24, sz * 0.7, 0.08, 0.14, 0.08, '#0f172a');
+            // Stage 1 arm (heavy yellow steel tube)
+            const armEndX = sx > 0 ? sx - 0.18 : sx + 0.18;
+            const armEndZ = sz > 0 ? sz + 0.16 : sz - 0.16;
+            boxSlope('metal', sx, 0.24, sz * 0.7, armEndX, 0.24, armEndZ, 0.07, 0.08, '#f59e0b');
+            // Stage 2 extension arm
+            const padX = sx > 0 ? sx - 0.26 : sx + 0.26;
+            const padZ = sz > 0 ? sz + 0.24 : sz - 0.24;
+            boxSlope('metal', armEndX, 0.24, armEndZ, padX, 0.24, padZ, 0.05, 0.06, '#d97706');
+            // Heavy vertical threaded adapter post & ribbed rubber lift puck
+            cyl('metal', padX, 0.28, padZ, 0.07, 0.06, 0.07, '#cbd5e1');
+            cyl('dark', padX, 0.32, padZ, 0.11, 0.03, 0.11, '#181b1e'); // rubber pad
           }
         }
 
@@ -3687,18 +3840,39 @@ F.builder = function (group) {
         round('glow', 0, 0.44, 0, 0.18, 0.24, 0.18, '#facc15');                // dancing fire flame
 
       } else if (/^swingset$/i.test(t)) {
-        // Solid Cedar A-Frame Backyard Swing Set (3x2 footprint, 2 belt swings, coated chains, top beam)
-        // 1. Solid cedar A-frame end posts & top beam
+        // Heavy Solid Cedar Timber A-Frame Backyard Swing Set (3x2 footprint, angled A-frame legs, steel corner brackets, horizontal spreader rungs, 2 belt swings)
+        const timberCol = color || '#b45309';
+        // 1. Dual Angled A-Frame End Assemblies (left at sx=-0.42, right at sx=0.42)
         for (const sx of [-0.42, 0.42]) {
-          cyl('wood', sx, 0.48, -0.32, 0.06, 0.96, 0.06, color || '#b45309');
-          cyl('wood', sx, 0.48, 0.32, 0.06, 0.96, 0.06, color || '#b45309');
+          // Front and rear angled cedar legs meeting at the top apex (z=0, y=0.94)
+          boxSlope('wood', sx, 0.02, -0.38, sx, 0.94, 0, 0.07, 0.08, timberCol); // front leg
+          boxSlope('wood', sx, 0.02, 0.38, sx, 0.94, 0, 0.07, 0.08, timberCol);  // rear leg
+          // Ground anchor boots
+          box('dark', sx, 0.015, -0.38, 0.09, 0.03, 0.10, '#181b1e');
+          box('dark', sx, 0.015, 0.38, 0.09, 0.03, 0.10, '#181b1e');
+          // Horizontal cedar A-frame spreader rung at mid-height
+          box('wood', sx, 0.38, 0, 0.06, 0.07, 0.46, HP.shade(timberCol, 0.92));
+          // Heavy forest green powder-coated steel A-bracket clamping the apex
+          box('metal', sx, 0.92, 0, 0.08, 0.14, 0.22, '#1e3a1e');
+          cyl('metal', sx, 0.95, -0.06, 0.02, 0.03, 0.02, '#cbd5e1'); // lag bolt
+          cyl('metal', sx, 0.95, 0.06, 0.02, 0.03, 0.02, '#cbd5e1');
         }
-        box('wood', 0, 0.94, 0, 0.98, 0.08, 0.08, '#b45309');                  // top beam
-        // 2. Two heavy-duty commercial belt swings with coated chains
+        // Heavy 4x6 cedar top ridge beam extending past both A-brackets
+        box('wood', 0, 0.95, 0, 0.98, 0.10, 0.10, timberCol);
+        // 2. Two Commercial Heavy-Duty Belt Swings with Coated Steel Chains
         for (const bx of [-0.20, 0.20]) {
-          cyl('metal', bx - 0.10, 0.58, 0, 0.015, 0.68, 0.015, '#cbd5e1', true); // left chain
-          cyl('metal', bx + 0.10, 0.58, 0, 0.015, 0.68, 0.015, '#cbd5e1', true); // right chain
-          box('dark', bx, 0.24, 0, 0.24, 0.04, 0.12, '#181b1e');                // flexible rubber seat
+          // Cast iron swing hanger brackets clamped to top beam
+          box('metal', bx - 0.09, 0.90, 0, 0.03, 0.04, 0.06, '#181b1e');
+          box('metal', bx + 0.09, 0.90, 0, 0.03, 0.04, 0.06, '#181b1e');
+          // Zinc-plated swing chains (always rendered, never culled)
+          cyl('metal', bx - 0.09, 0.58, 0, 0.014, 0.64, 0.014, '#cbd5e1');
+          cyl('metal', bx + 0.09, 0.58, 0, 0.014, 0.64, 0.014, '#cbd5e1');
+          // Flexible molded rubber sling seat with curved contour and steel grommets
+          box('dark', bx, 0.26, 0, 0.24, 0.035, 0.12, '#0f172a');
+          box('dark', bx, 0.275, 0.05, 0.24, 0.03, 0.03, '#0f172a'); // curved back lip
+          box('dark', bx, 0.275, -0.05, 0.24, 0.03, 0.03, '#0f172a'); // curved front lip
+          cyl('metal', bx - 0.09, 0.28, 0, 0.025, 0.02, 0.025, '#cbd5e1'); // triangle clip
+          cyl('metal', bx + 0.09, 0.28, 0, 0.025, 0.02, 0.025, '#cbd5e1');
         }
 
       
@@ -3923,15 +4097,38 @@ F.builder = function (group) {
         box('metal', 0.18, 0.90, 0.10, 0.015, 0.06, 0.10, '#dc2626');
 
       } else if (/^trampoline$/i.test(t)) {
-        // 14-Foot Circular Backyard Trampoline with Safety Enclosure Net (2x2 footprint, height 44px)
+        // 14-Foot Circular Backyard Trampoline with Heavy W-Legs & Full Safety Enclosure Net (2x2 footprint, height 44px)
+        const padCol = color || '#2563eb';
+        // 1. Heavy galvanized steel tubular frame with 6 ground-support legs
         for (let a = 0; a < 6; a++) {
           const ang = a * (Math.PI / 3);
-          box('metal', Math.cos(ang) * 0.44, 0.18, Math.sin(ang) * 0.44, 0.04, 0.36, 0.04, '#cbd5e1', true);
-          box('metal', Math.cos(ang) * 0.46, 0.68, Math.sin(ang) * 0.46, 0.03, 0.60, 0.03, '#475569', true);
+          const lx = Math.cos(ang) * 0.44, lz = Math.sin(ang) * 0.44;
+          // Vertical support leg from ground (y=0) to frame rim (y=0.34)
+          cyl('metal', lx, 0.17, lz, 0.045, 0.34, 0.045, '#cbd5e1');
+          // Rubber foot boot on ground
+          cyl('dark', lx, 0.02, lz, 0.065, 0.04, 0.065, '#0f172a');
+          // Safety net enclosure pole rising from frame (y=0.34) up to net top (y=0.96)
+          cyl('metal', lx * 1.02, 0.65, lz * 1.02, 0.035, 0.62, 0.035, '#334155');
+          round('dark', lx * 1.02, 0.97, lz * 1.02, 0.05, 0.04, 0.05, '#0f172a'); // top pole cap
         }
-        cyl('dark', 0, 0.36, 0, 0.94, 0.06, 0.94, color || '#3a4a6b');
-        cyl('dark', 0, 0.37, 0, 0.76, 0.01, 0.76, '#0f172a');
-        cyl('glass', 0, 0.68, 0, 0.92, 0.58, 0.92, '#334155');
+        // W-shape horizontal ground stabilizer bars connecting leg pairs (3 base bars)
+        for (let w = 0; w < 3; w++) {
+          const a1 = w * (2 * Math.PI / 3);
+          const a2 = a1 + (Math.PI / 3);
+          const x1 = Math.cos(a1) * 0.44, z1 = Math.sin(a1) * 0.44;
+          const x2 = Math.cos(a2) * 0.44, z2 = Math.sin(a2) * 0.44;
+          boxSlope('metal', x1, 0.02, z1, x2, 0.02, z2, 0.04, 0.04, '#94a3b8');
+        }
+        // 2. Heavy steel circular top frame ring & high-density foam spring safety pad
+        cyl('metal', 0, 0.34, 0, 0.92, 0.04, 0.92, '#cbd5e1'); // steel frame ring
+        cyl('fabric', 0, 0.36, 0, 0.96, 0.05, 0.96, padCol);   // perimeter spring cover pad
+        cyl('fabric', 0, 0.33, 0, 0.98, 0.05, 0.98, HP.shade(padCol, 0.85)); // outer protective skirt
+        // 3. Central UV-resistant high-bounce black woven jumping mat
+        cyl('dark', 0, 0.365, 0, 0.74, 0.015, 0.74, '#090b0e'); // woven polypropylene mat
+        cyl('glow', 0, 0.368, 0, 0.12, 0.005, 0.12, '#38bdf8'); // center target crest
+        // 4. Fine-mesh transparent safety enclosure netting & yellow entrance zipper
+        cyl('glass', 0, 0.66, 0, 0.90, 0.58, 0.90, '#1e293b'); // safety netting
+        box('glow', 0, 0.65, 0.45, 0.02, 0.48, 0.015, '#eab308'); // yellow safety zipper
 
       } else if (/^poolfloat$/i.test(t)) {
         // Inflatable Ribbed Pool Lounge Mattress with Bolster Pillow (1x1 footprint, height 8px)
@@ -4796,15 +4993,44 @@ F.builder = function (group) {
         box('fabric', 0, 0.10, 0, 0.68, 0.08, 0.68, '#dc2626');
 
       } else if (/^hammock$/i.test(t)) {
-        // Freestanding Curved Larch Wood Hammock with Striped Bolster Cushion (1x3 footprint)
-        // 1. Elegant curved wooden arc stand
-        box('wood', 0, 0.10, 0, 0.62, 0.08, 0.08, '#b45309');                  // center base
-        for (const sz of [-0.42, 0.42]) {
-          cyl('wood', 0, 0.36, sz, 0.07, 0.68, 0.07, '#b45309');               // upright wooden horns
+        // Freestanding Curved Larch Wood Arc Hammock with Spreader Bars, Braided Suspension Ropes & Striped Bolster (1x3 footprint)
+        const woodCol = '#b45309';
+        const bedCol = color || '#fdf4ff';
+        // 1. Curved Laminated Larch-Wood Arc Stand with Dual Ground Stabilizer Cross-Feet
+        // Dual heavy horizontal cross-feet on the lawn (front and rear)
+        for (const fz of [-0.34, 0.34]) {
+          box('wood', 0, 0.03, fz, 0.88, 0.06, 0.09, woodCol);
+          // Rubber non-skid floor pads
+          for (const sx of [-0.38, 0.38]) {
+            box('dark', sx, 0.005, fz, 0.08, 0.015, 0.09, '#181b1e');
+          }
         }
-        // 2. Suspended woven cotton hammock bed
-        box('fabric', 0, 0.34, 0, 0.52, 0.08, 0.64, color || '#fdf4ff');
-        cyl('fabric', 0, 0.42, -0.22, 0.14, 0.46, 0.14, '#38bdf8');            // striped bolster pillow
+        // Center longitudinal ground spine beam
+        box('wood', 0, 0.05, 0, 0.10, 0.07, 0.68, HP.shade(woodCol, 0.90));
+        // Upward-sweeping curved wooden horns at front and rear rising to y=0.72
+        boxSlope('wood', 0, 0.05, -0.32, 0, 0.70, -0.44, 0.08, 0.09, woodCol);
+        boxSlope('wood', 0, 0.05, 0.32, 0, 0.70, 0.44, 0.08, 0.09, woodCol);
+        // Heavy stainless steel eye-bolts and S-hooks at horn tips
+        cyl('metal', 0, 0.71, -0.44, 0.04, 0.06, 0.04, '#cbd5e1');
+        cyl('metal', 0, 0.71, 0.44, 0.04, 0.06, 0.04, '#cbd5e1');
+        // 2. Hardwood Spreader Bars & Braided Suspension Harness Ropes
+        for (const sz of [-0.34, 0.34]) {
+          // Turned hardwood spreader bar spanning across X
+          cylX('wood', 0, 0.54, sz, 0.68, 0.04, 0.04, '#78350f');
+          // Fan-shaped braided suspension ropes from horn eye-bolt to spreader bar
+          const hornZ = sz > 0 ? 0.44 : -0.44;
+          for (const rx of [-0.28, -0.14, 0, 0.14, 0.28]) {
+            boxSlope('fabric', 0, 0.71, hornZ, rx, 0.54, sz, 0.015, 0.015, '#fef08a');
+          }
+        }
+        // 3. Natural Catenary Sagging Woven Cotton Bed (3 smooth sloping segments)
+        boxSlope('fabric', 0, 0.54, -0.34, 0, 0.32, -0.14, 0.64, 0.035, bedCol); // head slope
+        box('fabric', 0, 0.30, 0, 0.66, 0.04, 0.28, bedCol);                      // center sag basin
+        boxSlope('fabric', 0, 0.32, 0.14, 0, 0.54, 0.34, 0.64, 0.035, bedCol);  // foot slope
+        // 4. Horizontal Striped Bolster Pillow lying across the head of the hammock
+        cylX('fabric', 0, 0.44, -0.22, 0.58, 0.14, 0.14, '#38bdf8');
+        cylX('fabric', -0.14, 0.44, -0.22, 0.05, 0.145, 0.145, '#ffffff'); // white accent stripe
+        cylX('fabric', 0.14, 0.44, -0.22, 0.05, 0.145, 0.145, '#ffffff');
 
       } else if (/^car$/i.test(t)) {
         // Modern Aerodynamic Luxury Sedan Automobile (2x4 footprint, alloy wheels, LED lights, gloss windows)
@@ -5548,18 +5774,23 @@ F.builder = function (group) {
 
       } else if (/^ironfence$/i.test(t)) {
         // Ornate Victorian Wrought-Iron Spearhead Fence with Ball Finials (4x1 footprint)
+        const ironCol = color || '#181b1e';
+        // 1. Heavy square end posts with base plinths and ball finials
         for (const sx of [-0.46, 0.46]) {
-          box('metal', sx, 0.52, 0, 0.06, 1.04, 0.06, color || '#181b1e', true);
-          round('metal', sx, 1.06, 0, 0.08, 0.08, 0.08, '#c9a44e', true);      // gold ball finial
+          box('metal', sx, 0.52, 0, 0.065, 1.04, 0.065, ironCol);
+          box('dark', sx, 0.02, 0, 0.09, 0.04, 0.09, '#0f172a');              // post ground shoe
+          box('metal', sx, 1.04, 0, 0.08, 0.03, 0.08, '#c9a44e');              // brass post collar
+          round('metal', sx, 1.08, 0, 0.075, 0.075, 0.075, '#c9a44e');         // gold ball finial
         }
-        // Dual horizontal iron rails
-        box('metal', 0, 0.18, 0, 0.88, 0.03, 0.03, '#181b1e', true);
-        box('metal', 0, 0.82, 0, 0.88, 0.03, 0.03, '#181b1e', true);
-        // Vertical spearhead balusters with fleur-de-lis tips
+        // 2. Dual continuous horizontal iron stringer rails connecting end posts
+        box('metal', 0, 0.16, 0, 0.90, 0.035, 0.035, ironCol);                 // bottom rail
+        box('metal', 0, 0.84, 0, 0.90, 0.035, 0.035, ironCol);                 // top rail
+        // 3. Vertical spearhead balusters with fleur-de-lis tips spanning through rails
         for (let b = 0; b < 13; b++) {
           const bx = -0.42 + b * 0.07;
-          cyl('metal', bx, 0.50, 0, 0.018, 0.86, 0.018, '#1e293b', true);
-          part('cone', 'metal', bx, 0.96, 0, 0.035, 0.08, 0.035, '#c9a44e', true); // gold spearhead tip
+          cyl('metal', bx, 0.50, 0, 0.020, 0.86, 0.020, '#1e293b');             // vertical square picket
+          part('cone', 'metal', bx, 0.96, 0, 0.035, 0.08, 0.035, '#c9a44e');    // gold spearhead tip
+          box('metal', bx, 0.84, 0, 0.03, 0.04, 0.04, '#c9a44e');              // brass rail rosette collar
         }
 
       } else if (/^gardwall$/i.test(t)) {
@@ -5677,62 +5908,100 @@ F.builder = function (group) {
         }
 
       } else if (/^chainlink$/i.test(t)) {
-        // Commercial Galvanized Steel Chain-Link Fence (4x1 footprint, tubular steel posts & top rail)
-        for (const sx of [-0.46, 0.46]) {
-          cyl('metal', sx, 0.50, 0, 0.045, 0.98, 0.045, '#cbd5e1', true);      // end posts
+        // Commercial Galvanized Steel Chain-Link Fence (4x1 footprint, tubular steel line & end posts, continuous top rail, tension wire)
+        // 1. Galvanized tubular steel posts (left, center, right) firmly grounded
+        for (const sx of [-0.46, 0, 0.46]) {
+          cyl('metal', sx, 0.50, 0, 0.045, 0.98, 0.045, '#cbd5e1');            // tubular post
+          cyl('dark', sx, 0.02, 0, 0.065, 0.04, 0.065, '#334155');              // ground concrete foot
+          round('metal', sx, 0.99, 0, 0.055, 0.035, 0.055, '#e2e8f0');          // aluminum loop cap
         }
-        cyl('metal', 0, 0.98, 0, 0.035, 0.96, 0.035, '#cbd5e1', true);         // top pipe rail
-        // Translucent woven galvanized steel wire diamond mesh
-        box('glass', 0, 0.50, 0, 0.88, 0.92, 0.01, '#94a3b8');
-        box('metal', 0, 0.04, 0, 0.88, 0.02, 0.02, '#64748b', true);           // bottom tension wire
+        // 2. Continuous horizontal top pipe rail spanning across X through post loop caps
+        cylX('metal', 0, 0.98, 0, 0.96, 0.038, 0.038, '#cbd5e1');
+        // Bottom galvanized high-tensile tension wire along X
+        cylX('metal', 0, 0.06, 0, 0.94, 0.016, 0.016, '#64748b');
+        // 3. Woven galvanized steel wire diamond mesh infill
+        box('glass', 0, 0.52, 0, 0.92, 0.88, 0.01, '#94a3b8');
+        // End post tension bars & collar bands
+        for (const sx of [-0.46, 0.46]) {
+          cyl('metal', sx > 0 ? sx - 0.02 : sx + 0.02, 0.52, 0, 0.015, 0.86, 0.015, '#94a3b8');
+        }
 
       } else if (/^latticefence$/i.test(t)) {
         // Diagonal Criss-Cross Cedar Garden Lattice Trellis Framed in Heavy Timber (4x1 footprint)
-        box('wood', -0.46, 0.50, 0, 0.07, 0.98, 0.07, '#78350f');
-        box('wood', 0.46, 0.50, 0, 0.07, 0.98, 0.07, '#78350f');
-        box('wood', 0, 0.96, 0, 0.88, 0.06, 0.06, '#78350f');                  // top frame
-        box('wood', 0, 0.06, 0, 0.88, 0.06, 0.06, '#78350f');                  // bottom frame
-        // Diagonal lattice panel screen
-        box('wood', 0, 0.50, 0, 0.86, 0.86, 0.03, color || '#eab308');
+        const frameCol = '#78350f';
+        const slatCol = color || '#d4a373';
+        // Heavy timber upright end posts with pyramid caps
+        for (const sx of [-0.46, 0.46]) {
+          box('wood', sx, 0.50, 0, 0.08, 0.98, 0.08, frameCol);
+          part('roof', 'wood', sx, 1.01, 0, 0.10, 0.06, 0.10, '#592506');      // beveled post cap
+        }
+        // Heavy top cap rail & bottom kick rail
+        box('wood', 0, 0.96, 0, 0.88, 0.06, 0.06, frameCol);                   // top rail
+        box('wood', 0, 0.06, 0, 0.88, 0.06, 0.06, frameCol);                   // bottom rail
+        // Diagonal cedar lattice panel screen with perimeter frame surround
+        box('wood', 0, 0.51, 0, 0.86, 0.84, 0.035, slatCol);
+        // Molded perimeter reveal trim inside frame
+        box('wood', 0, 0.51, 0.02, 0.84, 0.80, 0.01, HP.shade(slatCol, 0.88));
 
       } else if (/^ranchfence$/i.test(t)) {
-        // 3-Rail Rustic Timber Post-and-Rail Equestrian Ranch Fence (4x1 footprint)
-        for (const sx of [-0.46, 0.46]) {
-          cyl('wood', sx, 0.48, 0, 0.08, 0.96, 0.08, color || '#78350f');      // round peeled posts
+        // 3-Rail Rustic Timber Post-and-Rail Equestrian Ranch Fence (4x1 footprint, 3 peeled cedar posts, mortised split rails)
+        const timberCol = color || '#78350f';
+        // 3 Grounded round peeled cedar posts (left, middle, right)
+        for (const sx of [-0.46, 0, 0.46]) {
+          cyl('wood', sx, 0.50, 0, 0.09, 1.00, 0.09, timberCol);
+          round('wood', sx, 1.00, 0, 0.095, 0.04, 0.095, HP.shade(timberCol, 0.85)); // rounded post top
         }
-        // 3 Horizontal split rails running between posts along X
+        // 3 Horizontal split rails running through posts along X
         for (let r = 0; r < 3; r++) {
-          cylX('wood', 0, 0.24 + r * 0.28, 0, 0.96, 0.06, 0.06, color || '#78350f');
+          const ry = 0.22 + r * 0.32;
+          cylX('wood', 0, ry, 0, 0.98, 0.065, 0.065, HP.shade(timberCol, 1.05));
         }
 
       } else if (/^metalfence$/i.test(t)) {
         // Modern Architectural Horizontal Anthracite Dark Steel Slat Privacy Fence (4x1 footprint)
         for (const sx of [-0.46, 0.46]) {
-          box('metal', sx, 0.50, 0, 0.06, 0.98, 0.06, '#0f172a', true);
+          box('metal', sx, 0.50, 0, 0.06, 0.98, 0.06, '#0f172a');
         }
         // Horizontal powder-coated privacy slats with negative air reveals
         for (let s = 0; s < 8; s++) {
-          box('metal', 0, 0.10 + s * 0.12, 0, 0.88, 0.08, 0.025, color || '#1e293b', true);
+          box('metal', 0, 0.10 + s * 0.12, 0, 0.88, 0.08, 0.025, color || '#1e293b');
         }
 
       } else if (/^glassfence$/i.test(t)) {
-        // Frameless 12mm Tempered Swimming Pool Glass Balustrade with 316-Stainless Spigots (4x1)
-        // Marine-grade stainless steel floor clamp spigots
-        for (const sx of [-0.34, 0.34]) {
-          box('metal', sx, 0.10, 0, 0.06, 0.20, 0.08, '#cbd5e1', true);
+        // Frameless 12mm Tempered Swimming Pool Glass Balustrade with 316-Stainless Spigots (4x1 footprint, zero floating parts)
+        // Heavy marine-grade 2205 stainless steel friction clamp spigots firmly on ground
+        for (const sx of [-0.30, 0.30]) {
+          // Floor base escutcheon ring
+          cyl('metal', sx, 0.015, 0, 0.11, 0.03, 0.11, '#e2e8f0');
+          // Vertical square friction spigot clamp body
+          box('metal', sx, 0.14, 0, 0.065, 0.24, 0.085, '#cbd5e1');
+          // Internal black silicone glass compression cushion
+          box('dark', sx, 0.16, 0, 0.068, 0.18, 0.032, '#0f172a');
         }
-        // Thick clear tempered safety glass panel
-        box('glass', 0, 0.56, 0, 0.96, 0.84, 0.02, '#38bdf8');
-        box('metal', 0, 0.98, 0, 0.96, 0.015, 0.02, '#cbd5e1', true);          // top safety cap
+        // Thick clear tempered architectural safety glass panel
+        box('glass', 0, 0.58, 0, 0.96, 0.84, 0.025, '#38bdf8');
+        // Brushed stainless steel slim micro-top cap / handrail channel
+        box('metal', 0, 0.99, 0, 0.96, 0.02, 0.03, '#cbd5e1');
 
       } else if (/^ropefence$/i.test(t)) {
-        // Nautical Turned Timber Bollard Posts with Swaged Manila Hemp Rope (4x1 footprint)
-        for (const sx of [-0.44, 0.44]) {
-          cyl('wood', sx, 0.36, 0, 0.12, 0.72, 0.12, color || '#78350f');      // timber bollard
-          round('wood', sx, 0.72, 0, 0.14, 0.06, 0.14, '#592506');              // post cap
+        // Nautical Turned Timber Bollard Posts with Swaged Manila Hemp Ropes (4x1 footprint)
+        const bollardCol = color || '#78350f';
+        // 3 Grounded turned timber bollards (left, middle, right)
+        for (const sx of [-0.44, 0, 0.44]) {
+          cyl('wood', sx, 0.42, 0, 0.13, 0.84, 0.13, bollardCol);                // main bollard
+          round('wood', sx, 0.84, 0, 0.14, 0.07, 0.14, HP.shade(bollardCol, 0.85)); // rounded bollard top
+          cyl('dark', sx, 0.02, 0, 0.15, 0.04, 0.15, '#181b1e');                // ground collar
+          // Copper grommet collars for rope holes
+          cylZ('metal', sx, 0.64, 0, 0.065, 0.065, 0.14, '#c9a44e');
+          cylZ('metal', sx, 0.36, 0, 0.065, 0.065, 0.14, '#c9a44e');
         }
-        // Sagging 2-inch thick natural manila rope
-        cyl('fabric', 0, 0.52, 0, 0.04, 0.84, 0.04, '#fed7aa');
+        // Dual 2-inch natural manila hemp ropes running horizontally along X through bollards
+        // Upper rope at y=0.64
+        cylX('fabric', -0.22, 0.63, 0, 0.44, 0.042, 0.042, '#fed7aa');
+        cylX('fabric', 0.22, 0.63, 0, 0.44, 0.042, 0.042, '#fed7aa');
+        // Lower rope at y=0.36
+        cylX('fabric', -0.22, 0.35, 0, 0.44, 0.040, 0.040, '#fed7aa');
+        cylX('fabric', 0.22, 0.35, 0, 0.44, 0.040, 0.040, '#fed7aa');
 
       } else if (/^stoneedge$/i.test(t)) {
         // Rustic Granite Boulder River Rock Garden Bed Edge Curbing (4x1 footprint)
@@ -5834,9 +6103,29 @@ F.builder = function (group) {
         cyl('metal', 0.16, 0.88, 0, 0.10, 0.18, 0.10, '#cbd5e1', true);        // shaker
 
       } else if (/^petbed$/i.test(t)) {
-        // Orthopaedic Round Memory Foam Bolster Pet Bed with Plush Faux-Fur Lining (1x1 footprint)
-        cyl('fabric', 0, 0.16, 0, 0.88, 0.30, 0.88, color || '#64748b');      // outer bolster ring
-        cyl('fabric', 0, 0.14, 0, 0.68, 0.18, 0.68, '#f5f5f4');               // fluffy center cushion
+        // Luxury Orthopaedic Donut Bolster Pet Bed with Plush Sherpa Lining & Chew Toy (1x1 footprint)
+        // 1. Non-slip floor base pad & piped bottom perimeter
+        cyl('dark', 0, 0.02, 0, 0.90, 0.04, 0.90, '#1e293b');
+        cyl('fabric', 0, 0.05, 0, 0.92, 0.03, 0.92, HP.shade(color || '#64748b', 0.85)); // bottom piping
+        // 2. High plump bolster ring (back and sides)
+        cyl('fabric', 0, 0.20, -0.06, 0.88, 0.32, 0.82, color || '#64748b');
+        // Lowered front entrance scoop
+        box('fabric', 0, 0.12, 0.32, 0.44, 0.18, 0.24, color || '#64748b');
+        // 3. Sunken ultra-soft sherpa fleece sleeping cushion
+        cyl('fabric', 0, 0.14, 0, 0.66, 0.16, 0.66, '#faf5ee');
+        // Tufting indentation buttons on center cushion
+        for (const [tx, tz] of [[-0.12, -0.08], [0.12, -0.08], [0, 0.10]]) {
+          cyl('fabric', tx, 0.19, tz, 0.04, 0.02, 0.04, '#e2d9cc');
+        }
+        // 4. Stitched genuine leather brand patch with brass rivet on front side
+        box('wood', 0.28, 0.18, 0.36, 0.08, 0.05, 0.015, '#92400e', true);
+        cyl('metal', 0.28, 0.18, 0.37, 0.012, 0.012, 0.012, '#c9a44e', true);
+        // 5. Plush fabric bone chew toy nestled on the cushion
+        cylX('fabric', -0.10, 0.21, 0.08, 0.14, 0.04, 0.04, '#f87171');
+        round('fabric', -0.17, 0.21, 0.06, 0.04, 0.04, 0.04, '#ef4444');
+        round('fabric', -0.17, 0.21, 0.10, 0.04, 0.04, 0.04, '#ef4444');
+        round('fabric', -0.03, 0.21, 0.06, 0.04, 0.04, 0.04, '#ef4444');
+        round('fabric', -0.03, 0.21, 0.10, 0.04, 0.04, 0.04, '#ef4444');
 
       } else if (/^cattree$/i.test(t)) {
         // Multi-Level Luxury Cat Tree with Condo, Hammock, and Sisal Scratching Posts (1x1 footprint)
@@ -6273,9 +6562,12 @@ F.builder = function (group) {
         cyl('metal', 0, 0.73, 0, 0.16, 0.04, 0.16, '#c9a44e');                  // central hub
         cyl('metal', 0, 0.77, 0, 0.08, 0.06, 0.08, '#c9a44e');                  // socket base
         cyl('glow', 0, 0.83, 0, 0.14, 0.14, 0.14, '#fef08a');                  // glowing LED bulb
-        // Decorative braided cable dangling down
-        cyl('dark', 0.03, 0.36, 0.03, 0.02, 0.70, 0.02, '#334155');            // woven drop cord
+        // Decorative braided cable dangling down and connecting to floor inline switch
+        boxSlope('dark', 0, 0.72, 0, 0.03, 0.15, 0.03, 0.02, 0.02, '#334155'); // upper drop cord
+        boxSlope('dark', 0.03, 0.15, 0.03, 0.08, 0.015, 0.10, 0.02, 0.02, '#334155'); // lead-in to foot switch
         box('dark', 0.08, 0.015, 0.10, 0.08, 0.03, 0.06, '#1e293b');           // inline foot switch on floor
+        cyl('metal', 0.08, 0.035, 0.10, 0.025, 0.015, 0.025, '#c9a44e', true);  // brass foot tap button
+        boxSlope('dark', 0.08, 0.015, 0.10, 0.14, 0.005, 0.22, 0.018, 0.018, '#334155'); // tail to wall plug
         // 3. Wide coarse-weave textured linen drum shade with internal diffuser
         cyl('fabric', 0, 0.88, 0, 0.58, 0.34, 0.58, '#faf5ee');                // outer linen drum
         cyl('fabric', 0, 0.88, 0, 0.54, 0.33, 0.54, '#fffbeb');                // inner translucent diffusing liner
@@ -6553,9 +6845,27 @@ F.builder = function (group) {
         round('foliage', 0, 0.84, 0, 0.58, 0.42, 0.58, '#16a34a');
 
       } else if (/^flmagrack$/i.test(t)) {
-        // Curved Brass Wire & Saddle Leather Sling Magazine Rack
-        box('metal', 0, 0.24, 0, 0.76, 0.48, 0.52, '#c9a44e', true);           // brass wire cage
-        box('fabric', 0, 0.26, 0, 0.68, 0.36, 0.44, color || '#92400e');       // leather sling
+        // Mid-Century Modern Brass A-Frame & Saddle Leather Magazine Rack with Periodicals
+        // 1. Slender angled brass wire A-frame legs with cross-stretchers
+        boxSlope('metal', -0.32, 0.02, -0.18, -0.32, 0.44, 0, 0.022, 0.022, '#c9a44e', true);
+        boxSlope('metal', -0.32, 0.02, 0.18, -0.32, 0.44, 0, 0.022, 0.022, '#c9a44e', true);
+        boxSlope('metal', 0.32, 0.02, -0.18, 0.32, 0.44, 0, 0.022, 0.022, '#c9a44e', true);
+        boxSlope('metal', 0.32, 0.02, 0.18, 0.32, 0.44, 0, 0.022, 0.022, '#c9a44e', true);
+        // Top horizontal brass rails
+        cylX('metal', 0, 0.44, -0.16, 0.70, 0.022, 0.022, '#c9a44e', true);
+        cylX('metal', 0, 0.44, 0.16, 0.70, 0.022, 0.022, '#c9a44e', true);
+        // Arched center carrying handle
+        cylX('metal', 0, 0.54, 0, 0.28, 0.022, 0.022, '#c9a44e', true);
+        boxSlope('metal', -0.14, 0.44, 0, -0.14, 0.54, 0, 0.02, 0.02, '#c9a44e', true);
+        boxSlope('metal', 0.14, 0.44, 0, 0.14, 0.54, 0, 0.02, 0.02, '#c9a44e', true);
+        // 2. Saddle leather sling suspended between rails
+        box('fabric', 0, 0.22, 0, 0.64, 0.28, 0.30, color || '#92400e');
+        box('dark', 0, 0.14, 0, 0.62, 0.08, 0.22, '#451a03'); // inner cavity shadow
+        // 3. Staggered architectural & design magazines protruding
+        boxRot('fabric', -0.12, 0.32, -0.04, 0.24, 0.34, 0.025, -0.15, '#f8fafc');
+        boxRot('dark', -0.12, 0.32, -0.02, 0.22, 0.32, 0.005, -0.15, '#0284c7');
+        boxRot('fabric', 0.10, 0.34, 0.03, 0.24, 0.36, 0.025, 0.12, '#f8fafc');
+        boxRot('dark', 0.10, 0.34, 0.05, 0.22, 0.34, 0.005, 0.12, '#ea580c');
 
       } else if (/^flwinerack$/i.test(t)) {
         // Geometric 12-Bottle Metal Floor Wine Rack with Wine Bottles
@@ -6600,9 +6910,23 @@ F.builder = function (group) {
         }
 
       } else if (/^flvase$/i.test(t)) {
-        // Tall Sculptural Ceramic Floor Amphora Vase
-        cyl('ceramic', 0, 0.46, 0, 0.48, 0.90, 0.48, color || '#e2e8f0');
-        cyl('ceramic', 0, 0.93, 0, 0.24, 0.10, 0.24, color || '#e2e8f0');
+        // Luxury Classical Ceramic Floor Amphora Vase with Dried Pampas & Eucalyptus Plumes
+        // 1. Stepped ceramic foot base
+        cyl('ceramic', 0, 0.05, 0, 0.42, 0.10, 0.42, color || '#e2e8f0');
+        // 2. Sculptural amphora vase body & flared rolled rim
+        round('ceramic', 0, 0.38, 0, 0.56, 0.56, 0.56, color || '#e2e8f0');
+        cyl('ceramic', 0, 0.68, 0, 0.32, 0.20, 0.32, color || '#e2e8f0');
+        cyl('ceramic', 0, 0.80, 0, 0.40, 0.08, 0.40, HP.shade(color || '#e2e8f0', 1.05));
+        cyl('dark', 0, 0.83, 0, 0.28, 0.02, 0.28, '#1e293b');                  // mouth opening
+        // Twin sculptural ceramic amphora handles
+        boxSlope('ceramic', -0.27, 0.50, 0, -0.22, 0.70, 0, 0.035, 0.035, color || '#e2e8f0');
+        boxSlope('ceramic', 0.27, 0.50, 0, 0.22, 0.70, 0, 0.035, 0.035, color || '#e2e8f0');
+        // 3. Tall dried pampas plumes & eucalyptus stems emerging from vase mouth
+        cyl('wood', -0.04, 0.96, -0.02, 0.015, 0.28, 0.015, '#a16207');
+        cyl('wood', 0.05, 1.00, 0.03, 0.015, 0.34, 0.015, '#a16207');
+        round('fabric', -0.06, 1.14, -0.03, 0.16, 0.28, 0.16, '#fef3c7');       // fluffy beige pampas plume
+        round('fabric', 0.07, 1.20, 0.04, 0.18, 0.32, 0.18, '#fed7aa');        // golden pampas plume
+        round('foliage', 0.02, 1.02, -0.05, 0.14, 0.20, 0.14, '#65a30d');      // dried eucalyptus sprig
 
       } else if (/^fllantern$/i.test(t)) {
         // Architectural Oversized Grand Hurricane Floor Lantern with Trio of Pillar Candles
@@ -6637,21 +6961,40 @@ F.builder = function (group) {
         round('stone', 0, 0.74, 0, 0.24, 0.28, 0.24, color || '#fafaf8');      // head & hair
 
       } else if (/^stcolumn$/i.test(t)) {
-        // Contemporary Spiraling Mobius Twist Bronze Gallery Sculpture
-        box('stone', 0, 0.10, 0, 0.48, 0.20, 0.48, '#1e293b');                 // black plinth
-        cyl('metal', 0, 0.56, 0, 0.26, 0.74, 0.26, color || '#c9a44e', true);  // bronze twist
+        // Contemporary Bronze Helix Ribbon Gallery Sculpture on Nero Marquina Marble Plinth
+        box('stone', 0, 0.08, 0, 0.48, 0.16, 0.48, '#0f172a');                 // black marble plinth
+        box('metal', 0, 0.165, 0, 0.44, 0.015, 0.44, '#c9a44e', true);         // brass inlay border
+        cyl('metal', 0, 0.22, 0, 0.06, 0.10, 0.06, '#c9a44e', true);          // mounting stalk
+        // Interlocking twisted bronze geometric rings
+        boxRot('metal', 0, 0.42, 0, 0.28, 0.28, 0.05, 0.38, color || '#c9a44e', true);
+        boxRot('metal', 0, 0.60, 0, 0.32, 0.32, 0.05, -0.42, color || '#c9a44e', true);
+        boxRot('metal', 0, 0.78, 0, 0.24, 0.24, 0.05, 0.50, color || '#c9a44e', true);
+        round('metal', 0, 0.92, 0, 0.08, 0.08, 0.08, '#f59e0b', true);         // polished apex sphere
 
       } else if (/^stceramic$/i.test(t)) {
-        // Modernist Minimalist Abstract Ceramic Figure
-        round('ceramic', 0, 0.34, 0, 0.38, 0.66, 0.34, color || '#ffffff');
-        round('ceramic', 0, 0.74, 0, 0.22, 0.22, 0.22, color || '#ffffff');
+        // Modernist Organic Biomorphic Ceramic Sculpture on Smoked Oak Plinth
+        box('wood', 0, 0.10, 0, 0.42, 0.20, 0.42, '#2c1e14');                  // smoked oak pedestal
+        cyl('metal', 0, 0.22, 0, 0.03, 0.06, 0.03, '#94a3b8', true);          // stainless steel mount rod
+        round('ceramic', 0, 0.52, 0, 0.44, 0.56, 0.24, color || '#fafaf8');    // organic sculpted loop
+        cyl('dark', 0, 0.52, 0, 0.18, 0.26, 0.18, '#1e293b', true);            // negative space opening
+        round('ceramic', 0, 0.82, 0, 0.22, 0.26, 0.18, color || '#fafaf8');
 
       } else if (/^stfount$/i.test(t)) {
-        // Cascading Slate Rock & Bamboo Tabletop Zen Water Fountain
-        cyl('stone', 0, 0.18, 0, 0.68, 0.34, 0.68, '#334155');                 // slate basin
-        cyl('water', 0, 0.26, 0, 0.62, 0.02, 0.62, '#38bdf8');
-        cyl('wood', -0.16, 0.46, -0.16, 0.04, 0.38, 0.04, '#fed7aa');          // bamboo spout
-        round('glow', 0, 0.28, 0, 0.06, 0.06, 0.06, '#ffffff');                // water plume
+        // Multi-Tier Slate Rock & Bamboo Tabletop Zen Fountain
+        cyl('stone', 0, 0.12, 0, 0.72, 0.24, 0.72, '#1e293b');                 // dark slate basin
+        cyl('water', 0, 0.19, 0, 0.66, 0.02, 0.66, '#38bdf8');                 // rippling pool
+        // River stones in basin
+        round('stone', -0.18, 0.21, 0.12, 0.12, 0.06, 0.10, '#475569');
+        round('stone', 0.16, 0.21, -0.14, 0.14, 0.07, 0.11, '#64748b');
+        round('stone', 0.02, 0.21, 0.18, 0.10, 0.05, 0.09, '#334155');
+        // Tiered natural slate ledges
+        box('stone', -0.08, 0.28, -0.10, 0.36, 0.08, 0.32, '#334155');
+        box('stone', -0.10, 0.40, -0.12, 0.26, 0.08, 0.24, '#1e293b');
+        box('water', -0.04, 0.29, 0.04, 0.16, 0.12, 0.02, '#60a5fa');          // cascade spill sheet
+        // Natural bamboo water chute (shishi-odoshi)
+        cyl('wood', -0.18, 0.52, -0.18, 0.05, 0.38, 0.05, '#fed7aa');
+        cylX('wood', -0.06, 0.58, -0.18, 0.22, 0.04, 0.04, '#fed7aa');
+        round('glow', 0, 0.20, 0, 0.08, 0.04, 0.08, '#fef08a');                 // warm underwater LED glow
 
       } else if (/^shoji$/i.test(t)) {
         // Luxury Folding Japanese Shoji Byobu Screen (Taller than human: 50px tall, multi-panel)
@@ -6700,9 +7043,25 @@ F.builder = function (group) {
         }
 
       } else if (/^tapestry$/i.test(t)) {
-        // Bohemian Woven Macrame Yarn Wall Tapestry on Driftwood (2x1 footprint)
-        cyl('wood', 0, 0.94, -0.40, 0.03, 0.92, 0.03, '#fed7aa');              // driftwood branch
-        box('fabric', 0, 0.54, -0.40, 0.82, 0.76, 0.02, color || '#f5f5f4');  // macrame body
+        // Bohemian Handwoven Macrame Wall Tapestry on Driftwood (2x1 footprint)
+        // 1. Natural weathered driftwood branch hung horizontally
+        cylX('wood', 0, 0.94, -0.40, 0.92, 0.035, 0.035, '#fed7aa');
+        // Brass wall anchor peg & twisted suspension rope triangle
+        cyl('metal', 0, 1.08, -0.41, 0.02, 0.04, 0.02, '#c9a44e', true);
+        boxSlope('fabric', -0.42, 0.94, -0.40, 0, 1.08, -0.40, 0.015, 0.015, '#d4c5b9');
+        boxSlope('fabric', 0.42, 0.94, -0.40, 0, 1.08, -0.40, 0.015, 0.015, '#d4c5b9');
+        // 2. Thick woven natural cotton macrame body with geometric chevron motifs
+        box('fabric', 0, 0.62, -0.40, 0.84, 0.58, 0.02, color || '#fdfbf7');
+        boxRot('fabric', -0.18, 0.66, -0.39, 0.36, 0.04, 0.01, 0.35, '#d97706');
+        boxRot('fabric', 0.18, 0.66, -0.39, 0.36, 0.04, 0.01, -0.35, '#d97706');
+        boxRot('fabric', -0.18, 0.54, -0.39, 0.36, 0.04, 0.01, 0.35, '#0284c7');
+        boxRot('fabric', 0.18, 0.54, -0.39, 0.36, 0.04, 0.01, -0.35, '#0284c7');
+        // 3. Staggered fringe tassels dangling from bottom edge
+        for (let t = 0; t < 9; t++) {
+          const tx = -0.36 + t * 0.09;
+          const th = 0.16 + (4 - Math.abs(t - 4)) * 0.04;
+          cyl('fabric', tx, 0.33 - th / 2, -0.40, 0.025, th, 0.025, '#faf5ee');
+        }
 
       } else if (/canopy/i.test(t)) {
         // Luxury 4-Poster Canopy Bed (4x4 footprint, architectural matte black steel / solid oak posts rising to full y=1.0 = 52px, draped sheer canopy, upholstered headboard, plush layered bedding)
@@ -8181,8 +8540,8 @@ F.builder = function (group) {
         // Hollow cabinet body for sink cavity
         box('wood', 0, 0.09, 0.03, 0.94, 0.05, 0.88, HP.shade(color, 0.7));
         box('wood', 0, 0.48, -0.39, 0.94, 0.74, 0.04, HP.shade(color, 0.7));
-        box('wood', -0.45, 0.48, 0.03, 0.04, 0.74, 0.88, HP.shade(color, 0.8));
-        box('wood', 0.45, 0.48, 0.03, 0.04, 0.74, 0.88, HP.shade(color, 0.8));
+        box('wood', -0.46, 0.48, 0.03, 0.04, 0.74, 0.88, HP.shade(color, 0.8));
+        box('wood', 0.46, 0.48, 0.03, 0.04, 0.74, 0.88, HP.shade(color, 0.8));
 
         // Quartz countertop with undermount cutout (centered)
         box('ceramic', -0.39, 0.964, 0, 0.20, 0.072, 0.98, '#fafaf8');        // left rim
@@ -8190,12 +8549,12 @@ F.builder = function (group) {
         box('ceramic', 0, 0.964, -0.395, 0.58, 0.072, 0.19, '#fafaf8');        // back deck
         box('ceramic', 0, 0.964, 0.415, 0.58, 0.072, 0.15, '#fafaf8');         // front rim
 
-        // Cabinet Front: top false panel + double cabinet doors
+        // Cabinet Front: top false panel + double cabinet doors (flush to outer cabinet side edges)
         box('dark', 0, 0.885, 0.455, 0.94, 0.03, 0.03, '#202328');
-        box('wood', 0, 0.77, 0.46, 0.92, 0.20, 0.025, color);
-        box('wood', -0.24, 0.41, 0.465, 0.44, 0.48, 0.025, color);
+        box('wood', 0, 0.77, 0.46, 0.94, 0.20, 0.025, color);
+        box('wood', -0.235, 0.41, 0.465, 0.46, 0.48, 0.025, color);
         box('metal', -0.05, 0.58, 0.475, 0.015, 0.14, 0.015, '#c5ccd2', true);
-        box('wood', 0.24, 0.41, 0.465, 0.44, 0.48, 0.025, color);
+        box('wood', 0.235, 0.41, 0.465, 0.46, 0.48, 0.025, color);
         box('metal', 0.05, 0.58, 0.475, 0.015, 0.14, 0.015, '#c5ccd2', true);
 
         // Deep rectangular pristine white porcelain basin
@@ -8359,37 +8718,37 @@ F.builder = function (group) {
         box('ceramic', -0.48, 0.50, 0, 0.04, 1.0, 0.98, '#fafaf8');  // left waterfall slab
         box('ceramic', 0.48, 0.50, 0, 0.04, 1.0, 0.98, '#fafaf8');   // right waterfall slab
 
-        // 2. Quartz Countertop Frame with Undermount Cutout
+        // 2. Quartz Countertop Frame with Undermount Cutout (perfectly seamless to waterfall slabs)
         // Countertop top is at y=1.0, thickness is 0.072 (1.8px), extends from y=0.928 to 1.0
-        // Cutout: x in [-0.377, 0.017], z in [-0.30, 0.34]
-        box('ceramic', 0.24, 0.964, 0, 0.44, 0.072, 0.98, '#fafaf8');         // right prep / food prep slab
-        box('ceramic', -0.418, 0.964, 0, 0.082, 0.072, 0.98, '#fafaf8');       // left rim
-        box('ceramic', -0.18, 0.964, -0.395, 0.395, 0.072, 0.19, '#fafaf8');   // back rim (faucet deck)
-        box('ceramic', -0.18, 0.964, 0.415, 0.395, 0.072, 0.15, '#fafaf8');    // front rim
+        // Left slab meets at x = -0.46, right slab meets at x = +0.46
+        box('ceramic', 0.23, 0.964, 0, 0.46, 0.072, 0.98, '#fafaf8');          // right food prep slab
+        box('ceramic', -0.405, 0.964, 0, 0.11, 0.072, 0.98, '#fafaf8');        // left rim
+        box('ceramic', -0.175, 0.964, -0.395, 0.35, 0.072, 0.19, '#fafaf8');   // back rim (faucet deck)
+        box('ceramic', -0.175, 0.964, 0.415, 0.35, 0.072, 0.15, '#fafaf8');    // front rim
 
         // 3. Recessed Base Plinth & Cabinet Body (Hollow Sink Cavity - NO WOOD INTRUSION!)
-        box('dark', 0, 0.035, 0.04, 0.88, 0.07, 0.82, '#181b1e');             // dark recessed plinth
+        box('dark', 0, 0.035, 0.04, 0.90, 0.07, 0.82, '#181b1e');             // dark recessed plinth
         // Right cabinet body (solid under prep slab)
-        box('wood', 0.24, 0.48, 0.03, 0.44, 0.82, 0.82, color);
+        box('wood', 0.23, 0.48, 0.03, 0.46, 0.82, 0.82, color);
         // Left cabinet body (open cavity for sink, walls only)
         box('wood', -0.18, 0.09, 0.03, 0.46, 0.05, 0.82, HP.shade(color, 0.7)); // low cabinet floor shelf
         box('wood', -0.18, 0.48, -0.39, 0.46, 0.74, 0.04, HP.shade(color, 0.7));// back cabinet wall
-        box('wood', 0.02, 0.48, 0.03, 0.03, 0.74, 0.82, HP.shade(color, 0.8));  // internal divider wall
-        box('wood', -0.45, 0.48, 0.03, 0.03, 0.74, 0.82, HP.shade(color, 0.8)); // left internal wall
+        box('wood', 0.00, 0.48, 0.03, 0.03, 0.74, 0.82, HP.shade(color, 0.8));   // internal divider wall
+        box('wood', -0.45, 0.48, 0.03, 0.02, 0.74, 0.82, HP.shade(color, 0.8)); // left internal wall
 
-        // 4. Cabinet Fronts: Right Drawers & Left Sink False Panel + Doors
-        box('dark', 0, 0.885, 0.452, 0.88, 0.03, 0.02, '#202328');            // top shadow reveal gap
+        // 4. Cabinet Fronts: Right Drawers & Left Sink False Panel + Doors (seamlessly spans from -0.46 to +0.46)
+        box('dark', 0, 0.885, 0.452, 0.92, 0.03, 0.02, '#202328');            // top shadow reveal gap
         // Left (sink cabinet): top false drawer panel + double bottom doors
-        box('wood', -0.18, 0.77, 0.46, 0.43, 0.20, 0.025, color);
-        box('metal', -0.18, 0.855, 0.472, 0.32, 0.015, 0.015, '#c5ccd2', true);
-        box('wood', -0.292, 0.41, 0.46, 0.205, 0.48, 0.025, color);
-        box('metal', -0.20, 0.58, 0.472, 0.015, 0.14, 0.015, '#c5ccd2', true);
-        box('wood', -0.068, 0.41, 0.46, 0.205, 0.48, 0.025, color);
-        box('metal', -0.16, 0.58, 0.472, 0.015, 0.14, 0.015, '#c5ccd2', true);
+        box('wood', -0.23, 0.77, 0.46, 0.455, 0.20, 0.025, color);
+        box('metal', -0.23, 0.855, 0.472, 0.32, 0.015, 0.015, '#c5ccd2', true);
+        box('wood', -0.342, 0.41, 0.46, 0.225, 0.48, 0.025, color);
+        box('metal', -0.24, 0.58, 0.472, 0.015, 0.14, 0.015, '#c5ccd2', true);
+        box('wood', -0.117, 0.41, 0.46, 0.225, 0.48, 0.025, color);
+        box('metal', -0.22, 0.58, 0.472, 0.015, 0.14, 0.015, '#c5ccd2', true);
         // Right: 3 full-extension storage drawers
         for (const [dy, dh] of [[0.77, 0.20], [0.52, 0.26], [0.23, 0.26]]) {
-          box('wood', 0.24, dy, 0.46, 0.43, dh, 0.025, color);
-          box('metal', 0.24, dy + dh * 0.4, 0.472, 0.30, 0.015, 0.015, '#c5ccd2', true);
+          box('wood', 0.23, dy, 0.46, 0.455, dh, 0.025, color);
+          box('metal', 0.23, dy + dh * 0.4, 0.472, 0.32, 0.015, 0.015, '#c5ccd2', true);
         }
 
         // 5. Deep Rectangular Pristine White Porcelain Basin

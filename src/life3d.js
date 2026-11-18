@@ -73,9 +73,9 @@ function addFan(cx, cz) {
   group.add(g);
   spinners.push({ obj: blades, speed: 7 });
 }
-function addClock(cx, cz, rot, w, off, isHung) {
+function addClock(cx, cz, rot, w, off, isHung, customR) {
   const g = new THREE.Group();
-  const r = Math.min(w, 26) * 0.42;
+  const r = customR !== undefined ? customR : Math.min(w, 26) * 0.42;
   const darkCase = std('#2c221e');
   const woodCase = std('#5c3e26', { roughness: 0.5 });
   const goldMetal = std('#c9a44e', { metalness: 0.8, roughness: 0.25 });
@@ -513,7 +513,13 @@ L.build = function (g, entries) {
         else if (hang === 'e') mx = (f.x + f.w) * C() - IN;
         addClock(mx, mz, rot, w, 0.4, true);
       } else {
-        addClock(cx, cz, rot, w, dep * 0.275 + 0.3, false);
+        const def = HP.itemDef ? HP.itemDef(it.type) : null;
+        const unrotW = Math.max(3, ((it.w || (def && def.w) || 1)) * C() - 3);
+        const unrotH = Math.max(3, ((it.h || (def && def.h) || 1)) * C() - 3);
+        const isGrand = /^clock$|clkgrand|grandfather/i.test(t);
+        const dialRadius = isGrand ? unrotW * 0.28 : Math.min(unrotW, 26) * 0.42;
+        const dialOffset = isGrand ? unrotH * 0.26 + 0.3 : unrotH * 0.275 + 0.3;
+        addClock(cx, cz, it.rot || 0, unrotW, dialOffset, false, dialRadius);
       }
     }
     else if (/walltv|sconce/.test(t)) {
