@@ -812,11 +812,22 @@ body.playing #edit-panel { display: none; }
 /* ==========================================================================
    3D IN-PAGE WALKTHROUGH VIEWPORT OVERLAY
    ========================================================================== */
+html.in-3d, body.in-3d {
+  background: #0e1216 !important;
+  background-color: #0e1216 !important;
+}
+
 #view3d-wrap {
   position: fixed;
   inset: 0;
-  width: 100vw;
-  height: 100vh;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  width: 100%;
+  height: 100%;
+  width: 100dvw;
+  height: 100dvh;
   z-index: 999;
   background: #0e1216;
   overflow: hidden;
@@ -969,14 +980,14 @@ body.playing #edit-panel { display: none; }
 }
 #view3d-wrap #stickL {
   position: absolute;
-  left: 26px;
-  bottom: 30px;
+  left: max(24px, env(safe-area-inset-left));
+  bottom: max(28px, env(safe-area-inset-bottom));
   width: 96px;
   height: 96px;
   border-radius: 50%;
   border: 2px solid rgba(255, 255, 255, .25);
   background: rgba(20, 26, 32, .35);
-  z-index: 10;
+  z-index: 20;
   display: none;
 }
 #view3d-wrap #stickL-nub {
@@ -991,25 +1002,78 @@ body.playing #edit-panel { display: none; }
 }
 #view3d-wrap #jumpBtn {
   position: absolute;
-  right: 26px;
-  bottom: 44px;
-  width: 72px;
-  height: 72px;
+  right: max(24px, env(safe-area-inset-right));
+  bottom: max(32px, env(safe-area-inset-bottom));
+  width: 68px;
+  height: 68px;
   border-radius: 50%;
-  border: 2px solid rgba(255, 255, 255, .25);
-  background: rgba(20, 26, 32, .35);
-  z-index: 10;
+  border: 2px solid rgba(255, 255, 255, .32);
+  background: rgba(15, 23, 42, .65);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, .4);
+  z-index: 25;
   display: none;
   align-items: center;
   justify-content: center;
   color: #fff;
-  font: 700 13px system-ui;
+  font: 700 13px system-ui, -apple-system, sans-serif;
+  letter-spacing: .5px;
+  cursor: pointer;
+  user-select: none;
+  -webkit-user-select: none;
+  touch-action: manipulation;
+  transition: transform .1s, background .15s, border-color .15s;
+}
+#view3d-wrap #jumpBtn:active {
+  transform: scale(.92);
+  background: rgba(56, 189, 248, .45);
+  border-color: #38bdf8;
+}
+#view3d-wrap #runBtn {
+  position: absolute;
+  right: max(24px, env(safe-area-inset-right));
+  bottom: max(112px, calc(env(safe-area-inset-bottom) + 80px));
+  width: 60px;
+  height: 60px;
+  border-radius: 50%;
+  border: 2px solid rgba(255, 255, 255, .32);
+  background: rgba(15, 23, 42, .65);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, .4);
+  z-index: 25;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  font: 700 12px system-ui, -apple-system, sans-serif;
+  letter-spacing: .5px;
+  cursor: pointer;
+  user-select: none;
+  -webkit-user-select: none;
+  touch-action: manipulation;
+  transition: transform .1s, background .15s, border-color .15s, color .15s;
+}
+#view3d-wrap #runBtn.active {
+  background: rgba(56, 189, 248, .55);
+  border-color: #38bdf8;
+  color: #38bdf8;
+  box-shadow: 0 0 16px rgba(56, 189, 248, .5);
+}
+#view3d-wrap #runBtn:active {
+  transform: scale(.92);
 }
 @media (pointer: coarse) {
   #view3d-wrap #stickL { display: block; }
   #view3d-wrap #hint { display: none; }
-  #view3d-wrap.touch-controls #jumpBtn { display: flex; }
+  #view3d-wrap #jumpBtn { display: flex; }
+  #view3d-wrap #runBtn { display: flex; }
 }
+#view3d-wrap.touch-controls #stickL { display: block; }
+#view3d-wrap.touch-controls #hint { display: none; }
+#view3d-wrap.touch-controls #jumpBtn { display: flex; }
+#view3d-wrap.touch-controls #runBtn { display: flex; }
 #view3d-wrap #coop-emotes {
   position: absolute;
   bottom: 14px;

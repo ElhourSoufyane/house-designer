@@ -14,8 +14,8 @@
     "backgroundColor": "#1e1b4b"
   },
   "ios": {
-    "backgroundColor": "#1e1b4b",
-    "contentInset": "always"
+    "backgroundColor": "#0e1216",
+    "contentInset": "never"
   },
   "plugins": {
     "SplashScreen": {

@@ -34,11 +34,18 @@
   #overlay h1{margin:0;font-size:30px;font-weight:700;letter-spacing:.5px}
   #overlay p{margin:0;font-size:15px;opacity:.8}
   #overlay .keys{font-size:13px;opacity:.6;margin-top:10px;line-height:1.9;text-align:center}
-  #stickL{position:fixed;left:26px;bottom:30px;width:96px;height:96px;border-radius:50%;border:2px solid rgba(255,255,255,.25);background:rgba(20,26,32,.35);z-index:10;display:none}
+  #stickL{position:fixed;left:max(24px,env(safe-area-inset-left));bottom:max(28px,env(safe-area-inset-bottom));width:96px;height:96px;border-radius:50%;border:2px solid rgba(255,255,255,.25);background:rgba(20,26,32,.35);z-index:10;display:none}
   #stickL-nub{position:absolute;left:50%;top:50%;width:40px;height:40px;margin:-20px 0 0 -20px;border-radius:50%;background:rgba(255,255,255,.35)}
-  #jumpBtn{position:fixed;right:26px;bottom:44px;width:72px;height:72px;border-radius:50%;border:2px solid rgba(255,255,255,.25);background:rgba(20,26,32,.35);z-index:10;display:none;align-items:center;justify-content:center;color:#fff;font:700 13px system-ui;user-select:none;-webkit-user-select:none}
-  @media (pointer:coarse){ #stickL{display:block} #hint{display:none} }
+  #jumpBtn{position:fixed;right:max(24px,env(safe-area-inset-right));bottom:max(32px,env(safe-area-inset-bottom));width:68px;height:68px;border-radius:50%;border:2px solid rgba(255,255,255,.32);background:rgba(15,23,42,.65);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);box-shadow:0 4px 14px rgba(0,0,0,.4);z-index:25;display:none;align-items:center;justify-content:center;color:#fff;font:700 13px system-ui,-apple-system,sans-serif;letter-spacing:.5px;cursor:pointer;user-select:none;-webkit-user-select:none;touch-action:manipulation;transition:transform .1s,background .15s,border-color .15s}
+  #jumpBtn:active{transform:scale(.92);background:rgba(56,189,248,.45);border-color:#38bdf8}
+  #runBtn{position:fixed;right:max(24px,env(safe-area-inset-right));bottom:max(112px,calc(env(safe-area-inset-bottom) + 80px));width:60px;height:60px;border-radius:50%;border:2px solid rgba(255,255,255,.32);background:rgba(15,23,42,.65);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);box-shadow:0 4px 14px rgba(0,0,0,.4);z-index:25;display:none;align-items:center;justify-content:center;color:#fff;font:700 12px system-ui,-apple-system,sans-serif;letter-spacing:.5px;cursor:pointer;user-select:none;-webkit-user-select:none;touch-action:manipulation;transition:transform .1s,background .15s,border-color .15s,color .15s}
+  #runBtn.active{background:rgba(56,189,248,.55);border-color:#38bdf8;color:#38bdf8;box-shadow:0 0 16px rgba(56,189,248,.5)}
+  #runBtn:active{transform:scale(.92)}
+  @media (pointer:coarse){ #stickL{display:block} #hint{display:none} #jumpBtn{display:flex} #runBtn{display:flex} }
+  .touch-controls #stickL{display:block}
+  .touch-controls #hint{display:none}
   .touch-controls #jumpBtn{display:flex}
+  .touch-controls #runBtn{display:flex}
   #audit{position:fixed;top:max(56px,calc(env(safe-area-inset-top) + 48px));left:max(14px,env(safe-area-inset-left));z-index:60;width:min(320px,calc(100vw - 28px));max-height:70vh;overflow:auto;background:rgba(15,23,42,.95);border:1px solid rgba(255,255,255,.2);border-radius:14px;padding:14px;color:#f8fafc;font:12.5px/1.5 system-ui,sans-serif;box-shadow:0 16px 40px rgba(0,0,0,.6);backdrop-filter:blur(16px);display:none}
   #audit h3{margin:0 0 8px;font-size:14px}
   #audit .chk{display:flex;gap:8px;margin:7px 0;align-items:flex-start}
@@ -164,7 +171,8 @@
 <div id="hint" class="hud">WASD move · mouse look · Shift run · Space jump · E door · Esc release</div>
 <div id="prompt" class="hud" role="button" tabindex="0"></div>
 <div id="stickL"><div id="stickL-nub"></div></div>
-<div id="jumpBtn">JUMP</div>
+<button id="runBtn" type="button" aria-label="Run / Sprint">🏃 RUN</button>
+<button id="jumpBtn" type="button" aria-label="Jump">JUMP</button>
 <div id="audit"></div>
 
 <div id="overlay">
@@ -182,9 +190,35 @@
 </div>
 
 <script>
-  document.getElementById('jumpBtn').addEventListener('touchstart', e => {
-    e.preventDefault(); if (HP.walk3d && HP.walk3d.doJump) HP.walk3d.doJump();
-  }, { passive: false });
+  (function () {
+    const jumpBtn = document.getElementById('jumpBtn');
+    if (jumpBtn) {
+      const triggerJump = (e) => {
+        e.preventDefault(); e.stopPropagation();
+        if (HP.walk3d && HP.walk3d.doJump) HP.walk3d.doJump();
+      };
+      jumpBtn.addEventListener('touchstart', triggerJump, { passive: false });
+      jumpBtn.addEventListener('click', triggerJump);
+    }
+    const runBtn = document.getElementById('runBtn');
+    if (runBtn) {
+      const updateRunUI = () => {
+        const isRunning = HP.walk3d && HP.walk3d.running;
+        runBtn.classList.toggle('active', !!isRunning);
+        runBtn.textContent = isRunning ? '⚡ RUN' : '🏃 RUN';
+      };
+      const toggleRun = (e) => {
+        e.preventDefault(); e.stopPropagation();
+        if (HP.walk3d && HP.walk3d.toggleRunning) {
+          HP.walk3d.toggleRunning();
+          updateRunUI();
+        }
+      };
+      runBtn.addEventListener('touchstart', toggleRun, { passive: false });
+      runBtn.addEventListener('click', toggleRun);
+      updateRunUI();
+    }
+  })();
 </script>
 
 <script src="lib/three.min.js"></script>

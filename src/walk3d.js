@@ -342,6 +342,9 @@ function doJump() {
   if (HP.sound3d) HP.sound3d.step(floorMat(), true);
 }
 K.doJump = doJump;
+K.running = false;
+K.setRunning = function (v) { K.running = !!v; };
+K.toggleRunning = function () { K.running = !K.running; return K.running; };
 const isTouch = () => matchMedia('(pointer:coarse)').matches || !!(HP.graphics3d && HP.graphics3d.touch);
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 function requestLock() {
@@ -842,7 +845,7 @@ function tick(t) {
     if (sitting) yaw = clampSittingYaw(yaw, sitting.sitYaw);
     const len = Math.hypot(mx, mz) || 1;
     if (len > 1) { mx /= len; mz /= len; }
-    const sp = (keys.ShiftLeft || keys.ShiftRight) ? RUN : SPEED;
+    const sp = (keys.ShiftLeft || keys.ShiftRight || K.running) ? RUN : SPEED;
     const run = sp === RUN;
     const fx = -Math.sin(yaw), fz = -Math.cos(yaw);
     const rx = Math.cos(yaw),  rz = -Math.sin(yaw);
