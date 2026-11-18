@@ -523,8 +523,8 @@ function setFlip(d, f) {
   else               d.pivot.position.x = f > 0 ? d.a.x0 : d.a.x1;
   const v  = (d.dep / 2 - 0.3) * f;
   const kv = (d.dep - 0.5) * f;
-  if (d.a.d === 'h') { d.leaf.position.z = v; d.knob.position.z = kv; }
-  else               { d.leaf.position.x = v; d.knob.position.x = kv; }
+  if (d.a.d === 'h') { d.leaf.position.z = v; if (d.knob && d.knob.parent === d.pivot) d.knob.position.z = kv; }
+  else               { d.leaf.position.x = v; if (d.knob && d.knob.parent === d.pivot) d.knob.position.x = kv; }
 }
 /* test both swing directions for an aperture; keep the roomier side —
    all leaves of a (double) door share the choice                   */

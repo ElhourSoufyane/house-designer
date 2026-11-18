@@ -1146,21 +1146,22 @@ function populateDoorLeaf(dp, a, leaves, li, span, s0, s1, post0, post1, leafMat
       vMuntin.castShadow = true;
       leaf.add(vMuntin);
 
-      // Contemporary lever handles on both sides (interior & exterior), centered on the stile
+      // Contemporary lever handles on both sides (interior & exterior), mounted flush on the latch stile
       knob = new THREE.Group();
+      const latchU = li === 0 ? (lw / 2 - stileW / 2) : (-lw / 2 + stileW / 2);
       const leverDir = li === 0 ? -1 : 1;
       for (const side of [-1, 1]) {
-        const sideZ = side * (dep / 2 + 0.15);
-        const rosette = new THREE.Mesh(box3d(1.4, 2.0, 0.3), hardwareMat);
+        const sideZ = side * (dep / 2 + 0.12);
+        const rosette = new THREE.Mesh(box3d(1.4, 2.0, 0.25), hardwareMat);
         setPos(rosette, 0, 0, sideZ);
         knob.add(rosette);
         const lever = new THREE.Mesh(box3d(3.0, 0.45, 0.45), hardwareMat);
-        setPos(lever, leverDir * 1.3, 0, sideZ + side * 0.25);
+        setPos(lever, leverDir * 1.3, 0, sideZ + side * 0.28);
         lever.castShadow = true;
         knob.add(lever);
       }
-      setPos(knob, (li === 0 ? lw - stileW / 2 : -lw + stileW / 2), 27, 0);
-      pivot.add(knob);
+      setPos(knob, latchU, 27 - lh / 2, 0);
+      leaf.add(knob);
     } else {
       // Classic 4-Panel Stile-and-Rail Door ('panel')
       const woodMat = HP.graphics3d ? HP.graphics3d.material('wood', '#f2ece2') : leafMat;
