@@ -1492,7 +1492,7 @@ const DP = {plank:dPlank,plankV:dPlankV,tiles:dTiles,check:dCheck,subway:dSubway
    s = world px per texture repeat (1 cell = 28px = 0.5 m).
    Patterns anchor at world origin → continuous across cells/rooms.
    Procedural painters stay as fallback until the image has loaded. */
-const TEX = {
+const TEX = Object.assign({}, HP.FLOOR_SCALES || {
   wood: 112, walnut: 112, tile: 84, carpet: 112, marble: 168, concrete: 112,
   parquet: 84, terracotta: 56, mosaic: 42, brick: 112,
   hextile: 112, pebble: 84, travertine: 84, granite: 112, cork: 56,
@@ -1500,12 +1500,14 @@ const TEX = {
   bamboo: 56, laminate: 112, whitewash: 112, herring: 112, lino: 84,
   sand: 140, dirt: 140, mulch: 84, flagstone: 160, onyx: 112, terrazzo: 84,
   grassE: 150,
-};
+});
 const _texImg = {}, _texPat = {}, _prevCvs = [];
 HP._texImg = _texImg;                                // debug/inspection
 // every colourway variant gets its own photo file: textures/<variantId>.jpg
-if (HP.FLOOR_MATS) for (const m of HP.FLOOR_MATS)
+if (HP.FLOOR_MATS) for (const m of HP.FLOOR_MATS) {
   if (m.fam && !TEX[m.id]) TEX[m.id] = TEX[m.fam] || 96;
+  if (HP.FLOOR_SCALES && m.fam && !HP.FLOOR_SCALES[m.id]) HP.FLOOR_SCALES[m.id] = HP.FLOOR_SCALES[m.fam] || 96;
+}
 
 const TEX_MAX = 256;                                 // working size — tiles draw at ~96px anyway
 const TEX_KEEP = 48, _texLRU = [];                   // cap decoded textures (mobile RAM)

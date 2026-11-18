@@ -78,6 +78,7 @@ fs.writeFileSync(path.join(stage, 'package.json'), JSON.stringify(runtimePkg, nu
 copyDir(path.join(root, 'assets'), path.join(stage, 'assets'));
 copyDir(path.join(root, 'lib'), path.join(stage, 'lib'));
 copyDir(path.join(root, 'src'), path.join(stage, 'src'));
+copyDir(path.join(root, 'textures'), path.join(stage, 'textures'));
 
 console.log('Staged clean app files in dist-src/. Running electron-packager...');
 

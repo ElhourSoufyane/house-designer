@@ -572,6 +572,71 @@ function texture(kind) {
       ctx.fillStyle = rand() > 0.7 ? 'rgba(215, 230, 140, 0.45)' : 'rgba(38, 52, 24, 0.35)';
       ctx.fillRect(rand() * size, rand() * size, 1.2, 1.8);
     }
+  } else if (kind === 'gravel') {
+    // Architectural river pebble & crushed limestone gravel walkway
+    ctx.fillStyle = '#b8b4aa'; // Sandy aggregate bed
+    ctx.fillRect(0, 0, size, size);
+    for (let i = 0; i < size * 16; i++) {
+      ctx.fillStyle = rand() > 0.5 ? 'rgba(255,255,255,0.22)' : 'rgba(50,45,40,0.14)';
+      ctx.fillRect(rand() * size, rand() * size, 1.2, 1.2);
+    }
+    const pebblePal = [
+      '#ded9cf', '#cfcac0', '#c2bcb0', '#b5afa3', '#e8e4dc',
+      '#a39d91', '#928c80', '#c8c2b7', '#ded8cd', '#b8b1a4'
+    ];
+    const pebbleCount = Math.min(size * 1.8, 1200);
+    for (let i = 0; i < pebbleCount; i++) {
+      const px = rand() * size, py = rand() * size;
+      const rx = 3.5 + rand() * 5.5, ry = rx * (0.7 + rand() * 0.5);
+      const rot = rand() * Math.PI;
+      const col = pebblePal[Math.floor(rand() * pebblePal.length)];
+      // Contact shadow
+      ctx.fillStyle = 'rgba(25,20,15,0.32)';
+      ctx.beginPath();
+      if (ctx.ellipse) ctx.ellipse(px + 1.2, py + 1.5, rx, ry, rot, 0, Math.PI * 2);
+      else ctx.arc(px + 1.2, py + 1.5, rx, 0, Math.PI * 2);
+      ctx.fill();
+      // Stone body
+      ctx.fillStyle = col;
+      ctx.beginPath();
+      if (ctx.ellipse) ctx.ellipse(px, py, rx, ry, rot, 0, Math.PI * 2);
+      else ctx.arc(px, py, rx, 0, Math.PI * 2);
+      ctx.fill();
+      // Highlight crest
+      ctx.fillStyle = 'rgba(255,255,255,0.28)';
+      ctx.beginPath();
+      if (ctx.ellipse) ctx.ellipse(px - rx * 0.25, py - ry * 0.25, rx * 0.55, ry * 0.5, rot, 0, Math.PI * 2);
+      else ctx.arc(px - rx * 0.25, py - ry * 0.25, rx * 0.5, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  } else if (kind === 'dirt') {
+    // Rich fertile dark landscaping soil / garden earth / tilth
+    ctx.fillStyle = '#4c3826';
+    ctx.fillRect(0, 0, size, size);
+    const dirtPal = ['#5a432f', '#6b5038', '#3e2d1d', '#533c29', '#322316', '#5e4632'];
+    if (ctx.createRadialGradient) {
+      for (let i = 0; i < 40; i++) {
+        const gx = rand() * size, gy = rand() * size, rad = 25 + rand() * 55;
+        try {
+          const grad = ctx.createRadialGradient(gx, gy, 3, gx, gy, rad);
+          grad.addColorStop(0, dirtPal[Math.floor(rand() * dirtPal.length)]);
+          grad.addColorStop(1, 'transparent');
+          ctx.fillStyle = grad;
+          ctx.beginPath(); ctx.arc(gx, gy, rad, 0, Math.PI * 2); ctx.fill();
+        } catch (_) {}
+      }
+    }
+    // Granular soil clods and organic particles
+    for (let i = 0; i < size * 22; i++) {
+      const gRand = rand();
+      ctx.fillStyle = gRand > 0.65 ? 'rgba(110,82,55,0.40)' : (gRand > 0.3 ? 'rgba(30,20,12,0.45)' : 'rgba(150,120,85,0.25)');
+      ctx.fillRect(rand() * size, rand() * size, 1.2 + rand() * 1.8, 1.2 + rand() * 1.8);
+    }
+    // Occasional tiny soil pebbles
+    for (let i = 0; i < size * 0.25; i++) {
+      ctx.fillStyle = rand() > 0.5 ? 'rgba(180,170,155,0.5)' : 'rgba(120,110,95,0.5)';
+      ctx.beginPath(); ctx.arc(rand() * size, rand() * size, 1.2 + rand() * 1.8, 0, Math.PI * 2); ctx.fill();
+    }
   } else {
     // Plaster / Default wall
     ctx.fillStyle = '#f5f0e6';
@@ -773,6 +838,45 @@ function bumpTexture(kind) {
       ctx.fillStyle = rand() > 0.5 ? '#808080' : '#454545';
       ctx.fillRect(rand() * size, rand() * size, 1.4, 2.5);
     }
+  } else if (kind === 'gravel') {
+    // Heightmap for pebbles: dark mortar/ground (#404040), bright curved pebble domes (#c8c8c8)
+    ctx.fillStyle = '#404040';
+    ctx.fillRect(0, 0, size, size);
+    for (let i = 0; i < size * 10; i++) {
+      ctx.fillStyle = rand() > 0.5 ? '#555555' : '#333333';
+      ctx.fillRect(rand() * size, rand() * size, 1.4, 1.4);
+    }
+    const pebbleCount = Math.min(size * 1.8, 1200);
+    for (let i = 0; i < pebbleCount; i++) {
+      const px = rand() * size, py = rand() * size;
+      const rx = 3.5 + rand() * 5.5, ry = rx * (0.7 + rand() * 0.5);
+      const rot = rand() * Math.PI;
+      if (ctx.createRadialGradient) {
+        try {
+          const grad = ctx.createRadialGradient(px, py, 0, px, py, rx);
+          grad.addColorStop(0, '#e5e5e5');
+          grad.addColorStop(0.7, '#a0a0a0');
+          grad.addColorStop(1, '#404040');
+          ctx.fillStyle = grad;
+          ctx.beginPath();
+          if (ctx.ellipse) ctx.ellipse(px, py, rx, ry, rot, 0, Math.PI * 2);
+          else ctx.arc(px, py, rx, 0, Math.PI * 2);
+          ctx.fill();
+        } catch (_) {}
+      } else {
+        ctx.fillStyle = '#b0b0b0';
+        ctx.beginPath(); ctx.arc(px, py, rx, 0, Math.PI * 2); ctx.fill();
+      }
+    }
+  } else if (kind === 'dirt') {
+    // Soil granular roughness
+    ctx.fillStyle = '#707070';
+    ctx.fillRect(0, 0, size, size);
+    for (let i = 0; i < size * 24; i++) {
+      const v = Math.floor(40 + rand() * 140).toString(16).padStart(2, '0');
+      ctx.fillStyle = '#' + v + v + v;
+      ctx.fillRect(rand() * size, rand() * size, 1.4 + rand() * 1.8, 1.4 + rand() * 1.8);
+    }
   } else if (kind === 'brick_white') {
     return bumpTexture('brick');
   } else {
@@ -798,21 +902,22 @@ G.material = function (kind, color) {
   const smooth = /metal|glass|water|ceramic|marble/.test(kind);
   const m = new THREE.MeshStandardMaterial({
     color: color || 0xffffff,
-    roughness: kind === 'glass' ? 0.04 : (kind === 'marble' ? 0.14 : (smooth ? 0.22 : (kind === 'concrete' ? 0.88 : (kind === 'stone' ? 0.76 : (kind === 'brick' || kind === 'brick_white' ? 0.90 : (kind === 'wood' || kind === 'shiplap' ? 0.58 : 0.82)))))),
+    roughness: kind === 'glass' ? 0.04 : (kind === 'marble' ? 0.14 : (smooth ? 0.22 : (kind === 'concrete' ? 0.88 : (kind === 'dirt' ? 0.94 : (kind === 'gravel' ? 0.86 : (kind === 'stone' ? 0.76 : (kind === 'brick' || kind === 'brick_white' ? 0.90 : (kind === 'wood' || kind === 'shiplap' ? 0.58 : 0.82)))))))),
     metalness: kind === 'metal' ? 0.55 : (kind === 'glass' ? 0.12 : (kind === 'marble' ? 0.05 : 0)),
     map: texture(kind === 'art' ? 'art' : kind === 'water' ? 'water' :
       kind === 'wood' ? 'wood' : kind === 'fabric' ? 'fabric' :
       kind === 'grass' ? 'grass' : kind === 'tile' ? 'tile' :
       kind === 'concrete' ? 'concrete' : kind === 'marble' ? 'marble' :
       kind === 'shiplap' ? 'shiplap' : kind === 'brick_white' ? 'brick_white' :
-      kind === 'brick' ? 'brick' : kind === 'stone' ? 'stone' : 'plaster'),
+      kind === 'brick' ? 'brick' : kind === 'stone' ? 'stone' :
+      kind === 'gravel' ? 'gravel' : kind === 'dirt' ? 'dirt' : 'plaster'),
   });
   /* sky IBL is a fill, not a second sun — keeps shadows readable      */
-  m.envMapIntensity = kind === 'glass' ? 1.4 : (smooth ? 0.95 : (kind === 'stone' ? 0.65 : (kind === 'concrete' ? 0.55 : (kind === 'brick' || kind === 'brick_white' ? 0.45 : 0.5))));
+  m.envMapIntensity = kind === 'glass' ? 1.4 : (smooth ? 0.95 : (kind === 'stone' || kind === 'gravel' ? 0.60 : (kind === 'dirt' ? 0.35 : (kind === 'concrete' ? 0.55 : (kind === 'brick' || kind === 'brick_white' ? 0.45 : 0.5)))));
   m.userData.envBase = m.envMapIntensity;
-  if (kind === 'brick' || kind === 'brick_white' || kind === 'stone' || kind === 'wood' || kind === 'tile' || kind === 'concrete' || kind === 'shiplap' || kind === 'grass') {
+  if (kind === 'brick' || kind === 'brick_white' || kind === 'stone' || kind === 'wood' || kind === 'tile' || kind === 'concrete' || kind === 'shiplap' || kind === 'grass' || kind === 'gravel' || kind === 'dirt') {
     m.bumpMap = bumpTexture(kind === 'brick_white' ? 'brick' : kind);
-    m.bumpScale = kind === 'grass' ? 0.12 : (kind === 'stone' ? 0.18 : (kind === 'concrete' ? 0.14 : (kind === 'shiplap' ? 0.22 : (kind === 'brick' || kind === 'brick_white' ? 0.10 : (kind === 'wood' ? 0.18 : 0.25)))));
+    m.bumpScale = kind === 'grass' ? 0.12 : (kind === 'gravel' ? 0.26 : (kind === 'dirt' ? 0.24 : (kind === 'stone' ? 0.18 : (kind === 'concrete' ? 0.14 : (kind === 'shiplap' ? 0.22 : (kind === 'brick' || kind === 'brick_white' ? 0.10 : (kind === 'wood' ? 0.18 : 0.25)))))));
   }
   if (kind === 'glass') {
     m.transparent = true; m.opacity = 0.26; m.depthWrite = false;
@@ -1018,16 +1123,35 @@ G.worldUV = function (mat, scale) {
 G.floorMaterial = function (id) {
   const def = HP.FLOOR_MATS.find(m => m.id === id);
   const family = def ? def.fam || def.grp || id : id;
-  const kind = /wood|walnut|parquet|deck|bamboo|laminate|herring/.test(family) ? 'wood' :
-    /grass/.test(family) ? 'grass' : /carpet|tatami|gym|foam/.test(family) ? 'fabric' : 'tile';
+  const kind = /wood|walnut|parquet|deck|bamboo|laminate|herring|whitewash/.test(family) ? 'wood' :
+    /grass/.test(family) ? 'grass' :
+    /carpet|tatami|gym|foam/.test(family) ? 'fabric' :
+    /marble|onyx/.test(family) ? 'marble' :
+    /concrete/.test(family) ? 'concrete' :
+    /brick|terracotta/.test(family) ? 'brick' :
+    /stone|flagstone|slate|travertine|granite|pebble/.test(family) ? 'stone' :
+    /gravel/.test(family) ? 'gravel' :
+    /dirt|mulch|earth|sand|soil/.test(family) ? 'dirt' : 'tile';
   const key = 'floor:' + id;
   if (materials.has(key)) return materials.get(key);
   const m = G.material(kind, (def && def.col) || '#c9a877').clone();
   m.userData.shared3d = true;
-  G.worldUV(m, /wood|fabric/.test(kind) ? HP.CELL * 2 : HP.CELL);
+
+  const floorScales = HP.FLOOR_SCALES || {
+    marble: 168, flagstone: 160, grassE: 150, gravel: 140, dirt: 140, sand: 140,
+    wood: 112, walnut: 112, concrete: 112, granite: 112, deck: 112, tatami: 112,
+    laminate: 112, whitewash: 112, herring: 112, onyx: 112, carpet: 112, brick: 112,
+    tile: 84, parquet: 84, pebble: 84, travertine: 84, vinyl: 84, lino: 84, mulch: 84,
+    terrazzo: 84, terracotta: 56, hextile: 112, cork: 56, gym: 56, bamboo: 56, mosaic: 42,
+  };
+  const scale = floorScales[id] || floorScales[family] || (/wood|fabric/.test(kind) ? HP.CELL * 2 : HP.CELL);
+  G.worldUV(m, scale);
   materials.set(key, m);
+
   // Use local photos, downsample before GPU upload; procedural map remains on error.
-  if (typeof Image !== 'undefined' && photoCount < 24 && !/^grass[A-DF]$/.test(id)) {
+  const isPhotoGrass = id === 'grassE';
+  const isProceduralGrass = /^grass([A-DF])?$/.test(id) && !isPhotoGrass;
+  if (typeof Image !== 'undefined' && photoCount < 128 && !isProceduralGrass) {
     photoCount++;
     const image = new Image();
     image.onload = () => {
@@ -1041,7 +1165,25 @@ G.floorMaterial = function (id) {
       textures.set(key, t); G.setMap(m, t);
       image.onload = image.onerror = null;
     };
-    image.onerror = () => { image.onload = image.onerror = null; };
+    image.onerror = () => {
+      if (family && family !== id) {
+        const famImg = new Image();
+        famImg.onload = () => {
+          const c = canvas(G.current.texture);
+          if (!c) return;
+          c.getContext('2d').drawImage(famImg, 0, 0, c.width, c.height);
+          const t = new THREE.CanvasTexture(c);
+          t._origImage = famImg;
+          t.wrapS = t.wrapT = THREE.RepeatWrapping; t.encoding = THREE.sRGBEncoding;
+          t.anisotropy = G.current.anisotropy;
+          textures.set(key, t); G.setMap(m, t);
+          famImg.onload = famImg.onerror = null;
+        };
+        famImg.onerror = () => { famImg.onload = famImg.onerror = null; };
+        famImg.src = 'textures/' + family + '.jpg';
+      }
+      image.onload = image.onerror = null;
+    };
     image.src = 'textures/' + (id === 'grassE' ? 'grassE' : id) + '.jpg';
   }
   return m;

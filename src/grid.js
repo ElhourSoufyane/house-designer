@@ -116,6 +116,16 @@ const _FV = {
 };
 for (const f in _FV)
   _FV[f].forEach((v, i) => HP.FLOOR_MATS.push({ id: f + (i + 2), name: v[0], col: v[1], fam: f, t: v[2] }));
+
+/* Architectural world-space texture scaling (units = world px; CELL is 24px = 0.5m).
+   Shared between 2D canvas patterns and 3D worldUV projection so floor scales match identically. */
+HP.FLOOR_SCALES = {
+  marble: 168, flagstone: 160, grassE: 150, gravel: 140, dirt: 140, sand: 140,
+  wood: 112, walnut: 112, concrete: 112, granite: 112, deck: 112, tatami: 112,
+  laminate: 112, whitewash: 112, herring: 112, onyx: 112, carpet: 112, brick: 112,
+  tile: 84, parquet: 84, pebble: 84, travertine: 84, vinyl: 84, lino: 84, mulch: 84,
+  terrazzo: 84, terracotta: 56, hextile: 112, cork: 56, gym: 56, bamboo: 56, mosaic: 42,
+};
 HP.showUnderlay = true;    // ghost of the floor below
 
 /* ---------- state helpers ---------- */

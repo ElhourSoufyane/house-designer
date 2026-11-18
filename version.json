@@ -51,11 +51,11 @@
     "src/default-house.js": "dd05eb4821e8",
     "src/furniture3d.js": "735f38f26dee",
     "src/geom3d.js": "aa87f3205b42",
-    "src/graphics3d.js": "e81eda1ecd17",
-    "src/grid.js": "63bbcf845d39",
+    "src/graphics3d.js": "3a55ac44bb3d",
+    "src/grid.js": "cc64ae034793",
     "src/input.js": "346bffc4ea5a",
     "src/life3d.js": "3c151f082f2f",
-    "src/main.js": "f42a9b12ec85",
+    "src/main.js": "2a0908895577",
     "src/presets.js": "f56c697f8e0f",
     "src/rooms.js": "d83d021a318d",
     "src/save.js": "92788ec3fabb",
@@ -68,8 +68,8 @@
     "src/tools.js": "c1f78c37b3b6",
     "src/ui.js": "cc8105fd4dc0",
     "src/walk.js": "601b8eee0012",
-    "src/walk3d.js": "4bf6f24aa667",
-    "src/world3d.js": "7883bc77bedb",
+    "src/walk3d.js": "97a6be765f92",
+    "src/world3d.js": "01edbd316605",
     "src/play3d-inpage.js": "1fe33576c75a"
   }
 }
